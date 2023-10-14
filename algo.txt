@@ -6,6 +6,8 @@ Given the following python code, for the "output" sheet, I want to:
 import pandas as pd
 import requests
 import json
+from openpyxl.styles import PatternFill, Font
+from openpyxl.utils import get_column_letter
 
 def orchestrate(inputFilename='conversation.xlsx'):
     # Read the 'input' sheet into a DataFrame
