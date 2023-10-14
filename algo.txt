@@ -1,0 +1,75 @@
+Given the following python code, for the "output" sheet, I want to:
+1. freeze the top row
+2. highlight in light blue the "ouput" rows where "person" column is "Person2"
+3. set the font size of all text in the "output" sheet to "Calibri" size 8
+
+import pandas as pd
+import requests
+import json
+
+def orchestrate(inputFilename='conversation.xlsx'):
+    # Read the 'input' sheet into a DataFrame
+    input_df = pd.read_excel(inputFilename, sheet_name='input')
+    
+    # Initialize an empty list to hold the output data
+    output_data = []
+    
+    # REST endpoint URL
+    url = "http://localhost:9001/pltfm/rest/agentAssist/processChunk"
+    
+    for index, row in input_df.iterrows():
+        # Prepare JSON data for POST request
+        payload = {
+            "sessionID": row['sessionID'],
+            "personID": row['personID'],
+            "transcript": row['transcript'],
+            "isEnd": row['isEnd']
+        }
+        
+        # Make POST request and collect response
+        response = requests.post(url, json=payload)
+        response_data = json.loads(response.text)
+        
+        # Prepare output row
+        output_row = {
+            'session': row['sessionID'],
+            'person': row['personID'],
+            'transcript': row['transcript'],
+            'batch': response_data.get('batch', ''),
+            'batch_purpose': response_data.get('callPurpose', ''),
+            'purpose_intent': response_data.get('purposeIntent', ''),
+            'purpose_ms': response_data.get('purposeIntentMilliseconds', ''),
+            'utterance_intent': response_data.get('utteranceIntent', ''),
+            'utterance_ms': response_data.get('utteranceIntentMilliseconds', ''),
+            'purpose_intent_ms': response_data.get('purposeIntentMilliseconds', '')
+        }
+        
+        # Add output row to the list
+        output_data.append(output_row)
+        
+    # Create output DataFrame and write to 'output' sheet in the same Excel file
+    output_df = pd.DataFrame(output_data)
+    with pd.ExcelWriter(inputFilename, engine='openpyxl', mode='a') as writer:
+        output_df.to_excel(writer, sheet_name='output', index=False)
+        
+        # Get the 'output' worksheet
+        wb = writer.book
+        ws = wb['output']
+        
+        # 1. Freeze the top row
+        ws.freeze_panes = 'A2'
+        
+        # 2. Highlight rows where "person" column is "Person2" in light blue
+        blue_fill = PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid")
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=2, max_col=2):
+            for cell in row:
+                if cell.value == 'Person2':
+                    for filled_cell in ws[cell.row]:
+                        filled_cell.fill = blue_fill
+        
+        # 3. Set the font size of all text to "Calibri" size 8
+        for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+            for cell in row:
+                cell.font = Font(name='Calibri', size=8)
+
+# orchestrate()
