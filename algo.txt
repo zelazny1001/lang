@@ -43,6 +43,9 @@ def convertTrainingFormatToXL(inputTextFilename):
     # Read the text file
     with open(inputTextFilename, 'r') as f:
         text_content = f.read()
+        
+    # Replace newlines with spaces
+    text_content = text_content.replace('\n', ' ')
     
     # Use regex to split the text into personID and transcript
     matches = re.findall(r'#(Person\d+)#:\s(.*?)(?=#Person\d+#:|$)', text_content)
