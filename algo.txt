@@ -1,108 +1,113 @@
-Given a text file "conv.txt" (which is attached) that contains text in the following format:
+orchestrate-dual-inputs
 
-#Person1#: Hi there, how are you today? #Person2#: I'm doing fine. #Person2#: Thank you for asking. #Person1#: And how can I help you today? #Person2#: I'm calling about a charge on my account.
+Given the spreadsheet with the 2 input sheets : "input" and "flip_input" as previously described where "input" has the following columns:
+sessionID
+personID
+transcript
+isEnd
 
-The text file represents a conversation between two people (represented as #Person1# and #Person2#).
+and "flip_input" where each occurrence of personID is reversed.
 
-Create an excel spreadsheet with the same name (but with the extension .xlsx). For example, the input file "conv1.txt" should create excel file "conv1.xlsx".
-The attached file "conv1.xlsx" illustrates the structure of the spreadsheet file, and how it has been used to capture the contents of the text file as follows:
+Python function to update the spreadsheet by creating 2 additional sheets:
+"output"
+"flip_output"
 
-The spreadsheet will contain a two sheets. One sheet named "input" will have the following columns:
-sessionID ... name of the input text file without file extension. For instance, in this case "conv1"
-personID .... text between # and #: as illustrated in the example above
-transcript .... Text after a personID
-isEnd ..... TRUE if this is the last row, otherwise FALSE
+If these sheets are present, then they will be removed and replaced with new values.
 
-The other sheet named "flip_input" will contain the same columns, but each occurrence of personID will be reversed as illustrated in the attached spreadsheet.
+The function "orchestrate" already exists for converting single input sheet values into single output sheet values. Call or modify the existing implementation to generate the output sheets.
 
-Style each of the sheets as follows:
-Use "Calibri" size 8 font throughout
-Bold the font for the header row
-Freeze the first row
-Set the width of column C to 50
-Set alignment of column C to "Wrap Text"
-Set the background color of all "Person2" to "ADD8E6"
-Set a thin border around each cell with a background color
-Set the color of the thin border to "C0C0C0"
+import pandas as pd
+import requests
+import json
+from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
 
-A ll the sessionIDs in flip_output sheet should be named "flip_" + sessionID name in the "input" sheet. For instance, in this case the sessionIDs in "flip_input" should be "flip_conv1"
-
-Python function "convertTrainingFormatToXL(inputTextFilename)" to implement this spec.
-
-#%% convert-training-data-format-to-xl-spreadsheet-input-sheet
-
-# Modify the function to set sessionID for 'flip_input' as 'flip_' + sessionID of 'input'
-def convertTrainingFormatToXL(inputTextFilename):
-    # Initialize variables
-    sessionID = inputTextFilename.split('/')[-1].replace('.txt', '')  # Extract filename without extension
-    flip_sessionID = 'flip_' + sessionID  # For flip_input sheet
-    isEnd = False
-    data = []
-    flip_data = []
-    
-    # Read the text file
-    with open(inputTextFilename, 'r') as f:
-        text_content = f.read()
+def orchestrate(inputFilename='conversation.xlsx'):
+    for sheet in ['input', 'flip_input']:
+        # Read the sheet into a DataFrame
+        input_df = pd.read_excel(inputFilename, sheet_name=sheet)
         
-    # Replace newlines with spaces
-    text_content = text_content.replace('\n', ' ')
-    
-    # Use regex to split the text into personID and transcript
-    matches = re.findall(r'#(Person\d+)#:\s(.*?)(?=#Person\d+#:|$)', text_content)
-    
-    for idx, (personID, transcript) in enumerate(matches):
-        isEnd = True if idx == len(matches) - 1 else False
-        data.append([sessionID, personID, transcript, isEnd])
+        # Initialize an empty list to hold the output data
+        output_data = []
         
-        # For flip_input, reverse the personID
-        flip_personID = "Person2" if personID == "Person1" else "Person1"
-        flip_data.append([flip_sessionID, flip_personID, transcript, isEnd])  # Use flip_sessionID
-    
-    # Convert to DataFrame
-    df = pd.DataFrame(data, columns=['sessionID', 'personID', 'transcript', 'isEnd'])
-    flip_df = pd.DataFrame(flip_data, columns=['sessionID', 'personID', 'transcript', 'isEnd'])
-    
-    # Write to Excel
-    output_excel_filename = inputTextFilename.replace('.txt', '.xlsx')
-    with pd.ExcelWriter(output_excel_filename, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='input', index=False)
-        flip_df.to_excel(writer, sheet_name='flip_input', index=False)
+        # REST endpoint URL
+        url = "http://localhost:9001/pltfm/rest/agentAssist/processChunk"
         
-        for sheet_name in ['input', 'flip_input']:
-            # Get worksheet
-            ws = writer.book[sheet_name]
+        for index, row in input_df.iterrows():
+            # Prepare JSON data for POST request
+            payload = {
+                "sessionID": row['sessionID'],
+                "personID": row['personID'],
+                "transcript": row['transcript'],
+                "isEnd": row['isEnd']
+            }
             
-            # Style settings
-            font = Font(name='Calibri', size=8)
-            header_font = Font(name='Calibri', size=8, bold=True)
-            wrap_alignment = Alignment(wrap_text=True)
+            # Make POST request and collect response
+            response = requests.post(url, json=payload)
+            response_data = json.loads(response.text)
+            
+            # Prepare output row
+            output_row = {
+                'session': row['sessionID'],
+                'person': row['personID'],
+                'transcript': row['transcript'],
+                'batch': response_data.get('batch', ''),
+                'batch_purpose': response_data.get('callPurpose', ''),
+                'purpose_intent': response_data.get('purposeIntent', ''),
+                'purpose_ms': response_data.get('purposeIntentMilliseconds', ''),
+                'utterance_intent': response_data.get('utteranceIntent', ''),
+                'utterance_ms': response_data.get('utteranceIntentMilliseconds', ''),
+                'purpose_intent_ms': response_data.get('purposeIntentMilliseconds', '')
+            }
+            
+            # Add output row to the list
+            output_data.append(output_row)
+        
+        # Create output DataFrame
+        output_df = pd.DataFrame(output_data)
+        
+        output_sheet_name = 'output' if sheet == 'input' else 'flip_output'
+        
+        with pd.ExcelWriter(inputFilename, engine='openpyxl', mode='a') as writer:
+            # Get the workbook
+            wb = writer.book
+            
+            # Check if the output sheet exists. If so, delete it.
+            if output_sheet_name in wb.sheetnames:
+                wb.remove(wb[output_sheet_name])
+            
+            output_df.to_excel(writer, sheet_name=output_sheet_name, index=False)
+            
+            # Get the output worksheet
+            ws = wb[output_sheet_name]
+            
+            # Your existing styling logic here
+            ws.freeze_panes = 'A2'
+            ws.column_dimensions['C'].width = 28
+            ws.column_dimensions['E'].width = 28
             blue_fill = PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid")
-            gray_border = Border(left=Side(style='thin', color="C0C0C0"), 
-                                 right=Side(style='thin', color="C0C0C0"), 
-                                 top=Side(style='thin', color="C0C0C0"), 
-                                 bottom=Side(style='thin', color="C0C0C0"))
+            thin_border = Border(left=Side(style='thin'), 
+                                 right=Side(style='thin'), 
+                                 top=Side(style='thin'), 
+                                 bottom=Side(style='thin'))
             
-            # Apply styles
+            for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=3, max_col=3):
+                for cell in row:
+                    cell.alignment = Alignment(wrap_text=True)
+            
+            for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=2, max_col=2):
+                for cell in row:
+                    if cell.value == 'Person2':
+                        for filled_cell in ws[cell.row]:
+                            filled_cell.fill = blue_fill
+                            filled_cell.border = thin_border
+            
             for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
                 for cell in row:
-                    cell.font = font
-                    if cell.row == 1:
-                        cell.font = header_font
-                    if cell.column == 3:  # Column C
-                        cell.alignment = wrap_alignment
-                        ws.column_dimensions['C'].width = 50
-                    if cell.column == 2 and cell.value == 'Person2':  # Column for personID
-                        for styled_cell in ws[cell.row]:
-                            styled_cell.fill = blue_fill
-                            styled_cell.border = gray_border
-                            
-            # Freeze the first row
-            ws.freeze_panes = ws['A2']
+                    cell.font = Font(name='Calibri', size=8)
 
-#%%
-# Test the function
+# Run the function
 baseDir = '/projects/agent-assist/'
-inputFilename = 'conv1.txt'
+inputFilename = 'example1.xlsx'
 
-# create inputFilename.xlsx
-convertTrainingFormatToXL(baseDir + inputFilename)
+#%% orchestrate-dual-inputs
+orchestrate(baseDir + inputFilename)
