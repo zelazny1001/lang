@@ -67,6 +67,3 @@ def populateSheet(inputFilename="inputs.xlsx"):
 
     # Save workbook
     wb.save(inputFilename)
-
-if __name__ == '__main__':
-    populateSheet()
