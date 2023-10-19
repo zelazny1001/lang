@@ -34,6 +34,14 @@ def populateSheet(inputFilename="inputs.xlsx"):
         for cell in row:
             cell.value = ' '
 
+   # Freeze the top row
+    ws.freeze_panes = 'A2'
+
+    # Bold the font for the header row
+    bold_font = openpyxl.styles.Font(bold=True)
+    for cell in ws["1:1"]:
+        cell.font = bold_font
+
     # Style settings
     calibri8 = openpyxl.styles.NamedStyle(name='Calibri8', font=openpyxl.styles.Font(name='Calibri', size=8))
     
