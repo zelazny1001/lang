@@ -1,113 +1,58 @@
-orchestrate-dual-inputs
-
-Given the spreadsheet with the 2 input sheets : "input" and "flip_input" as previously described where "input" has the following columns:
-sessionID
-personID
-transcript
-isEnd
-
-and "flip_input" where each occurrence of personID is reversed.
-
-Python function to update the spreadsheet by creating 2 additional sheets:
-"output"
-"flip_output"
-
-If these sheets are present, then they will be removed and replaced with new values.
-
-The function "orchestrate" already exists for converting single input sheet values into single output sheet values. Call or modify the existing implementation to generate the output sheets.
-
-import pandas as pd
+import openpyxl
 import requests
 import json
-from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
 
-def orchestrate(inputFilename='conversation.xlsx'):
-    for sheet in ['input', 'flip_input']:
-        # Read the sheet into a DataFrame
-        input_df = pd.read_excel(inputFilename, sheet_name=sheet)
-        
-        # Initialize an empty list to hold the output data
-        output_data = []
-        
-        # REST endpoint URL
-        url = "http://localhost:9001/pltfm/rest/agentAssist/processChunk"
-        
-        for index, row in input_df.iterrows():
-            # Prepare JSON data for POST request
-            payload = {
-                "sessionID": row['sessionID'],
-                "personID": row['personID'],
-                "transcript": row['transcript'],
-                "isEnd": row['isEnd']
-            }
-            
-            # Make POST request and collect response
-            response = requests.post(url, json=payload)
-            response_data = json.loads(response.text)
-            
-            # Prepare output row
-            output_row = {
-                'session': row['sessionID'],
-                'person': row['personID'],
-                'transcript': row['transcript'],
-                'batch': response_data.get('batch', ''),
-                'batch_purpose': response_data.get('callPurpose', ''),
-                'purpose_intent': response_data.get('purposeIntent', ''),
-                'purpose_ms': response_data.get('purposeIntentMilliseconds', ''),
-                'utterance_intent': response_data.get('utteranceIntent', ''),
-                'utterance_ms': response_data.get('utteranceIntentMilliseconds', ''),
-                'purpose_intent_ms': response_data.get('purposeIntentMilliseconds', '')
-            }
-            
-            # Add output row to the list
-            output_data.append(output_row)
-        
-        # Create output DataFrame
-        output_df = pd.DataFrame(output_data)
-        
-        output_sheet_name = 'output' if sheet == 'input' else 'flip_output'
-        
-        with pd.ExcelWriter(inputFilename, engine='openpyxl', mode='a') as writer:
-            # Get the workbook
-            wb = writer.book
-            
-            # Check if the output sheet exists. If so, delete it.
-            if output_sheet_name in wb.sheetnames:
-                wb.remove(wb[output_sheet_name])
-            
-            output_df.to_excel(writer, sheet_name=output_sheet_name, index=False)
-            
-            # Get the output worksheet
-            ws = wb[output_sheet_name]
-            
-            # Your existing styling logic here
-            ws.freeze_panes = 'A2'
-            ws.column_dimensions['C'].width = 28
-            ws.column_dimensions['E'].width = 28
-            blue_fill = PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid")
-            thin_border = Border(left=Side(style='thin'), 
-                                 right=Side(style='thin'), 
-                                 top=Side(style='thin'), 
-                                 bottom=Side(style='thin'))
-            
-            for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=3, max_col=3):
-                for cell in row:
-                    cell.alignment = Alignment(wrap_text=True)
-            
-            for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=2, max_col=2):
-                for cell in row:
-                    if cell.value == 'Person2':
-                        for filled_cell in ws[cell.row]:
-                            filled_cell.fill = blue_fill
-                            filled_cell.border = thin_border
-            
-            for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-                for cell in row:
-                    cell.font = Font(name='Calibri', size=8)
+# Function to extract dialog of a person from a full dialog
+def extractPersonDialog(fullDialog, person='Person1'):
+    sentences = []
+    chunks = fullDialog.split('#')
+    for chunk in chunks:
+        if chunk.startswith(person + ':'):
+            sentences.append(chunk[len(person)+2:])
+    return ' '.join(sentences)
 
-# Run the function
-baseDir = '/projects/agent-assist/'
-inputFilename = 'example1.xlsx'
+# Function to get purpose and intent from REST API
+def getPurposeAndIntent(personDialog, fullDialog):
+    payload = {
+        "utterance": personDialog,
+        "batch": fullDialog,
+        "customerBatch": personDialog
+    }
+    response = requests.post("http://localhost:9001/pltfm/rest/agentAssist/compose", json=payload)
+    data = response.json()
+    return data.get("callPurpose"), data.get("purposeIntent")
 
-#%% orchestrate-dual-inputs
-orchestrate(baseDir + inputFilename)
+# Function to populate Sheet2 in Excel
+def populateSheet(inputFilename="inputs.xlsx"):
+    # Load workbook and sheet
+    wb = openpyxl.load_workbook(inputFilename)
+    ws = wb['Sheet2']
+
+    # Style settings
+    calibri8 = openpyxl.styles.NamedStyle(name='Calibri8', font=openpyxl.styles.Font(name='Calibri', size=8))
+    
+    for row in ws.iter_rows(min_row=2, max_col=3, max_row=ws.max_row):
+        dialog_cell = row[2]
+        fullDialog = dialog_cell.value
+        utterance = extractPersonDialog(fullDialog, 'Person1')
+        batch = fullDialog
+        customerBatch = utterance
+        callPurpose, purposeIntent = getPurposeAndIntent(utterance, fullDialog)
+
+        # Update Excel sheet
+        purpose_cell = ws.cell(row=dialog_cell.row, column=6, value=callPurpose)
+        intent_cell = ws.cell(row=dialog_cell.row, column=7, value=purposeIntent)
+        
+        # Apply styles
+        purpose_cell.style = calibri8
+        intent_cell.style = calibri8
+        ws.column_dimensions['D'].width = 40
+        ws.column_dimensions['F'].width = 40
+        ws.column_dimensions['D'].alignment = openpyxl.styles.Alignment(wrap_text=True)
+        ws.column_dimensions['F'].alignment = openpyxl.styles.Alignment(wrap_text=True)
+
+    # Save workbook
+    wb.save(inputFilename)
+
+if __name__ == '__main__':
+    populateSheet()
