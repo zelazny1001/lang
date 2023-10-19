@@ -29,6 +29,11 @@ def populateSheet(inputFilename="inputs.xlsx"):
     wb = openpyxl.load_workbook(inputFilename)
     ws = wb['Sheet2']
 
+    # Clear existing values in columns F and G
+    for row in ws.iter_rows(min_row=2, min_col=6, max_col=7, max_row=ws.max_row):
+        for cell in row:
+            cell.value = ' '
+
     # Style settings
     calibri8 = openpyxl.styles.NamedStyle(name='Calibri8', font=openpyxl.styles.Font(name='Calibri', size=8))
     
