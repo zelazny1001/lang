@@ -2,13 +2,14 @@ import openpyxl
 import requests
 import json
 
-# Function to extract dialog of a person from a full dialog
+# Extract dialog of a person from the full dialog
 def extractPersonDialog(fullDialog, person='Person1'):
     sentences = []
     chunks = fullDialog.split('#')
     for chunk in chunks:
         if chunk.startswith(person + ':'):
-            sentences.append(chunk[len(person)+2:])
+            cleaned_chunk = chunk[len(person)+2:].replace('\n', ' ')
+            sentences.append(cleaned_chunk)
     return ' '.join(sentences)
 
 # Function to get purpose and intent from REST API
