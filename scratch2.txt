@@ -1,1 +1,48 @@
-testing this
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+@RestController
+public class MyController {
+
+    @PostMapping("/process")
+    public ResponseEntity<String> processRequest(@RequestBody String payload) throws Exception {
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+        CompletableFuture<String> future = new CompletableFuture<>();
+
+        Runnable processAndRespond = () -> {
+            // Actual processing logic here
+            // ...
+            
+            future.complete("Processed and completed");
+        };
+
+        // Schedule to run after 2 seconds
+        ScheduledFuture<?> scheduledFuture = executor.schedule(processAndRespond, 2, TimeUnit.SECONDS);
+
+        // Check your conditions here
+        boolean conditionsMet = evaluateConditions(payload);
+
+        if (conditionsMet) {
+            scheduledFuture.cancel(false);
+            processAndRespond.run();
+            return ResponseEntity.ok("Processed based on conditions");
+        }
+
+        // Wait for the future to complete (either by conditions being met or by the timer)
+        String result = future.get();
+        
+        return ResponseEntity.ok(result);
+    }
+
+    private boolean evaluateConditions(String payload) {
+        // Replace with your condition logic
+        return "CONDITION_MET".equals(payload);
+    }
+}
