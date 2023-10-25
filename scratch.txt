@@ -1,1 +1,1 @@
-sample
+theis is a quick sample test of the K810 talking to the mobile device
