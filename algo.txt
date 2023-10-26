@@ -1,69 +1,63 @@
-import openpyxl
-import requests
-import json
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
-# Extract dialog of a person from the full dialog
-def extractPersonDialog(fullDialog, person='Person1'):
-    sentences = []
-    chunks = fullDialog.split('#')
-    for chunk in chunks:
-        if chunk.startswith(person + ':'):
-            cleaned_chunk = chunk[len(person)+2:].replace('\n', ' ')
-            sentences.append(cleaned_chunk)
-    return ' '.join(sentences)
+@JsonInclude(Include.NON_NULL)
+public class Configuration {
+    private static String agentID;
+    private static String customerID;
+    private static Boolean customerOnlyPurpose;
 
-# Function to get purpose and intent from REST API
-def getPurposeAndIntent(personDialog, fullDialog):
-    payload = {
-        "utterance": personDialog,
-        "batch": fullDialog,
-        "customerBatch": personDialog
+    public static String getAgentID() {
+        return agentID;
     }
-    response = requests.post("http://localhost:9001/pltfm/rest/agentAssist/compose", json=payload)
-    data = response.json()
-    return data.get("callPurpose"), data.get("purposeIntent")
 
-# Function to populate Sheet2 in Excel
-def populateSheet(inputFilename="inputs.xlsx"):
-    # Load workbook and sheet
-    wb = openpyxl.load_workbook(inputFilename)
-    ws = wb['Sheet2']
+    public static void setAgentID(String agentID) {
+        Configuration.agentID = agentID;
+    }
 
-    # Clear existing values in columns F and G
-    for row in ws.iter_rows(min_row=2, min_col=6, max_col=7, max_row=ws.max_row):
-        for cell in row:
-            cell.value = ' '
+    public static String getCustomerID() {
+        return customerID;
+    }
 
-   # Freeze the top row
-    ws.freeze_panes = 'A2'
+    public static void setCustomerID(String customerID) {
+        Configuration.customerID = customerID;
+    }
 
-    # Bold the font for the header row
-    bold_font = openpyxl.styles.Font(bold=True)
-    for cell in ws["1:1"]:
-        cell.font = bold_font 
+    public static Boolean isCustomerOnlyPurpose() {
+        return customerOnlyPurpose;
+    }
 
-    # Style settings
-    calibri8 = openpyxl.styles.NamedStyle(name='Calibri8', font=openpyxl.styles.Font(name='Calibri', size=8))
-    
-    for row in ws.iter_rows(min_row=2, max_col=3, max_row=ws.max_row):
-        dialog_cell = row[2]
-        fullDialog = dialog_cell.value
-        utterance = extractPersonDialog(fullDialog, 'Person1')
-        batch = fullDialog
-        customerBatch = utterance
-        callPurpose, purposeIntent = getPurposeAndIntent(utterance, fullDialog)
+    public static void setCustomerOnlyPurpose(Boolean customerOnlyPurpose) {
+        Configuration.customerOnlyPurpose = customerOnlyPurpose;
+    }
+}
 
-        # Update Excel sheet
-        purpose_cell = ws.cell(row=dialog_cell.row, column=6, value=callPurpose)
-        intent_cell = ws.cell(row=dialog_cell.row, column=7, value=purposeIntent)
-        
-        # Apply styles
-        purpose_cell.style = calibri8
-        intent_cell.style = calibri8
-        ws.column_dimensions['D'].width = 40
-        ws.column_dimensions['F'].width = 40
-        ws.column_dimensions['D'].alignment = openpyxl.styles.Alignment(wrap_text=True)
-        ws.column_dimensions['F'].alignment = openpyxl.styles.Alignment(wrap_text=True)
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
-    # Save workbook
-    wb.save(inputFilename)
+@RestController
+public class ConfigController {
+
+    @PostMapping("/config")
+    public ResponseEntity<Configuration> updateConfiguration(@RequestBody Configuration newConfig) {
+        if (newConfig.getAgentID() != null) {
+            Configuration.setAgentID(newConfig.getAgentID());
+        }
+        if (newConfig.getCustomerID() != null) {
+            Configuration.setCustomerID(newConfig.getCustomerID());
+        }
+        if (newConfig.isCustomerOnlyPurpose() != null) {
+            Configuration.setCustomerOnlyPurpose(newConfig.isCustomerOnlyPurpose());
+        }
+
+        // Creating a new Configuration object with current settings to return
+        Configuration currentConfig = new Configuration();
+        currentConfig.setAgentID(Configuration.getAgentID());
+        currentConfig.setCustomerID(Configuration.getCustomerID());
+        currentConfig.setCustomerOnlyPurpose(Configuration.isCustomerOnlyPurpose());
+
+        return ResponseEntity.ok(currentConfig);
+    }
+}
