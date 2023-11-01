@@ -1,7 +1,11 @@
-import Given an intial reference surface of 500 wide and 260 high up which are placed a set of device icons. Let the coordinates of a device on such a surface be dx, and dy. The origin (0,0) is at the top left of the surface. x increases to the right and y increases downward. The requirement is for the 500X260 surface that contains the icons to be correctly placed on the screen of a hardware devoce:
+Paper documents are scanned into images (maps) of varying pixel widths and heights:
+scanned paper image width:  pw
+scanned paper image height: ph
+These images are then displayed on an editing device within a window that is 500 pixels wide by 260 pixels high. Upon this editing surface icons representing various devices are placed.
+Let the coordinates of a device on such a surface be dx, and dy. The origin (0,0) is at the top left of the editing surface. x increases to the right and y increases downward. The requirement is for the 500X260 surface that contains the icons to be correctly placed on the screen of a hardware device:
 width of screen = sw
 height of screen = sh
-The goal is to maximize the size of the image displayed on the screen. Since the screen UI is written in angularJS, CSS, and html, one way to do this is to apply this CSS style to the 500X260 background image:
+The goal is to maximize the size of the image displayed on the hardware screen. Since the hardware screen UI is written in angularJS, CSS, and html, one way to do this is to apply this CSS style to the 500X260 background image:
  <div>
      style="
      position: absolute;
@@ -15,33 +19,46 @@ The goal is to maximize the size of the image displayed on the screen. Since the
      ng-style="{'background-image': 'url(' + siteURL + 'php/getImage.php?sid=' + sid + '&id=' + map.media_id + ')'}">
 </div>
 
-The goal is to writ a javascript function that takes as inputs dx, dy, sw, and sh, and should return fx and fy. The challenge is to return the value of fx as a percentage of 500, and fy as a percentage of 260. Demonstrate that the returned percentages will correctly map the icon from its original position of dx and dy to the final position on the the output screen.
 
-function calculateFinalPosition(dx, dy, sw, sh) {
-  const ow = 500;
-  const oh = 260;
-  let scale, topOffset = 0, leftOffset = 0;
+The goal is to write a javascript function that takes as inputs pw, ph, dx, dy, sw, sh, and returns fx and fy. The challenge is to return the value of fx as a percentage of sw, and fy as a percentage of sh. In other words, the position of each icon should be given as a percentage of the width (sw) and height (sh) of the hardware screen.
 
-  const surfaceAspect = ow / oh;
-  const screenAspect = sw / sh;
+To summarize: the paper image with size pw x ph is first fitted into an area of 500 x 260 and then the icons are placed on the 500 x 260 area. The the image on the 500 x 260 area is used as a "contain" style background on the final viewing device of sw x sh dimensions
 
-  if (screenAspect > surfaceAspect) {
-    // Screen is wider compared to the surface
-    scale = sh / oh;
-    leftOffset = (sw - ow * scale) / 2;
-  } else {
-    // Screen is taller compared to the surface
-    scale = sw / ow;
-    topOffset = (sh - oh * scale) / 2;
-  }
+Demonstrate that the returned percentage values will correctly map the icon from its original position of dx and dy on the original screen to the final position on the output screen. 
 
-  // Calculate final positions
-  const fx = ((dx * scale + leftOffset) / sw) * 500;  // As a percentage of 500
-  const fy = ((dy * scale + topOffset) / sh) * 260;   // As a percentage of 260
+Question: Does the final position fx, fy depend on the original size of the paper map ?  or fx and fy only depend on the 500 x 260 area? Explain.
 
-  return {fx, fy};
+
+function mapIconPosition(pw, ph, dx, dy, sw, sh) {
+    // Step 1
+    let spw = 500 / pw;
+    let sph = 260 / ph;
+    let smap = Math.min(spw, sph);
+
+    // Step 2
+    let dx_eff = dx + (500 - pw * smap) / 2;
+    let dy_eff = dy + (260 - ph * smap) / 2;
+
+    // Step 3
+    let ssw = sw / 500;
+    let ssh = sh / 260;
+    let sfinal = Math.min(ssw, ssh);
+
+    // Step 4
+    let fx = dx_eff * sfinal;
+    let fy = dy_eff * sfinal;
+
+    // Step 5
+    let fx_centered = fx + (sw - 500 * sfinal) / 2;
+    let fy_centered = fy + (sh - 260 * sfinal) / 2;
+
+    // Step 6
+    let fxPercentage = (fx_centered / sw) * 100;
+    let fyPercentage = (fy_centered / sh) * 100;
+
+    return { fxPercentage, fyPercentage };
 }
 
-// Example usage
-const {fx, fy} = calculateFinalPosition(50, 50, 1024, 768);
-console.log(`Final position in terms of original surface: fx = ${fx}, fy = ${fy}`);
+// Test the function
+let result = mapIconPosition(1000, 520, 200, 130, 1920, 1080);
+console.log("Icon should be placed at:", result.fxPercentage + "% of screen width,", result.fyPercentage + "% of screen height");
