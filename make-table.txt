@@ -2,8 +2,8 @@ public String generateSessionTable(HashMap<String, Session> sessionMap) {
     StringBuilder table = new StringBuilder();
 
     // Start table and add header
-    table.append("<table border='1' style='border-collapse: collapse;'>");
-    table.append("<thead style='background-color: green;'>");
+    table.append("<table border='1' style='border-collapse: collapse;border: 1px dotted black;font-family: verdana; font-size: 10px;'>");
+    table.append("<thead style='background-color: green; font-weight: bold;'>");
     table.append("<tr>");
     table.append("<th>session ID</th>");
     table.append("<th>chunk count</th>");
@@ -17,7 +17,7 @@ public String generateSessionTable(HashMap<String, Session> sessionMap) {
     for (Map.Entry<String, Session> entry : sessionMap.entrySet()) {
         Session session = entry.getValue();
         table.append("<tr style='background-color: " + (isAlternate ? "lightblue" : "white") + ";'>");
-        table.append("<td>").append(session.sessionID).append("</td>");
+        table.append("<td onclick=\"flashAndFetch('" + session.sessionID + "')\">").append(session.sessionID).append("</td>");
         table.append("<td>").append(session.chunkCount).append("</td>");
         table.append("<td>").append(session.batchCount).append("</td>");
         table.append("</tr>");
@@ -29,6 +29,17 @@ public String generateSessionTable(HashMap<String, Session> sessionMap) {
     // End table
     table.append("</tbody>");
     table.append("</table>");
+
+    // Add JavaScript function for cell click
+    table.append("<script>");
+    table.append("function flashAndFetch(sessionID) {");
+    table.append("  var cell = event.target;");
+    table.append("  var originalColor = cell.style.backgroundColor;");
+    table.append("  cell.style.backgroundColor = 'green';");
+    table.append("  setTimeout(function() { cell.style.backgroundColor = originalColor; }, 300);");
+    table.append("  fetch('/viewSession?sessionID=' + sessionID);");
+    table.append("}");
+    table.append("</script>");
 
     return table.toString();
 }
@@ -54,5 +65,50 @@ public class SessionController {
     // ...
 }
 
-===================================
+=================generate session details==================
+@GetMapping(value = "/viewSession")
+public String viewSessionDetails(@RequestParam String sessionID) {
+    SessionDetail sessionDetail = fetchSessionDetail(sessionID);  // Assume this method fetches session details from DB or elsewhere
+    return generateDetailTable(sessionDetail);
+}
+
+public String generateDetailTable(SessionDetail sessionDetail) {
+    StringBuilder table = new StringBuilder();
+
+    table.append("<table border='1' style='border-collapse: collapse;border: 1px dotted black;font-family: verdana; font-size: 10px;'>");
+    table.append("<thead style='background-color: green; font-weight: bold;'>");
+    table.append("<tr>");
+    table.append("<th>Session</th>");
+    table.append("<th>PersonID</th>");
+    table.append("<th>Transcript</th>");
+    table.append("<th>Call Purpose</th>");
+    table.append("<th>Purpose Intent</th>");
+    table.append("<th>Token Count</th>");
+    table.append("</tr>");
+    table.append("</thead>");
+    table.append("<tbody>");
+
+    for (Chunk chunk : sessionDetail.getChunkList()) {
+        table.append("<tr style='background-color: " + ("Person2".equals(chunk.getPersonID()) ? "lightgreen" : "white") + ";'>");
+        table.append("<td>").append(chunk.getSessionID()).append("</td>");
+        table.append("<td>").append(chunk.getPersonID()).append("</td>");
+        table.append("<td style='width: 250px;'>").append(chunk.getTranscript()).append("</td>");
+
+        // Assuming there's a direct relationship between Chunk and AAResponse, 
+        // such as they are in the same order or they have a shared ID.
+        AAResponse response = sessionDetail.getResponses().get(sessionDetail.getChunkList().indexOf(chunk));
+        table.append("<td style='width: 150px;'>").append(response.getCallPurpose()).append("</td>");
+        table.append("<td>").append(response.getPurposeIntent()).append("</td>");
+        table.append("<td>").append(response.getTokenCount()).append("</td>");
+
+        table.append("</tr>");
+    }
+
+    table.append("</tbody>");
+    table.append("</table>");
+
+    return table.toString();
+}
+
+==================REST for details
 
