@@ -1,0 +1,34 @@
+public String generateSessionTable(HashMap<String, Session> sessionMap) {
+    StringBuilder table = new StringBuilder();
+
+    // Start table and add header
+    table.append("<table border='1' style='border-collapse: collapse;'>");
+    table.append("<thead style='background-color: green;'>");
+    table.append("<tr>");
+    table.append("<th>session ID</th>");
+    table.append("<th>chunk count</th>");
+    table.append("<th>batch count</th>");
+    table.append("</tr>");
+    table.append("</thead>");
+    table.append("<tbody>");
+
+    // Add rows with session data
+    boolean isAlternate = false;
+    for (Map.Entry<String, Session> entry : sessionMap.entrySet()) {
+        Session session = entry.getValue();
+        table.append("<tr style='background-color: " + (isAlternate ? "lightblue" : "white") + ";'>");
+        table.append("<td>").append(session.sessionID).append("</td>");
+        table.append("<td>").append(session.chunkCount).append("</td>");
+        table.append("<td>").append(session.batchCount).append("</td>");
+        table.append("</tr>");
+
+        // Toggle row color
+        isAlternate = !isAlternate;
+    }
+
+    // End table
+    table.append("</tbody>");
+    table.append("</table>");
+
+    return table.toString();
+}
