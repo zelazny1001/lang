@@ -29,19 +29,21 @@ Demonstrate that the returned percentage values will correctly map the icon from
 Question: Does the final position fx, fy depend on the original size of the paper map ?  or fx and fy only depend on the 500 x 260 area? Explain.
 
 
-function mapIconPosition(pw, ph, dx, dy, sw, sh) {
+$rootScope.mapIconPosition = function (pw, ph, dx, dy, sw, sh) {
+    referenceWidth = 500;
+    referenceHeight = 260;
     // Step 1
-    let spw = 500 / pw;
-    let sph = 260 / ph;
+    let spw = referenceWidth / pw;
+    let sph = referenceHeight / ph;
     let smap = Math.min(spw, sph);
 
     // Step 2
-    let dx_eff = dx + (500 - pw * smap) / 2;
-    let dy_eff = dy + (260 - ph * smap) / 2;
+    let dx_eff = dx + (referenceWidth - pw * smap) / 2;
+    let dy_eff = dy + (referenceHeight - ph * smap) / 2;
 
     // Step 3
-    let ssw = sw / 500;
-    let ssh = sh / 260;
+    let ssw = sw / referenceWidth;
+    let ssh = sh / referenceHeight;
     let sfinal = Math.min(ssw, ssh);
 
     // Step 4
@@ -49,16 +51,16 @@ function mapIconPosition(pw, ph, dx, dy, sw, sh) {
     let fy = dy_eff * sfinal;
 
     // Step 5
-    let fx_centered = fx + (sw - 500 * sfinal) / 2;
-    let fy_centered = fy + (sh - 260 * sfinal) / 2;
+    let fx_centered = fx + (sw - referenceWidth * sfinal) / 2;
+    let fy_centered = fy + (sh - referenceHeight * sfinal) / 2;
 
     // Step 6
-    let fxPercentage = (fx_centered / sw) * 100;
-    let fyPercentage = (fy_centered / sh) * 100;
-
-    return { fxPercentage, fyPercentage };
+    let fxPercent = (fx_centered / sw) * 100;
+    let fyPercent = (fy_centered / sh) * 100;
+    
+    return { fxPercent, fyPercent };
 }
 
 // Test the function
 let result = mapIconPosition(1000, 520, 200, 130, 1920, 1080);
-console.log("Icon should be placed at:", result.fxPercentage + "% of screen width,", result.fyPercentage + "% of screen height");
+console.log("Icon should be placed at:", result.fxPercent + "% of screen width,", result.fyPercent + "% of screen height");
