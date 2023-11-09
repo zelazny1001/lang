@@ -1,5 +1,3 @@
-comment on this implementation:
-
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,18 +26,7 @@ public class SummaryPostEndpoint {
     public static void main {
         String conversation = "this is a test line";
         SummaryPostEndpoint endpoint = new SummaryPostEndpoint();
-        String callPurposeSummary = endpoint.summaryPost(RESTEndpoints.SUMMARIZATION_GPU_POST, conversation);
+        String callPurpose = endpoint.summaryPost(RESTEndpoints.SUMMARIZATION_GPU_POST, conversation);
         String callSummary = endpoint.summaryPost(RESTEndpoints.CALL_SUMMARY_GPU_POST, conversation);
-        return summaryPost(url, request);
     }
-
-}
-
-// Given this previously defined class:
-
-@JsonInclude(Include.NON_NULL)
-public class SummarizationPostRequest {
-    private String conversation;
-    //setter and getter
-    
 }
