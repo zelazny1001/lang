@@ -68,6 +68,16 @@ public String generateDetailTable(SessionDetail sessionDetail, String summaryDis
     return table.toString();
 }
 
+==============================
+
+table.append("table.addEventListener('keydown', function(e) {");
+    table.append("   var focusedIndex = document.activeElement.tabIndex;");
+    table.append("   if(e.keyCode == 38 && focusedIndex > 1) {"); // Arrow up
+    table.append("       rows[focusedIndex - 2].focus();");
+    table.append("   } else if(e.keyCode == 40 && focusedIndex < rows.length) {"); // Arrow down
+    table.append("       rows[focusedIndex].focus();");
+    table.append("   }");
+    table.append("});");
 
 ==============================
 
