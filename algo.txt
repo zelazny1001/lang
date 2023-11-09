@@ -31,6 +31,44 @@ public class SummaryPostEndpoint {
     }
 }
 
+
+=============================
+
+public String generateDetailTable(SessionDetail sessionDetail, String summaryDiscussion) {
+    StringBuilder table = new StringBuilder();
+
+    table.append("<table border='1' style='border-collapse: collapse;border: 1px dotted black;font-family: verdana; font-size: 10px;'>");
+    table.append("<thead style='background-color: green; font-weight: bold;'>");
+    table.append("<tr>");
+    table.append("<th>Session</th>");
+    table.append("<th>PersonID</th>");
+    table.append("<th>Transcript</th>");
+    table.append("<th>Call Purpose</th>");
+    table.append("<th>Purpose Intent</th>");
+    table.append("<th>Token Count</th>");
+    table.append("</tr>");
+    table.append("</thead>");
+    table.append("<tbody>");
+
+    // Existing code to generate table rows from sessionDetail.getChunkList()
+    // ...
+
+    table.append("</tbody>");
+
+    // Add the footer with the summaryDiscussion
+    table.append("<tfoot>");
+    table.append("<tr>");
+    // Make sure the colspan attribute matches the number of columns in the table
+    table.append("<td colspan='6' style='text-align: center;'>").append(summaryDiscussion).append("</td>");
+    table.append("</tr>");
+    table.append("</tfoot>");
+
+    table.append("</table>");
+
+    return table.toString();
+}
+
+
 ==============================
 
 from fastapi import FastAPI
