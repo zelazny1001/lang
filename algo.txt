@@ -1,44 +1,45 @@
-import org.apache.commons.collections4.queue.CircularFifoQueue;
+comment on this implementation:
 
-public class MessageHistory {
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
-    private CircularFifoQueue<String> messageQueue;
+public class SummaryPostEndpoint {
 
-    public MessageHistory(int capacity) {
-        // Initialize the CircularFifoQueue with the given capacity
-        messageQueue = new CircularFifoQueue<>(capacity);
+    private RestTemplate restTemplate;
+    
+    public SummaryPostEndPoint() {
+        this.restTemplate = new RestTemplate();
+    }
+    
+    public String summaryPost(String url, String conversation) {
+        SummarizationPostRequest request = new SummarizationPostRequest();
+        request.setConversation(conversation);
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<PostRequest> requestEntity = new HttpEntity<>(request, headers);
+        ResponseEntity<String> responseEntity = restTemplate.postForEntity(url, requestEntity, String.class);
+        return responseEntity.getBody();
     }
 
-    public String addMessage(String message) {
-        // Check if adding a new message will remove an old one
-        String removedMessage = messageQueue.isAtFullCapacity() ? messageQueue.peek() : null;
-        // Add the new message to the queue
-        messageQueue.add(message);
-        // Return the message that was removed, if any
-        return removedMessage;
+    public static void main {
+        String conversation = "this is a test line";
+        SummaryPostEndpoint endpoint = new SummaryPostEndpoint();
+        String callPurposeSummary = endpoint.summaryPost(RESTEndpoints.SUMMARIZATION_GPU_POST, conversation);
+        String callSummary = endpoint.summaryPost(RESTEndpoints.CALL_SUMMARY_GPU_POST, conversation);
+        return summaryPost(url, request);
     }
 
-    public void printMessages() {
-        System.out.println("Current messages in history:");
-        for (String message : messageQueue) {
-            System.out.println(message);
-        }
-    }
+}
 
-    public static void main(String[] args) {
-        MessageHistory history = new MessageHistory(5); // Only the last 5 messages will be kept
+// Given this previously defined class:
 
-        history.addMessage("Message 1");
-        history.addMessage("Message 2");
-        history.addMessage("Message 3");
-        history.addMessage("Message 4");
-        history.addMessage("Message 5");
-
-        // At this point, the queue is full, and the next addition will remove the oldest message
-        String removed = history.addMessage("Message 6");
-        System.out.println("Removed message: " + removed);
-
-        // Print the current messages
-        history.printMessages();
-    }
+@JsonInclude(Include.NON_NULL)
+public class SummarizationPostRequest {
+    private String conversation;
+    //setter and getter
+    
 }
