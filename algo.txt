@@ -78,6 +78,42 @@ table.append("table.addEventListener('keydown', function(e) {");
     table.append("       rows[focusedIndex].focus();");
     table.append("   }");
     table.append("});");
+    
+==============================
+
+update to include section above table:
+
+public String generateDetailTable(SessionDetail sessionDetail) {
+    StringBuilder table = new StringBuilder();
+
+    // Start with a container div
+    table.append("<div style='width: 100%;'>");
+
+    // Add the new summary table
+    table.append("<table border='1' style='border-collapse: collapse; width: 100%; margin-bottom: 10px;'>");
+    table.append("<thead style='background-color: green; font-weight: bold;'>");
+    table.append("<tr>");
+    table.append("<th style='font-family: verdana; font-size: 10px; color: white;'>Call Summary</th>");
+    table.append("</tr>");
+    table.append("</thead>");
+    table.append("<tbody>");
+    table.append("<tr style='background-color: blue;'>");
+    table.append("<td style='font-family: verdana; font-size: 10px; color: white; text-align: left;'>").append(sessionDetail.getSessionSummary()).append("</td>");
+    table.append("</tr>");
+    table.append("</tbody>");
+    table.append("</table>");
+
+    // Existing detail table
+    table.append("<table border='1' style='border-collapse: collapse; width: 100%; font-family: verdana; font-size: 10px;'>");
+    // ... [Rest of your existing table code]
+    table.append("</table>");
+
+    // Close the container div
+    table.append("</div>");
+
+    return table.toString();
+}
+
 
 ==============================
 
