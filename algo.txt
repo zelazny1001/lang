@@ -1,0 +1,30 @@
+import java.util.*;
+
+public class Highlighter {
+    public static String highlight(String conversation, String summary) {
+        Set<String> conversationWords = new HashSet<>(Arrays.asList(conversation.split("[\\s\\n]+")));
+        StringBuilder highlightedSummary = new StringBuilder();
+
+        String[] summaryWords = summary.split("((?<=\\s)|(?=\\s)|(?<=\\n)|(?=\\n))");
+
+        for (String word : summaryWords) {
+            String strippedWord = word.replaceAll("[^a-zA-Z]", ""); // Remove non-letter characters for comparison
+            if (!conversationWords.contains(strippedWord)) {
+                // Word is not in conversation, highlight it
+                highlightedSummary.append("<span style='color: red; background-color:white'>").append(word).append("</span>");
+            } else {
+                // Word is in conversation, keep it as is
+                highlightedSummary.append(word);
+            }
+        }
+
+        return highlightedSummary.toString();
+    }
+
+    // Example usage
+    public static void main(String[] args) {
+        String conversation = "Hello there, how are you doing?";
+        String summary = "Hello Jane, are you there?";
+        System.out.println(highlight(conversation, summary));
+    }
+}
