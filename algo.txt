@@ -1,30 +1,33 @@
-import java.util.*;
+Given 2 java 8 lists (1) List<Chunk> chunkList (2) List<Response> responses
+Where 
+Class Chunk has method: String getTranscript()
+and 
+Class Response has method: String getIntent()
 
-public class Highlighter {
-    public static String highlight(String conversation, String summary) {
-        Set<String> conversationWords = new HashSet<>(Arrays.asList(conversation.split("[\\s\\n]+")));
-        StringBuilder highlightedSummary = new StringBuilder();
+Write method:
+String utterancesFromPreviousIntent(List<Chunk> chunkList, List<Response> responses)
 
-        String[] summaryWords = summary.split("((?<=\\s)|(?=\\s)|(?<=\\n)|(?=\\n))");
+that checks for the last response in list of responses that has a non-null intent - using the method getIntent()
+then
+assembles all utterances between the position of the last response to the end of the chunk list
+For instance the assembly could be done using    String.join(" ", the_specified_sublist_of_chunkList)
 
-        for (String word : summaryWords) {
-            String strippedWord = word.replaceAll("[^a-zA-Z]", ""); // Remove non-letter characters for comparison
-            if (!conversationWords.contains(strippedWord)) {
-                // Word is not in conversation, highlight it
-                highlightedSummary.append("<span style='color: red; background-color:white'>").append(word).append("</span>");
-            } else {
-                // Word is in conversation, keep it as is
-                highlightedSummary.append(word);
-            }
+Assume that both responses and chunk list have exactly the same number of elements
+
+==========================================================================
+
+    public static String utterancesFromPreviousIntent(List<Chunk> chunkList, List<Response> responses) {
+        int lastNonNullIntentIndex = IntStream.range(0, responses.size())
+                .filter(i -> responses.get(i).getIntent() != null)
+                .reduce((first, second) -> second)
+                .orElse(-1);
+
+        if (lastNonNullIntentIndex == -1) {
+            return "";
         }
 
-        return highlightedSummary.toString();
+        return chunkList.subList(lastNonNullIntentIndex + 1, chunkList.size()).stream()
+                .map(Chunk::getTranscript)
+                .collect(Collectors.joining(" "));
     }
-
-    // Example usage
-    public static void main(String[] args) {
-        String conversation = "Hello there, how are you doing?";
-        String summary = "Hello Jane, are you there?";
-        System.out.println(highlight(conversation, summary));
-    }
-}
+    
