@@ -1,0 +1,41 @@
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.StringJoiner;
+
+public class TranscriptFormatter {
+
+    public static String collapsePrefixedTranscript(String prefixedTranscript) {
+        Map<String, StringJoiner> transcriptMap = new LinkedHashMap<>();
+        String[] lines = prefixedTranscript.split("\n");
+
+        for (String line : lines) {
+            int separatorIndex = line.indexOf(':');
+            String key = line.substring(0, separatorIndex + 1);
+            String value = line.substring(separatorIndex + 1).trim();
+
+            transcriptMap.computeIfAbsent(key, k -> new StringJoiner(" ")).add(value);
+        }
+
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, StringJoiner> entry : transcriptMap.entrySet()) {
+            if (result.length() > 0) {
+                result.append("\n");
+            }
+            result.append(entry.getKey()).append(entry.getValue().toString());
+        }
+
+        return result.toString();
+    }
+
+    public static void main(String[] args) {
+        String input = "#Person1#:first line for person 1\n" +
+                       "#Person1#:second line for person 1.\n" +
+                       "#Person1#:third line for person 1\n" +
+                       "#Person2#:first line for person 2.\n" +
+                       "#Person2#:second line for person 2\n" +
+                       "#Person1#:fourth line for person 1\n" +
+                       "#Person2#:third line for person 2";
+
+        System.out.println(collapsePrefixedTranscript(input));
+    }
+}
