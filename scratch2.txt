@@ -8,8 +8,6 @@
 
 5. **Generate HTML Output**: Use the color assignments to wrap each word in the passage with a `<span>` tag with a style attribute set to the corresponding background color.
 
-Here is a high-level implementation in Python. Note that this is a simplified version and might require further tuning for more accurate results:
-
 ```python
 import nltk
 from gensim.models import KeyedVectors
