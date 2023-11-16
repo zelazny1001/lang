@@ -1,27 +1,31 @@
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.StringJoiner;
-
 public class TranscriptFormatter {
 
     public static String collapsePrefixedTranscript(String prefixedTranscript) {
-        Map<String, StringJoiner> transcriptMap = new LinkedHashMap<>();
+        StringBuilder result = new StringBuilder();
+        String currentPerson = "";
+        String currentText = "";
+
         String[] lines = prefixedTranscript.split("\n");
 
         for (String line : lines) {
             int separatorIndex = line.indexOf(':');
-            String key = line.substring(0, separatorIndex + 1);
-            String value = line.substring(separatorIndex + 1).trim();
+            String person = line.substring(0, separatorIndex + 1);
+            String text = line.substring(separatorIndex + 1).trim();
 
-            transcriptMap.computeIfAbsent(key, k -> new StringJoiner(" ")).add(value);
+            if (!person.equals(currentPerson)) {
+                if (!currentPerson.isEmpty()) {
+                    result.append(currentPerson).append(currentText.trim()).append("\n");
+                }
+                currentPerson = person;
+                currentText = text + " ";
+            } else {
+                currentText += text + " ";
+            }
         }
 
-        StringBuilder result = new StringBuilder();
-        for (Map.Entry<String, StringJoiner> entry : transcriptMap.entrySet()) {
-            if (result.length() > 0) {
-                result.append("\n");
-            }
-            result.append(entry.getKey()).append(entry.getValue().toString());
+        // Append the last block of text
+        if (!currentPerson.isEmpty()) {
+            result.append(currentPerson).append(currentText.trim());
         }
 
         return result.toString();
