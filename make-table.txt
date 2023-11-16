@@ -1,0 +1,29 @@
+public class SentenceFormatter {
+
+    public static String postprocessPeriods(String input) {
+        StringBuilder result = new StringBuilder();
+        int start = 0;
+
+        for (int i = 0; i < input.length(); i++) {
+            if (input.charAt(i) == '.' && (i == input.length() - 1 || input.charAt(i + 1) == ' ')) {
+                result.append(input, start, i + 1).append('\n');
+                start = i + 2; // Skip the space after the period
+            }
+        }
+
+        // Append the last sentence if it doesn't end with a period
+        if (start < input.length()) {
+            result.append(input.substring(start));
+        }
+
+        return result.toString().trim(); // Trim to remove the last newline if any
+    }
+
+    public static void main(String[] args) {
+        String example1 = "this example has three sentences. This is the second one. And this is the third one.";
+        System.out.println(postprocessPeriods(example1));
+
+        String example2 = "this example, although it contains 2.00 periods only has one qualifying period.";
+        System.out.println(postprocessPeriods(example2));
+    }
+}
