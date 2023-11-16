@@ -1,7 +1,3 @@
-Creating a Python function to color-code words based on their relevance to a summary is an interesting task. It involves natural language processing (NLP) to understand the context and relevance of words. One effective approach is to use word embeddings (like Word2Vec or GloVe) to find semantic similarities between words in the passage and the summary.
-
-Here's a conceptual outline of how you might write such a function:
-
 1. **Tokenize the Passage and Summary**: Split both the passage and summary into individual words or tokens.
 
 2. **Compute Word Embeddings**: Use an NLP library to convert these tokens into word embeddings. Libraries like `gensim` can be used for this.
