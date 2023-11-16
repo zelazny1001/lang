@@ -1,0 +1,193 @@
+Given a text passage p, and a summary s of that passage, color code the background of each word in one of 3 colors depending on how “close “ the word is to the summary. green for words most closely related. Yellow for words less closely related, and red for the least related words. Use the most effective libraries for this task. The passage should then be formatted in html using spans within a div.
+
+import nltk
+from gensim.models import KeyedVectors
+from nltk.tokenize import word_tokenize
+from scipy.spatial.distance import cosine
+
+# Load a pre-trained Word2Vec model (or any other pre-trained model)
+model = KeyedVectors.load_word2vec_format('path_to_model/word2vec.bin', binary=True)
+
+def color_code_words(passage, summary):
+    # Tokenizing the passage and summary
+    passage_tokens = word_tokenize(passage)
+    summary_tokens = word_tokenize(summary)
+
+    color_coded_passage = ""
+
+    for word in passage_tokens:
+        if word in model:
+            # Calculate average similarity score
+            similarities = [1 - cosine(model[word], model[sum_word]) if sum_word in model else 0 for sum_word in summary_tokens]
+            avg_similarity = sum(similarities) / len(similarities)
+
+            # Assign color based on similarity score
+            if avg_similarity > 0.7:
+                color = "green"
+            elif avg_similarity > 0.4:
+                color = "yellow"
+            else:
+                color = "red"
+
+            color_coded_word = f'<span style="background-color: {color}">{word}</span>'
+        else:
+            color_coded_word = word
+
+        color_coded_passage += color_coded_word + " "
+
+    return f'<div>{color_coded_passage}</div>'
+
+# Example usage
+passage = "Your example passage text here."
+summary = "Your summary text here."
+html_output = color_code_words(passage, summary)
+
+================================== sentence / doc 2 vec
+
+from gensim.models.doc2vec import Doc2Vec, TaggedDocument
+
+def color_code_doc2vec(passage, summary):
+    # Tokenize and tag the passage and summary
+    tagged_data = [TaggedDocument(words=word_tokenize(passage.lower()), tags=['PASSAGE']),
+                   TaggedDocument(words=word_tokenize(summary.lower()), tags=['SUMMARY'])]
+
+    # Train Doc2Vec model
+    model = Doc2Vec(tagged_data, vector_size=20, min_count=1, epochs=100)
+
+    # Get the vector for the summary
+    summary_vector = model.dv['SUMMARY']
+
+    # Color-coding words
+    html_output = '<div>'
+    for word in word_tokenize(passage.lower()):
+        word_vector = model.infer_vector([word])
+        similarity = cosine_similarity([word_vector], [summary_vector])[0][0]
+        if similarity > 0.7:
+            color = 'green'
+        elif similarity > 0.4:
+            color = 'yellow'
+        else:
+            color = 'red'
+        html_output += f'<span style="background-color:{color}">{word}</span> '
+    html_output += '</div>'
+
+    return html_output
+
+============================================== alternative word 2 vec
+
+import gensim
+from gensim.models import Word2Vec
+from gensim.parsing.preprocessing import remove_stopwords, strip_punctuation
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from nltk.tokenize import word_tokenize
+
+def color_code_word2vec(passage, summary):
+    # Preprocess text and summary
+    passage_tokens = word_tokenize(strip_punctuation(remove_stopwords(passage.lower())))
+    summary_tokens = word_tokenize(strip_punctuation(remove_stopwords(summary.lower())))
+
+    # Train Word2Vec model
+    model = Word2Vec([passage_tokens], min_count=1)
+
+    # Function to get the vector of a word
+    def get_vector(word):
+        return model.wv[word]
+
+    # Function to get the average vector for a set of words
+    def avg_feature_vector(words):
+        feature_vec = np.zeros((model.vector_size,), dtype="float32")
+        for word in words:
+            feature_vec = np.add(feature_vec, get_vector(word))
+        return feature_vec / len(words)
+
+    # Get average vector for summary
+    summary_vector = avg_feature_vector(summary_tokens)
+
+    # Color-coding words
+    html_output = '<div>'
+    for word in passage_tokens:
+        word_vector = get_vector(word)
+        similarity = cosine_similarity([word_vector], [summary_vector])[0][0]
+        if similarity > 0.7:
+            color = 'green'
+        elif similarity > 0.4:
+            color = 'yellow'
+        else:
+            color = 'red'
+        html_output += f'<span style="background-color:{color}">{word}</span> '
+    html_output += '</div>'
+
+    return html_output
+
+=================================================== java
+
+import org.deeplearning4j.models.word2vec.Word2Vec;
+import org.deeplearning4j.models.word2vec.builder.Word2VecBuilder;
+import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
+import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
+import org.deeplearning4j.text.sentenceiterator.BasicLineIterator;
+import java.io.File;
+import java.util.List;
+
+public class TextColorCoding {
+
+    public static String colorCodeWords(String passage, String summary) {
+        try {
+            // Tokenize and prepare the passage and summary
+            SentenceIterator iter = new BasicLineIterator(new File("path_to_your_passage_file.txt"));
+            DefaultTokenizerFactory tokenizerFactory = new DefaultTokenizerFactory();
+
+            // Building model
+            Word2Vec vec = new Word2VecBuilder()
+                .minWordFrequency(1)
+                .iterations(5)
+                .layerSize(100)
+                .seed(42)
+                .windowSize(5)
+                .iterate(iter)
+                .tokenizerFactory(tokenizerFactory)
+                .build();
+
+            // Fit Word2Vec model
+            vec.fit();
+
+            // Process the passage
+            String[] words = passage.split("\\s+");
+            StringBuilder htmlOutput = new StringBuilder("<div>");
+
+            for (String word : words) {
+                if (!vec.hasWord(word)) {
+                    continue;
+                }
+
+                double similarity = vec.similarity(word, summary);
+                String color;
+
+                if (similarity > 0.7) {
+                    color = "green";
+                } else if (similarity > 0.4) {
+                    color = "yellow";
+                } else {
+                    color = "red";
+                }
+
+                htmlOutput.append(String.format("<span style=\"background-color:%s\">%s</span> ", color, word));
+            }
+
+            htmlOutput.append("</div>");
+            return htmlOutput.toString();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static void main(String[] args) {
+        String passage = "Your passage text here";
+        String summary = "Your summary text here";
+        String coloredText = colorCodeWords(passage, summary);
+        System.out.println(coloredText);
+    }
+}
