@@ -1,3 +1,5 @@
+Given a text passage p, and a summary s of that passage, write a python function that will color code the background of each word in one of 3 colors depending on how “close “ the word is to the summary. green for words most closely related. Yellow for words less closely related, and red for the least related words. Use the most effective libraries for this task. The passage should then be formatted in html using spans within a div.
+
 1. **Tokenize the Passage and Summary**: Split both the passage and summary into individual words or tokens.
 
 2. **Compute Word Embeddings**: Use an NLP library to convert these tokens into word embeddings. Libraries like `gensim` can be used for this.
