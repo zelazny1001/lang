@@ -2,8 +2,8 @@ public class TranscriptFormatter {
 
     public static String collapsePrefixedTranscript(String prefixedTranscript) {
         StringBuilder result = new StringBuilder();
-        String currentPerson = "";
-        String currentText = "";
+        String lastPerson = null;
+        String currentLine = "";
 
         String[] lines = prefixedTranscript.split("\n");
 
@@ -12,20 +12,18 @@ public class TranscriptFormatter {
             String person = line.substring(0, separatorIndex + 1);
             String text = line.substring(separatorIndex + 1).trim();
 
-            if (!person.equals(currentPerson)) {
-                if (!currentPerson.isEmpty()) {
-                    result.append(currentPerson).append(currentText.trim()).append("\n");
-                }
-                currentPerson = person;
-                currentText = text + " ";
-            } else {
-                currentText += text + " ";
+            if (lastPerson != null && !person.equals(lastPerson)) {
+                result.append(lastPerson).append(currentLine.trim()).append("\n");
+                currentLine = "";
             }
+
+            currentLine += text + " ";
+            lastPerson = person;
         }
 
-        // Append the last block of text
-        if (!currentPerson.isEmpty()) {
-            result.append(currentPerson).append(currentText.trim());
+        // Append the last person's text
+        if (lastPerson != null && !currentLine.isEmpty()) {
+            result.append(lastPerson).append(currentLine.trim());
         }
 
         return result.toString();
