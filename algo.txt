@@ -40,7 +40,7 @@ public class SessionIDHistory {
     }
 
     public static void main(String[] args) { // sanity check
-        SessionIDHistory history = new SessionIDHistory(5); // Only the last 5 sessionIDs will be kept
+        SessionIDHistory history = new SessionIDHistory(5); // 5 sessionIDs in FIFO
 
         String removed = null;
         removed = history.addSessionID("SessionID 1");
@@ -54,7 +54,6 @@ public class SessionIDHistory {
 
         history.printSessionIDs();
 
-        // Clearing the sessionIDQueue
         history.clearSessionIDQueue();
 
         history.addSessionID("SessionID 7");
