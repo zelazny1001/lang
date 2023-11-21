@@ -50,6 +50,21 @@ public class SessionIDHistory {
                  .skip(Math.max(0, tempQueue.size() - capacity)) // Skip elements if capacity is reduced
                  .forEach(sessionIDQueue::add);
     }
+    
+    public void removeSession(String sessionID) {
+        List<String> tempQueue = new ArrayList<>(sessionIDQueue.size());
+        Iterator<String> iterator = sessionIDQueue.iterator();
+
+        while (iterator.hasNext()) {
+            String currentSessionID = iterator.next();
+            if (!currentSessionID.equals(sessionID)) {
+                tempQueue.add(currentSessionID);
+            }
+        }
+
+        sessionIDQueue.clear();
+        sessionIDQueue.addAll(tempQueue);
+    }
 
     public static void main(String[] args) { // sanity check
         SessionIDHistory history = new SessionIDHistory(5); // initial capacity is 5
