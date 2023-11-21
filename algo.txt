@@ -38,10 +38,21 @@ public class SessionIDHistory {
             System.out.println(sessionID);
         }
     }
+    
+    public void setCapacity(int capacity) {
+        if (capacity <= 0) {
+            throw new IllegalArgumentException("Capacity must be greater than 0");
+        }
+        
+        List<String> tempQueue = new ArrayList<>(sessionIDQueue);
+        sessionIDQueue = new CircularFifoQueue<>(capacity);
+        tempQueue.stream()
+                 .skip(Math.max(0, tempQueue.size() - capacity)) // Skip elements if capacity is reduced
+                 .forEach(sessionIDQueue::add);
+    }
 
     public static void main(String[] args) { // sanity check
-        SessionIDHistory history = new SessionIDHistory(5); // 5 sessionIDs in FIFO
-
+        SessionIDHistory history = new SessionIDHistory(5); // initial capacity is 5
         String removed = null;
         removed = history.addSessionID("SessionID 1");
         removed = history.addSessionID("SessionID 2");
@@ -54,6 +65,7 @@ public class SessionIDHistory {
 
         history.printSessionIDs();
 
+        // Clearing the sessionIDQueue
         history.clearSessionIDQueue();
 
         history.addSessionID("SessionID 7");
