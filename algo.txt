@@ -1,94 +1,32 @@
-import org.apache.commons.collections4.queue.CircularFifoQueue;
-import java.util.Collections;
-import java.util.List;
-import java.util.ArrayList;
+Given a text passage write a java method "reverseSentences(String input)" that reverses the order of sentences.
+For instance, given the input:
+"This is the first sentence. And the second. And the third? Here the is fourth"
+will return the output:
+"Here is the fourth. And the third? And the second. This is the first sentence."
 
-public class SessionIDHistory {
+Ensure that every sentence in the output terminates with a period if none is present on the input sentence.
 
-    private CircularFifoQueue<String> sessionIDQueue;
+public class SentenceReverser {
 
-    public SessionIDHistory(int capacity) {
-        sessionIDQueue = new CircularFifoQueue<>(capacity);
-    }
+    public static String reverseSentences(String input) {
+        String[] sentences = input.split("(?<=[.!?])\\s+");
+        StringBuilder result = new StringBuilder();
 
-    public String addSessionID(String sessionID) { // return removed sessionID if any
-        if (sessionIDQueue.contains(sessionID)) {
-            System.out.println(sessionID + " already present");
-            return null;
-        }
-        String removedSessionID = sessionIDQueue.isAtFullCapacity() ? sessionIDQueue.peek() : null;
-        sessionIDQueue.add(sessionID);
-        System.out.println("removed: " + sessionID);
-        return removedSessionID;
-    }
-
-    public void clearSessionIDQueue() {
-        sessionIDQueue.clear();
-    }
-
-    public List<String> reverseListOfSessions() {
-        List<String> reversedList = new ArrayList<>(sessionIDQueue);
-        Collections.reverse(reversedList);
-        return reversedList;
-    }
-
-    public void printSessionIDs() {
-        System.out.println("Current sessionIDs in history:");
-        for (String sessionID : sessionIDQueue) {
-            System.out.println(sessionID);
-        }
-    }
-    
-    public void setCapacity(int capacity) {
-        if (capacity <= 0) {
-            throw new IllegalArgumentException("Capacity must be greater than 0");
-        }
-        
-        List<String> tempQueue = new ArrayList<>(sessionIDQueue);
-        sessionIDQueue = new CircularFifoQueue<>(capacity);
-        tempQueue.stream()
-                 .skip(Math.max(0, tempQueue.size() - capacity)) // Skip elements if capacity is reduced
-                 .forEach(sessionIDQueue::add);
-    }
-    
-    public void removeSession(String sessionID) {
-        List<String> tempQueue = new ArrayList<>(sessionIDQueue.size());
-        Iterator<String> iterator = sessionIDQueue.iterator();
-
-        while (iterator.hasNext()) {
-            String currentSessionID = iterator.next();
-            if (!currentSessionID.equals(sessionID)) {
-                tempQueue.add(currentSessionID);
+        for (int i = sentences.length - 1; i >= 0; i--) {
+            String sentence = sentences[i].trim();
+            if (!sentence.endsWith(".") && !sentence.endsWith("?") && !sentence.endsWith("!")) {
+                sentence += ".";
+            }
+            result.append(sentence);
+            if (i > 0) {
+                result.append(" ");
             }
         }
-
-        sessionIDQueue.clear();
-        sessionIDQueue.addAll(tempQueue);
+        return result.toString();
     }
 
-    public static void main(String[] args) { // sanity check
-        SessionIDHistory history = new SessionIDHistory(5); // initial capacity is 5
-        String removed = null;
-        removed = history.addSessionID("SessionID 1");
-        removed = history.addSessionID("SessionID 2");
-        removed = history.addSessionID("SessionID 3");
-        removed = history.addSessionID("SessionID 4");
-        removed = history.addSessionID("SessionID 5");
-
-        removed = history.addSessionID("SessionID 6");
-        System.out.println("Removed sessionID: " + removed);
-
-        history.printSessionIDs();
-
-        // Clearing the sessionIDQueue
-        history.clearSessionIDQueue();
-
-        history.addSessionID("SessionID 7");
-        history.addSessionID("SessionID 8");
-        history.addSessionID("SessionID 9");
-        history.addSessionID("SessionID 10");
-        
-        List<String> reversedSessions = history.reverseListOfSessions();
-        System.out.println("Reversed sessionIDs: " + reversedSessions);
+    public static void main(String[] args) {
+        String input = "This is the first sentence. And the second. And the third? Here is the fourth";
+        System.out.println(reverseSentences(input));
     }
 }
