@@ -1,32 +1,99 @@
-Given a text passage write a java method "reverseSentences(String input)" that reverses the order of sentences.
-For instance, given the input:
-"This is the first sentence. And the second. And the third? Here the is fourth"
-will return the output:
-"Here is the fourth. And the third? And the second. This is the first sentence."
+import java.util.List;
+import java.util.LinkedList;
 
-Ensure that every sentence in the output terminates with a period if none is present on the input sentence.
-
-public class SentenceReverser {
-
-    public static String reverseSentences(String input) {
-        String[] sentences = input.split("(?<=[.!?])\\s+");
-        StringBuilder result = new StringBuilder();
-
-        for (int i = sentences.length - 1; i >= 0; i--) {
-            String sentence = sentences[i].trim();
-            if (!sentence.endsWith(".") && !sentence.endsWith("?") && !sentence.endsWith("!")) {
-                sentence += ".";
-            }
-            result.append(sentence);
-            if (i > 0) {
-                result.append(" ");
-            }
+    public static String getMostRecentNChunkGroups(List<Chunk> chunkList, String personID, int n) {
+        if (chunkList == null || chunkList.isEmpty() || n <= 0) {
+            return "";
         }
-        return result.toString();
+
+        LinkedList<String> recentGroups = new LinkedList<>();
+        StringBuilder currentGroup = new StringBuilder();
+        String lastPersonID = null;
+
+        for (int i = chunkList.size() - 1; i >= 0; i--) {
+            Chunk chunk = chunkList.get(i);
+
+            if (personID.equals(chunk.getPersonID())) {
+                if (!personID.equals(lastPersonID)) {
+                    if (recentGroups.size() < n && currentGroup.length() > 0) {
+                        recentGroups.addFirst(currentGroup.toString().trim());
+                        currentGroup = new StringBuilder();
+                    }
+                    currentGroup.append(chunk.getTranscript());
+                    if (i > 0) {
+                        currentGroup.append(" ");
+                    }
+                } else {
+                    currentGroup.insert(0, chunk.getTranscript() + (currentGroup.length() > 0 ? " " : ""));
+                }
+            } else if (personID.equals(lastPersonID) && currentGroup.length() > 0) {
+                if (recentGroups.size() < n) {
+                    recentGroups.addFirst(currentGroup.toString().trim());
+                    currentGroup = new StringBuilder();
+                }
+            }
+            lastPersonID = chunk.getPersonID();
+        }
+
+        if (personID.equals(lastPersonID) && recentGroups.size() < n && currentGroup.length() > 0) {
+            recentGroups.addFirst(currentGroup.toString().trim());
+        }
+
+        return String.join(" ", recentGroups);
+    }
+    
+    
+import org.junit.Before;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ChunkProcessorTest {
+
+    private List<Chunk> chunkList;
+
+    @Before
+    public void setUp() {
+        chunkList = new ArrayList<>();
+        chunkList.add(new Chunk("personID1", "transcript1"));
+        chunkList.add(new Chunk("personID1", "transcript2"));
+        chunkList.add(new Chunk("personID1", "transcript3"));
+        chunkList.add(new Chunk("personID2", "transcript4"));
+        chunkList.add(new Chunk("personID2", "transcript5"));
+        chunkList.add(new Chunk("personID1", "transcript6"));
+        chunkList.add(new Chunk("personID1", "transcript7"));
+        chunkList.add(new Chunk("personID1", "transcript8"));
+        chunkList.add(new Chunk("personID1", "transcript9"));
+        chunkList.add(new Chunk("personID1", "transcript10"));
+        chunkList.add(new Chunk("personID2", "transcript11"));
+        chunkList.add(new Chunk("personID2", "transcript12"));
+        chunkList.add(new Chunk("personID1", "transcript13"));
+        chunkList.add(new Chunk("personID1", "transcript14"));
+        chunkList.add(new Chunk("personID1", "transcript15"));
+        chunkList.add(new Chunk("personID2", "transcript16"));
+        chunkList.add(new Chunk("personID2", "transcript17"));
+        chunkList.add(new Chunk("personID1", "transcript18"));
+        chunkList.add(new Chunk("personID1", "transcript19"));
     }
 
-    public static void main(String[] args) {
-        String input = "This is the first sentence. And the second. And the third? Here is the fourth";
-        System.out.println(reverseSentences(input));
+    @Test
+    public void testGetLastNChunkGroupsForPersonID2() {
+        assertEquals("transcript16 transcript17",
+                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID2", 1));
+        assertEquals("transcript11 transcript12 transcript16 transcript17",
+                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID2", 2));
+        assertEquals("transcript4 transcript5 transcript11 transcript12 transcript16 transcript17",
+                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID2", 3));
+    }
+
+    @Test
+    public void testGetLastNChunkGroupsForPersonID1() {
+        assertEquals("transcript18 transcript19",
+                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID1", 1));
+        assertEquals("transcript13 transcript14 transcript15 transcript18 transcript19",
+                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID1", 2));
+        assertEquals("transcript6 transcript7 transcript8 transcript9 transcript10 transcript13 transcript14 transcript15 transcript18 transcript19",
+                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID1", 3));
     }
 }
