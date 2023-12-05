@@ -1,0 +1,52 @@
+Create an action diagram (or flowchart) that can be displayed in PlantUML to capture the following logic:
+When a transition from customer to agent occurs:
+1. String transitionToReset = assemble the utterances from transition until the previous reset
+
+The input data for the assembly step above will be a sessionID and a list of AAResponse objects
+
+2. String callPurposeForReset = invoke call purpose summarization on the String transitionToReset
+
+3. String callPurposeForResetIntent = invoke intent prediction on the callPurposeForReset String
+
+4. If callPurposeForResetIntent is present in the intent white list
+boolean sessionManager.getConfiguration().isInWhiteList(callPurposeForResetIntent)
+then return the callPurposeForResetIntent
+
+5. If callPurposeForResetIntent is null or not on the white list, then a new String is tried for steps 2 through 4:
+String leafUtterance = getNMostRecentChunkGroups(String personID, 1)
+The String leafUtterance will be handled using steps 2 through 4 above. If callPurposeForLeafUtterance is present in the white list, then return callPurposeForLeaf.
+
+6. If callPurposeForLeafUtterance is either null or not on the white list, then    repeat step 5 using the String mostRecentPair which is obtained by calling the method getNMostRecentChunkGroups(String personID, 2). Again steps 2 through 4 are applied to this string.
+
+========================================
+
+@startuml
+
+start
+:Receive transition from customer to agent;
+:Assemble utterances to form\ntransitionToReset\nusing sessionID and AAResponse list;
+:Invoke call purpose summarization\non transitionToReset\nto get callPurposeForReset;
+:Invoke intent prediction\non callPurposeForReset\nto get callPurposeForResetIntent;
+if (Is callPurposeForResetIntent\nin white list?) then (yes)
+  :Return callPurposeForResetIntent;
+  stop
+else (no)
+  if (Is callPurposeForResetIntent null\nor not in white list?) then (yes)
+    :Get leafUtterance using\ngetNMostRecentChunkGroups(personID, 1);
+    repeat
+    -[hidden]->repeat
+    :Invoke call purpose summarization\non leafUtterance;
+    :Invoke intent prediction\non summarized leafUtterance;
+    if (Is summarized leafUtterance\nin white list?) then (yes)
+      :Return summarized leafUtterance;
+      stop
+    else (no)
+      :Get mostRecentPair using\ngetNMostRecentChunkGroups(personID, 2);
+      ->repeat;
+    endif
+  endif
+endif
+
+stop
+
+@enduml
