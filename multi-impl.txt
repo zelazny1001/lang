@@ -1,0 +1,44 @@
+public class IntentHandler {
+
+    private SessionManager sessionManager; // Assuming this is initialized elsewhere
+
+    public String handleMultiIntent(String sessionID, List<AAResponse> aaResponseList, String personID) {
+        // Step 1: Assemble utterances
+        String transitionToResetUtterance = assembleUtterances(sessionID, aaResponseList);
+
+        // Step 2: Summarize call purpose
+        String callPurposeForReset = summarizeCallPurpose(transitionToResetUtterance);
+
+        // Step 3: Predict intent
+        String callPurposeForResetIntent = predictIntent(callPurposeForReset);
+
+        // Step 4: Check against white list
+        if (isInWhiteList(callPurposeForResetIntent)) {
+            return callPurposeForResetIntent;
+        }
+
+        // Steps 5, 6, 7: Process Leaf Utterance
+        String result = processIntentWithRecency(personID, 1);
+        if (result != null) {
+            return result;
+        }
+
+        // Steps 8, 9, Final Check: Process Most Recent Pair
+        return processIntentWithRecency(personID, 2);
+    }
+
+    private String processIntentWithRecency(String personID, int recency) {
+        String utterance = getMostRecentNChunkGroups(personID, recency);
+        String callPurpose = summarizeCallPurpose(utterance);
+        String callPurposeIntent = predictIntent(callPurpose);
+
+        if (isInWhiteList(callPurposeIntent)) {
+            return callPurposeIntent;
+        }
+
+        return null; // No intent found in white list
+    }
+
+    // ... Remaining methods (assembleUtterances, summarizeCallPurpose, predictIntent, isInWhiteList, getMostRecentNChunkGroups, ...) ...
+
+}
