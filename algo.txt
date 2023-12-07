@@ -1,6 +1,8 @@
 import java.util.List;
 import java.util.LinkedList;
 
+public class ChunkProcessor {
+
     public static String getMostRecentNChunkGroups(List<Chunk> chunkList, String personID, int n) {
         if (chunkList == null || chunkList.isEmpty() || n <= 0) {
             return "";
@@ -41,8 +43,8 @@ import java.util.LinkedList;
 
         return String.join(" ", recentGroups);
     }
-    
-    
+}
+
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
