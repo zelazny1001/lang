@@ -1,4 +1,4 @@
-Create an action diagram (or flowchart) that can be displayed in PlantUML to capture the following logic:
+Action diagram (or flowchart) that can be displayed in PlantUML to capture the following logic:
 When a transition from customer to agent occurs:
 1. String transitionToReset = assemble the utterances from transition until the previous reset
 
