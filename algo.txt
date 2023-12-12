@@ -1,101 +1,35 @@
-import java.util.List;
-import java.util.LinkedList;
+import pandas as pd
+import requests
+import json
 
-public class ChunkProcessor {
+def orchestrate(inputFilename):
+    # REST endpoint URL
+    url = "http://localhost:9001/pltfm/rest/agentAssist/processChunk"
 
-    public static String getMostRecentNChunkGroups(List<Chunk> chunkList, String personID, int n) {
-        if (chunkList == null || chunkList.isEmpty() || n <= 0) {
-            return "";
-        }
+    # Sheet names following the pattern 'Call_0_1', 'Call_0_2', ..., 'Call_0_9'
+    sheets = [f'Call_0_{i}' for i in range(1, 10)]
 
-        LinkedList<String> recentGroups = new LinkedList<>();
-        StringBuilder currentGroup = new StringBuilder();
-        String lastPersonID = null;
+    for sheet in sheets:
+        print(f"Processing worksheet: {sheet}")
+        input_df = pd.read_excel(inputFilename, sheet_name=sheet)
 
-        for (int i = chunkList.size() - 1; i >= 0; i--) {
-            Chunk chunk = chunkList.get(i);
-
-            if (personID.equals(chunk.getPersonID())) {
-                if (!personID.equals(lastPersonID)) {
-                    if (recentGroups.size() < n && currentGroup.length() > 0) {
-                        recentGroups.addFirst(currentGroup.toString().trim());
-                        currentGroup = new StringBuilder();
-                    }
-                    currentGroup.append(chunk.getTranscript());
-                    if (i > 0) {
-                        currentGroup.append(" ");
-                    }
-                } else {
-                    currentGroup.insert(0, chunk.getTranscript() + (currentGroup.length() > 0 ? " " : ""));
-                }
-            } else if (personID.equals(lastPersonID) && currentGroup.length() > 0) {
-                if (recentGroups.size() < n) {
-                    recentGroups.addFirst(currentGroup.toString().trim());
-                    currentGroup = new StringBuilder();
-                }
+        for index, row in input_df.iterrows():
+            # Prepare JSON data for POST request
+            payload = {
+                "sessionID": row['sessionID'],
+                "personID": row['personID'],
+                "transcript": row['transcript'],
+                "isEnd": row['isEnd']
             }
-            lastPersonID = chunk.getPersonID();
-        }
 
-        if (personID.equals(lastPersonID) && recentGroups.size() < n && currentGroup.length() > 0) {
-            recentGroups.addFirst(currentGroup.toString().trim());
-        }
+            # Make POST request and collect response
+            response = requests.post(url, json=payload)
 
-        return String.join(" ", recentGroups);
-    }
-}
+        print(f"Completed processing {sheet}")
 
-import org.junit.Before;
-import org.junit.Test;
-import static org.junit.Assert.assertEquals;
-import java.util.ArrayList;
-import java.util.List;
+    print("Completed processing all worksheets")
 
-public class ChunkProcessorTest {
-
-    private List<Chunk> chunkList;
-
-    @Before
-    public void setUp() {
-        chunkList = new ArrayList<>();
-        chunkList.add(new Chunk("personID1", "transcript1"));
-        chunkList.add(new Chunk("personID1", "transcript2"));
-        chunkList.add(new Chunk("personID1", "transcript3"));
-        chunkList.add(new Chunk("personID2", "transcript4"));
-        chunkList.add(new Chunk("personID2", "transcript5"));
-        chunkList.add(new Chunk("personID1", "transcript6"));
-        chunkList.add(new Chunk("personID1", "transcript7"));
-        chunkList.add(new Chunk("personID1", "transcript8"));
-        chunkList.add(new Chunk("personID1", "transcript9"));
-        chunkList.add(new Chunk("personID1", "transcript10"));
-        chunkList.add(new Chunk("personID2", "transcript11"));
-        chunkList.add(new Chunk("personID2", "transcript12"));
-        chunkList.add(new Chunk("personID1", "transcript13"));
-        chunkList.add(new Chunk("personID1", "transcript14"));
-        chunkList.add(new Chunk("personID1", "transcript15"));
-        chunkList.add(new Chunk("personID2", "transcript16"));
-        chunkList.add(new Chunk("personID2", "transcript17"));
-        chunkList.add(new Chunk("personID1", "transcript18"));
-        chunkList.add(new Chunk("personID1", "transcript19"));
-    }
-
-    @Test
-    public void testGetLastNChunkGroupsForPersonID2() {
-        assertEquals("transcript16 transcript17",
-                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID2", 1));
-        assertEquals("transcript11 transcript12 transcript16 transcript17",
-                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID2", 2));
-        assertEquals("transcript4 transcript5 transcript11 transcript12 transcript16 transcript17",
-                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID2", 3));
-    }
-
-    @Test
-    public void testGetLastNChunkGroupsForPersonID1() {
-        assertEquals("transcript18 transcript19",
-                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID1", 1));
-        assertEquals("transcript13 transcript14 transcript15 transcript18 transcript19",
-                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID1", 2));
-        assertEquals("transcript6 transcript7 transcript8 transcript9 transcript10 transcript13 transcript14 transcript15 transcript18 transcript19",
-                ChunkProcessor.getMostRecentNChunkGroups(chunkList, "personID1", 3));
-    }
-}
+#%% invoke the function
+fdir = '/projects/agentassist/'
+inputFilename=dir+'0_1_0_9_System_Transcripts.xlsx'
+orchestrate()
