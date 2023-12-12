@@ -1,10 +1,12 @@
 import pandas as pd
 import requests
 import json
+import random
 
 def orchestrate(inputFilename):
     # REST endpoint URL
     url = "http://localhost:9001/pltfm/rest/agentAssist/processChunk"
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
     # Sheet names following the pattern 'Call_0_1', 'Call_0_2', ..., 'Call_0_9'
     sheets = [f'Call_0_{i}' for i in range(1, 10)]
@@ -12,14 +14,19 @@ def orchestrate(inputFilename):
     for sheet in sheets:
         print(f"Processing worksheet: {sheet}")
         input_df = pd.read_excel(inputFilename, sheet_name=sheet)
-
+        rand1 = random.randint(1000, 9999)
+        rand2 = random.randint(1000, 9999)
+        randStr1 = '-' + str(rand1)
+        randStr2 = '-' + str(rand2)
+        
         for index, row in input_df.iterrows():
             # Prepare JSON data for POST request
             payload = {
-                "sessionID": row['sessionID'],
+                "sessionID": sheet + randStr1 + randStr2,
                 "personID": row['personID'],
                 "transcript": row['transcript'],
-                "isEnd": row['isEnd']
+                "isEnd": row['isEnd'],
+                "dataSource": sheet
             }
 
             # Make POST request and collect response
