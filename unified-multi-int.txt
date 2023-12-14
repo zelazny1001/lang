@@ -1,22 +1,52 @@
 Action diagram (or flowchart) that can be displayed in PlantUML to capture the following logic:
 When a transition from customer to agent occurs:
-1. String transitionToReset = assemble the utterances from transition until the previous reset
+1. leafUtterance = Assembly of customer chunk groups
 
-The input data for the assembly step above will be a sessionID and a list of AAResponse objects
+2. if above threshold get call purpose summary, else use utterance as call purpose
 
-2. String callPurposeForReset = invoke call purpose summarization on the String transitionToReset
+3. Get intent for purpose
 
-3. String callPurposeForResetIntent = invoke intent prediction on the callPurposeForReset String
+4. if intent in whitelist keep summary purpose and intent
+else:
+remove call purpose if token count was below threshold
+null the intent
 
-4. If callPurposeForResetIntent is present in the intent white list
-boolean sessionManager.getConfiguration().isInWhiteList(callPurposeForResetIntent)
-then return the callPurposeForResetIntent
+5. return intent and call purpose summary (if present)
 
-5. If callPurposeForResetIntent is null or not on the white list, then a new String is tried for steps 2 through 4:
-String leafUtterance = getMostRecentNChunkGroups(String personID, 1)
-The String leafUtterance will be handled using steps 2 through 4 above. If callPurposeForLeafUtterance is present in the white list, then return callPurposeForLeaf.
+6. repeat 1 through 5 for most recent pair of utterances (assembled from chunk groups)
 
-6. If callPurposeForLeafUtterance is either null or not on the white list, then    repeat step 5 using the String mostRecentPair which is obtained by calling the method getMostRecentNChunkGroups(String personID, 2). Again steps 2 through 4 are applied to this string.
+7. repeat 1 through 5 for history to reset point
+
+======================== design
+
+@startuml
+
+start
+:Transition from customer to agent;
+:leafUtterance = Assembly of customer chunk groups;
+if (leafUtterance above threshold?) then (yes)
+  :Get call purpose summary;
+else (no)
+  :Use utterance as call purpose;
+endif
+:Get intent for purpose;
+if (intent in whitelist?) then (yes)
+  :Keep summary purpose and intent;
+else (no)
+  if (token count below threshold?) then (yes)
+    :Remove call purpose;
+  endif
+  :Null the intent;
+endif
+:Return intent and call purpose summary (if present);
+repeat
+  :Repeat steps 1 through 5 for most recent pair of utterances (assembled from chunk groups);
+repeat
+  :Repeat steps 1 through 5 for most history to reset point;
+
+stop
+
+@enduml
 
 ======================== design =========================
 
