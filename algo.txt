@@ -3,40 +3,51 @@ import requests
 import json
 import random
 
-def orchestrate(inputFilename):
-    # REST endpoint URL
-    url = "http://localhost:9001/pltfm/rest/agentAssist/processChunk"
+#%%
+fdir = '/projects/agent-assist/'
+url = "http://localhost:9001/pltfm/rest/agentAssist/processChunk"
+
+#%%
+import pandas as pd
+import random
+import requests
+
+def processSheet(inputFilename, sheet, url):
+    print(f"Processing: {sheet}")
+    input_df = pd.read_excel(inputFilename, sheet_name=sheet)
+
+    # Check if the DataFrame is empty or all cells are NaN
+    if input_df.empty or input_df.isna().all().all():
+        print(f"Sheet {sheet} is empty. Skipping.")
+        return
+
+    rand1 = random.randint(1000, 9999)
+    rand2 = random.randint(1000, 9999)
+    randStr1 = '-' + str(rand1)
+    randStr2 = '-' + str(rand2)
+
+    for index, row in input_df.iterrows():
+        # Prepare JSON data for POST request
+        payload = {
+            "sessionID": sheet + randStr1 + randStr2,
+            "personID": row['personID'],
+            "transcript": row['transcript'],
+            "isEnd": row['isEnd'],
+            "dataSource": sheet
+        }
+        response = requests.post(url, json=payload)
+
+    print(f"Completed: {sheet}")
+
+#%%
+def orchestrate(inputFilename, sheets, url):
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
-    # Sheet names following the pattern 'Call_0_1', 'Call_0_2', ..., 'Call_0_9'
-    sheets = [f'Call_0_{i}' for i in range(1, 10)]
-
     for sheet in sheets:
-        print(f"Processing worksheet: {sheet}")
-        input_df = pd.read_excel(inputFilename, sheet_name=sheet)
-        rand1 = random.randint(1000, 9999)
-        rand2 = random.randint(1000, 9999)
-        randStr1 = '-' + str(rand1)
-        randStr2 = '-' + str(rand2)
-        
-        for index, row in input_df.iterrows():
-            # Prepare JSON data for POST request
-            payload = {
-                "sessionID": sheet + randStr1 + randStr2,
-                "personID": row['personID'],
-                "transcript": row['transcript'],
-                "isEnd": row['isEnd'],
-                "dataSource": sheet
-            }
-
-            # Make POST request and collect response
-            response = requests.post(url, json=payload)
-
-        print(f"Completed processing {sheet}")
-
+        processSheet(inputFilename, sheet, url)
     print("Completed processing all worksheets")
 
-#%% invoke the function
-fdir = '/projects/agentassist/'
-inputFilename=dir+'0_1_0_9_System_Transcripts.xlsx'
-orchestrate()
+#%% invoke
+for k in reversed(range(5)):
+    inputFilename = fdir + '{k}_1_0_9_System_Transcripts.xlsx'
+    sheets = [f'Call_0_{i}' for i in reversed(range(10))]  # do a countdown so sheet 09 is first and sheet 01 is last
+    orchestrate(inputFilename, sheets, url)
