@@ -1,0 +1,10 @@
+<ion-modal-view id="screensaver" view-title="{{account.name}}" hide-nav-bar="true" style="background-color:black;">
+    <ion-content scroll="false" ng-click="closeModal()">
+        <div style="background-image: url('img/verilert_logo.png'); background-size: 70% auto; background-position: center; background-repeat: no-repeat; padding-top: 30%; text-align: center;">
+            <!-- Adjust padding-top to control the vertical space for the background image -->
+            <div style="color: white; font-family: Roboto; font-style: italic; padding-top: 20px;">
+                {{account.name}}
+            </div>
+        </div>
+    </ion-content>
+</ion-modal-view>
