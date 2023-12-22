@@ -1,0 +1,26 @@
+Write python function:
+config(url, data)
+
+to call a REST endpoint url with input data
+
+{ “useOrigin”: true,
+   “use3Branch”: false
+}
+
+====================
+
+import requests
+
+def config(url, data):
+    headers = {'Content-Type': 'application/json'}
+    response = requests.post(url, json=data, headers=headers)
+    return response.json()
+
+url = "http://your-api-endpoint.com"
+data = {
+    "useOrigin": True,
+    "use3Branch": False
+}
+
+response = config(url, data)
+print(response)
