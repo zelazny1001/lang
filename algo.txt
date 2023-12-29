@@ -19,8 +19,13 @@ def config(url, data):
 
 def processSheet(strategyName, inputFilename, sheet, url):
     print(f"Processing: {sheet}")
-    input_df = pd.read_excel(inputFilename, sheet_name=sheet)
     output_list = []
+    
+    try:
+        input_df = pd.read_excel(inputFilename, sheet_name=sheet)
+    except (FileNotFoundError, IOError, pd.errors.EmptyDataError) as e:
+        print(f"Error reading file '{inputFilename}' or sheet '{sheet}': {e}. Skipping.")
+        return output_list
 
     if input_df.empty or input_df.isna().all().all():
         print(f"Sheet {sheet} is empty. Skipping.")
