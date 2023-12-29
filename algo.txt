@@ -23,7 +23,7 @@ def processSheet(strategyName, inputFilename, sheet, url):
     
     try:
         input_df = pd.read_excel(inputFilename, sheet_name=sheet)
-    except (FileNotFoundError, IOError, pd.errors.EmptyDataError) as e:
+    except (FileNotFoundError, IOError, pd.errors.EmptyDataError, ValueError) as e:
         print(f"Error reading file '{inputFilename}' or sheet '{sheet}': {e}. Skipping.")
         return output_list
 
@@ -76,39 +76,43 @@ def orchestrate(strategyName, inputFilename, sheets, url):
 
 def toSpreadsheet(listFromOrchestrate, outputDir, outputXL):
     df = pd.DataFrame(listFromOrchestrate)
-    writer = pd.ExcelWriter(outputDir + outputXL, engine='openpyxl')
-    df.to_excel(writer, index=False, sheet_name='output')
+    output_excel_filename = outputDir + outputXL
 
-    workbook = writer.book
-    worksheet = writer.sheets['output']
+    with pd.ExcelWriter(output_excel_filename, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='output')
 
-    # Apply dotted borders to all cells
-    thin_border = Border(left=Side(style='dotted'), 
-                         right=Side(style='dotted'), 
-                         top=Side(style='dotted'), 
-                         bottom=Side(style='dotted'))
-    for row in worksheet.iter_rows():
-        for cell in row:
-            cell.border = thin_border
+        workbook = writer.book
+        worksheet = writer.sheets['output']
 
-    # Mapping column names to their indices
-    col_indices = {col: idx for idx, col in enumerate(df.columns)}
+        # Freeze the top row
+        worksheet.freeze_panes = 'A2'
 
-    # Apply background color based on conditions
-    for row in worksheet.iter_rows(min_row=2):  # skip header row
-        personID = row[col_indices['personID']].value
-        agreePurpose = row[col_indices['agreePurpose']].value
-        agreeIntent = row[col_indices['agreeIntent']].value
-
-        if personID in ["Customer", "Person1"]:
+        # Apply dotted borders to all cells and set font size to 8
+        font_8pt = Font(size=8)
+        thin_border = Border(left=Side(style='dotted'), 
+                             right=Side(style='dotted'), 
+                             top=Side(style='thin'), 
+                             bottom=Side(style='thin'))
+        for row in worksheet.iter_rows():
             for cell in row:
-                cell.fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
-        if agreePurpose == "NA" or agreeIntent == "NA":
-            row[col_indices['agreePurpose']].fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-            row[col_indices['agreeIntent']].fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                cell.border = thin_border
+                cell.font = font_8pt
 
-    writer.save()
-    
+        # Mapping column names to their indices
+        col_indices = {col: idx for idx, col in enumerate(df.columns)}
+
+        # Apply background color based on conditions
+        for row in worksheet.iter_rows(min_row=2):  # skip header row
+            personID = row[col_indices['personID']].value
+            agreePurpose = row[col_indices['agreePurpose']].value
+            agreeIntent = row[col_indices['agreeIntent']].value
+
+            if personID in ["Customer", "Person1"]:
+                for cell in row:
+                    cell.fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+            if agreePurpose == "NA" or agreeIntent == "NA":
+                row[col_indices['agreePurpose']].fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                row[col_indices['agreeIntent']].fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
 
 #%%    Analytics
 
