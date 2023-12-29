@@ -1,25 +1,84 @@
+Given the following 3 existing python functions:
+1. config(url, data) - call a url passing data in json format
+
+2. orchestrate(strategyName, inputFilename, sheets, url) - returns a list of lists, where each list has the columns:
+        sessionID
+        strategyName
+        personID
+        transcript
+        utterance
+        callPurpose
+        rawPurposeIntent
+        agreePurpose
+        agreeIntent
+        trigger
+        tokenCount
+            
+3. toSpreadsheet(listFromOrchestrate, outputDir, outputXL)
+
+The task is to write a python function "assembleStrategyData(strategyList, url, dataDir)" where:
+strategyList is a list of strings, each string being a strategy name
+url is a REST url
+dataDir is a directory where analysis files are kept
+These arguments will be used in the steps described below
+
+For each name in the strategyList, "assembleStrategyData" will:
+1. use strategy name to call configure as follows
+    if name is 'fromOrigin' then call config(url, data) where :
+    data is {"alwaysFromOrigin":true}
+    if name is 'fromReset' then call config(url, data) where:
+    data is {"alwaysFromOrigin":false,
+             "use3BranchWithReset":false}
+    if name is '3Branch' then call config(url, data) where:
+    data is {"alwaysFromOrigin":false,
+             "use3BranchWithReset":true}    
+
+2.  for each strategyName from step 1, write a function "createStrategyData" that returns a list of lists built as follows (inputs to the function are strategyName, url, dataDir): 
+
+  all_lists = []
+  for k in reversed(range(5)):
+    inputFilename = dataDir + '{k}_1_0_9_System_Transcripts.xlsx'
+    sheets = [f'Call_0_{i}' for i in reversed(range(10))]
+    result = orchestrate(strategyName, inputFilename, sheets, url)
+    all_lists.append(result)
+    
+3. Using createStrategyData, assemble the data for all strategies
+
+4. call toSpreadsheet, passing the data for all strategies, the directory and filename for the final excel file
+
+5. Print out a completion message and the time taken to complete the function "createStrategyData"
+
+Here is the full implementation of the functions already written and used above:
+
+############## implementation  ##################
+
 import pandas as pd
 import requests
 import json
 import random
+import time
+from openpyxl.styles import PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
 
-#%%
-fdir = '/projects/agent-assist/'
+# Data & endpoint
+dataDir = '/projects/agent-assist/'
 url = "http://localhost:9001/pltfm/rest/agentAssist/processChunk"
+strategyList = ['fromOrigin', 'fromReset', '3Branch']
 
-#%%
-import pandas as pd
-import random
-import requests
 
-def processSheet(inputFilename, sheet, url):
+def config(url, data):
+    headers = {'Content-Type': 'application/json'}
+    response = requests.post(url, json=data, headers=headers)
+    return response.json()
+
+def processSheet(strategyName, inputFilename, sheet, url):
     print(f"Processing: {sheet}")
     input_df = pd.read_excel(inputFilename, sheet_name=sheet)
+    output_list = []
 
-    # Check if the DataFrame is empty or all cells are NaN
     if input_df.empty or input_df.isna().all().all():
         print(f"Sheet {sheet} is empty. Skipping.")
-        return
+        return output_list
 
     rand1 = random.randint(1000, 9999)
     rand2 = random.randint(1000, 9999)
@@ -27,7 +86,6 @@ def processSheet(inputFilename, sheet, url):
     randStr2 = '-' + str(rand2)
 
     for index, row in input_df.iterrows():
-        # Prepare JSON data for POST request
         payload = {
             "sessionID": sheet + randStr1 + randStr2,
             "personID": row['personID'],
@@ -35,19 +93,108 @@ def processSheet(inputFilename, sheet, url):
             "isEnd": row['isEnd'],
             "dataSource": sheet
         }
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload).json()
+
+        # Presets for agreePurpose and agreeIntent
+        agreePurpose = "NA" if response.get('callPurpose', '') in ["", "()"] else ""
+        agreeIntent = "NA" if response.get('rawPurposeIntent', '') in ["", "()"] else ""
+
+        output_list.append({
+            "sessionID": payload['sessionID'],
+            "strategy": strategyName,
+            "personID": payload['personID'],
+            "transcript": payload['transcript'],
+            "utterance": response.get('utterance', ''),
+            "callPurpose": response.get('callPurpose', ''),
+            "rawPurposeIntent": response.get('rawPurposeIntent', ''),
+            "agreePurpose": agreePurpose,
+            "agreeIntent": agreeIntent,
+            "trigger": response.get('trigger', ''),
+            "tokenCount": response.get('tokenCount', '')
+        })
 
     print(f"Completed: {sheet}")
+    return output_list
 
-#%%
-def orchestrate(inputFilename, sheets, url):
-    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+def orchestrate(strategyName, inputFilename, sheets, url):
+    concatenated_list = []
     for sheet in sheets:
-        processSheet(inputFilename, sheet, url)
+        concatenated_list.extend(processSheet(strategyName, inputFilename, sheet, url))
     print("Completed processing all worksheets")
+    return concatenated_list
 
-#%% invoke
-for k in reversed(range(5)):
-    inputFilename = fdir + '{k}_1_0_9_System_Transcripts.xlsx'
-    sheets = [f'Call_0_{i}' for i in reversed(range(10))]  # do a countdown so sheet 09 is first and sheet 01 is last
-    orchestrate(inputFilename, sheets, url)
+def toSpreadsheet(listFromOrchestrate, outputDir, outputXL):
+    df = pd.DataFrame(listFromOrchestrate)
+    writer = pd.ExcelWriter(outputDir + outputXL, engine='openpyxl')
+    df.to_excel(writer, index=False, sheet_name='output')
+
+    workbook = writer.book
+    worksheet = writer.sheets['output']
+
+    # Apply dotted borders to all cells
+    thin_border = Border(left=Side(style='dotted'), 
+                         right=Side(style='dotted'), 
+                         top=Side(style='dotted'), 
+                         bottom=Side(style='dotted'))
+    for row in worksheet.iter_rows():
+        for cell in row:
+            cell.border = thin_border
+
+    # Mapping column names to their indices
+    col_indices = {col: idx for idx, col in enumerate(df.columns)}
+
+    # Apply background color based on conditions
+    for row in worksheet.iter_rows(min_row=2):  # skip header row
+        personID = row[col_indices['personID']].value
+        agreePurpose = row[col_indices['agreePurpose']].value
+        agreeIntent = row[col_indices['agreeIntent']].value
+
+        if personID in ["Customer", "Person1"]:
+            for cell in row:
+                cell.fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+        if agreePurpose == "NA" or agreeIntent == "NA":
+            row[col_indices['agreePurpose']].fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+            row[col_indices['agreeIntent']].fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+
+    writer.save()
+    
+
+#%%    Analytics
+
+def createStrategyData(strategyName, url, dataDir):
+    all_lists = []
+    for k in reversed(range(5)):
+        inputFilename = dataDir + f'{k}_1_0_9_System_Transcripts.xlsx'
+        sheets = [f'Call_0_{i}' for i in reversed(range(10))]
+        result = orchestrate(strategyName, inputFilename, sheets, url)
+        all_lists.extend(result)
+    return all_lists
+
+def assembleStrategyData(strategyList, url, dataDir):
+    all_data = []
+    time1 = time.time()
+    for strategyName in strategyList:
+        if strategyName == 'fromOrigin':
+            config_data = {"alwaysFromOrigin": True}
+        elif strategyName == 'fromReset':
+            config_data = {"alwaysFromOrigin": False, "use3BranchWithReset": False}
+        elif strategyName == '3Branch':
+            config_data = {"alwaysFromOrigin": False, "use3BranchWithReset": True}
+        config(url, config_data)
+
+        start_time = time.time()
+        strategy_data = createStrategyData(strategyName, url, dataDir)
+        end_time = time.time()
+
+        print(f"createStrategyData for {strategyName} completed in {end_time - start_time} seconds.")
+        all_data.extend(strategy_data)
+
+    toSpreadsheet(all_data, dataDir, 'final_output.xlsx')
+    
+    time2 = time.time()
+    total_time = time2 - time1
+    num_items = len(all_data)
+    print(f"Processing completed. Number of items in all_data: {num_items}. Total time taken: {total_time:.2f} seconds.")
+
+#%% run time
+assembleStrategyData(strategyList, url, dataDir)
