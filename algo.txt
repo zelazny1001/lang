@@ -1,155 +1,69 @@
 import pandas as pd
-import requests
-import json
-import random
-import time
-from openpyxl.styles import PatternFill, Border, Side
-from openpyxl.utils import get_column_letter
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Border, Side
 
-# Data & endpoint
-dataDir = '/projects/agent-assist/'
-url = "http://localhost:9001/pltfm/rest/agentAssist/processChunk"
-strategyList = ['fromOrigin', 'fromReset', '3Branch']
+def compareStrategies(dir, filename):
+    # Define paths
+    input_excel_filename = dir + filename
+    output_excel_filename = dir + filename
 
+    # Load the workbook and the 'output' worksheet using pandas
+    output_df = pd.read_excel(input_excel_filename, sheet_name='output')
 
-def config(url, data):
-    headers = {'Content-Type': 'application/json'}
-    response = requests.post(url, json=data, headers=headers)
-    return response.json()
+    # Process the data
+    analysis_data = []
+    transcripts = output_df.groupby('transcript')
+    for transcript, group in transcripts:
+        if group['agreePurpose'].eq('NA').any() or group['agreeIntent'].eq('NA').any():
+            continue
 
-def processSheet(strategyName, inputFilename, sheet, url):
-    print(f"Processing: {sheet}")
-    output_list = []
-    
-    try:
-        input_df = pd.read_excel(inputFilename, sheet_name=sheet)
-    except (FileNotFoundError, IOError, pd.errors.EmptyDataError, ValueError) as e:
-        print(f"Error reading file '{inputFilename}' or sheet '{sheet}': {e}. Skipping.")
-        return output_list
+        if len(group) != 3:
+            continue
 
-    if input_df.empty or input_df.isna().all().all():
-        print(f"Sheet {sheet} is empty. Skipping.")
-        return output_list
+        analysis_row = {'call': group['sessionID'].str.split('-').str[0].iloc[0]}
+        for _, row in group.iterrows():
+            strategy = row['strategy']
+            prefix = strategy.replace('from', '').replace('3', 'Three')  # 'Origin', 'Reset', 'ThreeBranch'
+            analysis_row.update({
+                f'{prefix}': row['utterance'],
+                f'{prefix}Purpose': row['callPurpose'],
+                f'{prefix}Intent': row['rawPurposeIntent'],
+                f'agree{prefix}': row['agreePurpose']
+            })
+        analysis_data.append(analysis_row)
 
-    rand1 = random.randint(1000, 9999)
-    rand2 = random.randint(1000, 9999)
-    randStr1 = '-' + str(rand1)
-    randStr2 = '-' + str(rand2)
+    # Create a DataFrame for the 'analysis' data
+    analysis_df = pd.DataFrame(analysis_data)
 
-    for index, row in input_df.iterrows():
-        payload = {
-            "sessionID": sheet + randStr1 + randStr2,
-            "personID": row['personID'],
-            "transcript": row['transcript'],
-            "isEnd": row['isEnd'],
-            "dataSource": sheet
-        }
-        response = requests.post(url, json=payload).json()
-
-        # Presets for agreePurpose and agreeIntent
-        agreePurpose = "NA" if response.get('callPurpose', '') in ["", "()"] else ""
-        agreeIntent = "NA" if response.get('rawPurposeIntent', '') in ["", "()"] else ""
-
-        output_list.append({
-            "sessionID": payload['sessionID'],
-            "strategy": strategyName,
-            "personID": payload['personID'],
-            "transcript": payload['transcript'],
-            "utterance": response.get('utterance', ''),
-            "callPurpose": response.get('callPurpose', ''),
-            "rawPurposeIntent": response.get('rawPurposeIntent', ''),
-            "agreePurpose": agreePurpose,
-            "agreeIntent": agreeIntent,
-            "trigger": response.get('trigger', ''),
-            "tokenCount": response.get('tokenCount', '')
-        })
-
-    print(f"Completed: {sheet}")
-    return output_list
-
-def orchestrate(strategyName, inputFilename, sheets, url):
-    concatenated_list = []
-    for sheet in sheets:
-        concatenated_list.extend(processSheet(strategyName, inputFilename, sheet, url))
-    print("Completed processing all worksheets")
-    return concatenated_list
-
-def toSpreadsheet(listFromOrchestrate, outputDir, outputXL):
-    df = pd.DataFrame(listFromOrchestrate)
-    output_excel_filename = outputDir + outputXL
-
+    # Write to Excel using ExcelWriter
     with pd.ExcelWriter(output_excel_filename, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='output')
+        output_df.to_excel(writer, sheet_name='output', index=False)
+        analysis_df.to_excel(writer, sheet_name='analysis', index=False)
 
+        # Apply formatting using openpyxl
         workbook = writer.book
-        worksheet = writer.sheets['output']
+        analysis_sheet = workbook['analysis']
 
-        # Freeze the top row
-        worksheet.freeze_panes = 'A2'
+        # Set the headers
+        for cell in analysis_sheet[1]:
+            cell.font = Font(bold=True)
+        analysis_sheet.freeze_panes = 'A2'
 
-        # Apply dotted borders to all cells and set font size to 8
-        font_8pt = Font(size=8)
-        thin_border = Border(left=Side(style='dotted'), 
-                             right=Side(style='dotted'), 
-                             top=Side(style='thin'), 
-                             bottom=Side(style='thin'))
-        for row in worksheet.iter_rows():
+        # Set cell styles
+        font = Font(size=8)
+        fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')
+        thin_border = Border(left=Side(style='dotted'), right=Side(style='dotted'),
+                             top=Side(style='dotted'), bottom=Side(style='dotted'))
+
+        # Apply formatting and check for intent agreement
+        for row in analysis_sheet.iter_rows(min_row=2):
             for cell in row:
                 cell.border = thin_border
-                cell.font = font_8pt
+                cell.font = font
 
-        # Mapping column names to their indices
-        col_indices = {col: idx for idx, col in enumerate(df.columns)}
-
-        # Apply background color based on conditions
-        for row in worksheet.iter_rows(min_row=2):  # skip header row
-            personID = row[col_indices['personID']].value
-            agreePurpose = row[col_indices['agreePurpose']].value
-            agreeIntent = row[col_indices['agreeIntent']].value
-
-            if personID in ["Customer", "Person1"]:
+            if row[7].value == row[8].value == row[9].value:  # Check for matching intents
                 for cell in row:
-                    cell.fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
-            if agreePurpose == "NA" or agreeIntent == "NA":
-                row[col_indices['agreePurpose']].fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-                row[col_indices['agreeIntent']].fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                    cell.fill = fill
 
-#%%    Analytics
-
-def createStrategyData(strategyName, url, dataDir):
-    all_lists = []
-    for k in reversed(range(5)):
-        inputFilename = dataDir + f'{k}_1_0_9_System_Transcripts.xlsx'
-        sheets = [f'Call_0_{i}' for i in reversed(range(10))]
-        result = orchestrate(strategyName, inputFilename, sheets, url)
-        all_lists.extend(result)
-    return all_lists
-
-def assembleStrategyData(strategyList, url, dataDir):
-    all_data = []
-    time1 = time.time()
-    for strategyName in strategyList:
-        if strategyName == 'fromOrigin':
-            config_data = {"alwaysFromOrigin": True}
-        elif strategyName == 'fromReset':
-            config_data = {"alwaysFromOrigin": False, "use3BranchWithReset": False}
-        elif strategyName == '3Branch':
-            config_data = {"alwaysFromOrigin": False, "use3BranchWithReset": True}
-        config(url, config_data)
-
-        start_time = time.time()
-        strategy_data = createStrategyData(strategyName, url, dataDir)
-        end_time = time.time()
-
-        print(f"createStrategyData for {strategyName} completed in {end_time - start_time} seconds.")
-        all_data.extend(strategy_data)
-
-    toSpreadsheet(all_data, dataDir, 'final_output.xlsx')
-    
-    time2 = time.time()
-    total_time = time2 - time1
-    num_items = len(all_data)
-    print(f"Processing completed. Number of items in all_data: {num_items}. Total time taken: {total_time:.2f} seconds.")
-
-#%% run time
-assembleStrategyData(strategyList, url, dataDir)
+    # End of process message
+    print("Process completed. Analysis worksheet has been updated.")
