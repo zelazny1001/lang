@@ -1,69 +1,96 @@
 import pandas as pd
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Border, Side
+from openpyxl.styles import Font, Border, Side, PatternFill
 
 def compareStrategies(dir, filename):
-    # Define paths
-    input_excel_filename = dir + filename
-    output_excel_filename = dir + filename
+    input_excel_filename = f"{dir}{filename}"
+    df_output = pd.read_excel(input_excel_filename, sheet_name='output')
 
-    # Load the workbook and the 'output' worksheet using pandas
-    output_df = pd.read_excel(input_excel_filename, sheet_name='output')
+    analysis_columns = [
+        'callID', 'person', 'transcript',
+        'fromOrigin', 'originPurpose', 'originIntent', 'agreeOriginPurpose', 'agreeOriginIntent',
+        'fromReset', 'resetPurpose', 'resetIntent', 'agreeResetPurpose', 'agreeResetIntent',
+        '3Branch', 'branch', '3BranchPurpose', '3BranchIntent', 'agree3BranchPurpose', 'agree3BranchIntent'
+    ]
 
-    # Process the data
-    analysis_data = []
-    transcripts = output_df.groupby('transcript')
-    for transcript, group in transcripts:
-        if group['agreePurpose'].eq('NA').any() or group['agreeIntent'].eq('NA').any():
-            continue
+    df_analysis = pd.DataFrame(columns=analysis_columns)
 
-        if len(group) != 3:
-            continue
+    for _, row in df_output.iterrows():
+        # Find the other rows with the same 'transcript'
+        matching_rows = df_output[df_output['transcript'] == row['transcript']]
+        
+        # Initialize a dictionary to hold the data for the current 'transcript'
+        analysis_row = {col: None for col in analysis_columns}
+        analysis_row['transcript'] = row['transcript']
+        analysis_row['person'] = row['person']
+        analysis_row['callID'] = row['sessionID'].split('-')[0]
 
-        analysis_row = {'call': group['sessionID'].str.split('-').str[0].iloc[0]}
-        for _, row in group.iterrows():
-            strategy = row['strategy']
-            prefix = strategy.replace('from', '').replace('3', 'Three')  # 'Origin', 'Reset', 'ThreeBranch'
-            analysis_row.update({
-                f'{prefix}': row['utterance'],
-                f'{prefix}Purpose': row['callPurpose'],
-                f'{prefix}Intent': row['rawPurposeIntent'],
-                f'agree{prefix}': row['agreePurpose']
-            })
-        analysis_data.append(analysis_row)
+        # Fill in the data for each strategy
+        for _, strategy_row in matching_rows.iterrows():
+            strategy = strategy_row['strategy']
+            if strategy == 'fromOrigin':
+                analysis_row['fromOrigin'] = strategy_row['utterance']
+                analysis_row['originPurpose'] = strategy_row['callPurpose']
+                analysis_row['agreeOriginPurpose'] = strategy_row['agreePurpose']
+                analysis_row['originIntent'] = strategy_row['rawPurposeIntent']
+                analysis_row['agreeOriginIntent'] = strategy_row['agreeIntent']
+            elif strategy == 'fromReset':
+                analysis_row['fromReset'] = strategy_row['utterance']
+                analysis_row['resetPurpose'] = strategy_row['callPurpose']
+                analysis_row['agreeResetPurpose'] = strategy_row['agreePurpose']
+                analysis_row['resetIntent'] = strategy_row['rawPurposeIntent']
+                analysis_row['agreeResetIntent'] = strategy_row['agreeIntent']
+            elif strategy == '3Branch':
+                analysis_row['3Branch'] = strategy_row['utterance']
+                analysis_row['3BranchPurpose'] = strategy_row['callPurpose']
+                analysis_row['agree3BranchPurpose'] = strategy_row['agreePurpose']
+                analysis_row['3BranchIntent'] = strategy_row['rawPurposeIntent']
+                analysis_row['agree3BranchIntent'] = strategy_row['agreeIntent']
 
-    # Create a DataFrame for the 'analysis' data
-    analysis_df = pd.DataFrame(analysis_data)
+        # Add the row to the DataFrame
+        df_analysis = df_analysis.append(analysis_row, ignore_index=True)
 
-    # Write to Excel using ExcelWriter
+    output_excel_filename = f"{dir}analysis.xlsx"
     with pd.ExcelWriter(output_excel_filename, engine='openpyxl') as writer:
-        output_df.to_excel(writer, sheet_name='output', index=False)
-        analysis_df.to_excel(writer, sheet_name='analysis', index=False)
+        df_analysis.to_excel(writer, sheet_name='analysis', index=False)
 
-        # Apply formatting using openpyxl
-        workbook = writer.book
-        analysis_sheet = workbook['analysis']
+        ws = writer.sheets['analysis']
+        
+        thin_border = Border(left=Side(style='dotted'), 
+                             right=Side(style='dotted'), 
+                             top=Side(style='dotted'), 
+                             bottom=Side(style='dotted'))
 
-        # Set the headers
-        for cell in analysis_sheet[1]:
-            cell.font = Font(bold=True)
-        analysis_sheet.freeze_panes = 'A2'
-
-        # Set cell styles
-        font = Font(size=8)
-        fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')
-        thin_border = Border(left=Side(style='dotted'), right=Side(style='dotted'),
-                             top=Side(style='dotted'), bottom=Side(style='dotted'))
-
-        # Apply formatting and check for intent agreement
-        for row in analysis_sheet.iter_rows(min_row=2):
+        for row in ws.iter_rows(min_row=1, max_row=len(df_analysis) + 1, min_col=1, max_col=len(analysis_columns)):
             for cell in row:
                 cell.border = thin_border
-                cell.font = font
+                cell.font = Font(size=8)
+                if cell.row == 1:
+                    cell.font = Font(bold=True)
 
-            if row[7].value == row[8].value == row[9].value:  # Check for matching intents
+        ws.freeze_panes = 'A2'
+
+        for col in ws.columns:
+            cell = col[0]
+            cell.auto_filter.ref = ws.dimensions
+
+        green_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')
+        blue_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+
+        for row in ws.iter_rows(min_row=2, max_row=len(df_analysis) + 1, min_col=1, max_col=len(analysis_columns)):
+            originIntent = row[5].value
+            resetIntent = row[10].value
+            threeBranchIntent = row[15].value
+
+            # Check if 'originIntent', 'resetIntent', and '3BranchIntent' are the same and not empty strings
+            if originIntent == resetIntent == threeBranchIntent and originIntent != '':
                 for cell in row:
-                    cell.fill = fill
+                    cell.fill = green_fill
 
-    # End of process message
-    print("Process completed. Analysis worksheet has been updated.")
+            # Highlight rows where 'person' == 'person2'
+            if row[1].value == 'person2':
+                for cell in row:
+                    cell.fill = blue_fill
+
+    print("Analysis worksheet created and formatted successfully.")
+
+# compareStrategies("/projects/agent-assist/", "call-analysis.xlsx")
