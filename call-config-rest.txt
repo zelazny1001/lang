@@ -7,7 +7,7 @@ to call a REST endpoint url with input data
    “use3Branch”: false
 }
 
-====================
+#======== call config POST REST============
 
 import requests
 
@@ -24,3 +24,8 @@ data = {
 
 response = config(url, data)
 print(response)
+
+when I try to do this: 
+config_data = {"alwaysFromOrigin": True}
+config(url, config_data)
+I get JSONDecodeError: Expecting value
