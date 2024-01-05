@@ -79,7 +79,7 @@ def compareStrategies(dir, filename):
         blue_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
 
         total_rows = len(df_output)
-        for row in ws.iter_rows(min_row=2, max_row=len(df_analysis) + 1, min_col=1, max_col=len(analysis_columns)):
+        for index, row in ws.iter_rows(min_row=2, max_row=len(df_analysis) + 1, min_col=1, max_col=len(analysis_columns)):
             print(f"Processing row {index + 1} of {total_rows}")
             originIntent = row[5].value
             resetIntent = row[10].value
@@ -94,7 +94,9 @@ def compareStrategies(dir, filename):
             if row[1].value == 'person2':
                 for cell in row:
                     cell.fill = blue_fill
-
-    print("Analysis worksheet created and formatted successfully.")
+                    
+    final = time.time()
+    elapsed = (final - prior)/60
+    print(f"Analysis worksheet created and formatted successfully in {elapsed:.1f} minutes")
 
 # compareStrategies("/projects/agent-assist/", "call-analysis.xlsx")
