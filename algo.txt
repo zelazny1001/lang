@@ -47,7 +47,8 @@ def compareStrategies(dir, filename):
                 analysis_row['agree3BranchIntent'] = strategy_row['agreeIntent']
 
         # Add the row to the DataFrame
-        df_analysis = df_analysis.append(analysis_row, ignore_index=True)
+        #df_analysis = df_analysis.append(analysis_row, ignore_index=True)
+        df_analysis = pd.concat([df_analysis, pd.DataFrame([analysis_row])], ignore_index=True)
 
     output_excel_filename = f"{dir}analysis.xlsx"
     with pd.ExcelWriter(output_excel_filename, engine='openpyxl') as writer:
