@@ -7,60 +7,64 @@ def compareStrategies(dir, filename):
     start_time = time.time()
     input_path = dir + filename
 
-    with pd.ExcelWriter(input_path, engine='openpyxl', mode='a') as writer:
-        book = load_workbook(input_path)
+    # Load the existing workbook
+    book = load_workbook(input_path)
+
+    # Read data from "output" worksheet
+    output_data = pd.read_excel(input_path, sheet_name='output')
+
+    # Determine the number of rows per strategy
+    num_strategies = output_data['strategy'].nunique()
+    rows_per_strategy = len(output_data) // num_strategies
+
+    # Columns setup for "analysis" worksheet
+    columns = ["callID", "person", "transcript", 
+               "fromOrigin", "originPurpose", "originIntent", "agreeOriginPurpose", "agreeOriginIntent", 
+               "fromReset", "resetPurpose", "resetIntent", "agreeResetPurpose", "agreeResetIntent", 
+               "3Branch", "branch", "3BranchPurpose", "3BranchIntent", "agree3BranchPurpose", "agree3BranchIntent"]
+    analysis_data = pd.DataFrame(columns=columns)
+
+    # Processing rows for each strategy
+    for i in range(rows_per_strategy):
+        origin_row = output_data.iloc[i]
+        reset_row = output_data.iloc[i + rows_per_strategy]
+        branch_row = output_data.iloc[i + 2 * rows_per_strategy]
+
+        row_data = {
+            'callID': origin_row['sessionID'].split('-')[0],
+            'person': origin_row['personID'],
+            'transcript': origin_row['transcript'],
+            'fromOrigin': origin_row['utterance'],
+            'originPurpose': origin_row['callPurpose'],
+            'originIntent': origin_row['rawPurposeIntent'],
+            'agreeOriginPurpose': origin_row['agreePurpose'],
+            'agreeOriginIntent': origin_row['agreeIntent'],
+            'fromReset': reset_row['utterance'],
+            'resetPurpose': reset_row['callPurpose'],
+            'resetIntent': reset_row['rawPurposeIntent'],
+            'agreeResetPurpose': reset_row['agreePurpose'],
+            'agreeResetIntent': reset_row['agreeIntent'],
+            '3Branch': branch_row['utterance'],
+            'branch': branch_row['trigger'],
+            '3BranchPurpose': branch_row['callPurpose'],
+            '3BranchIntent': branch_row['rawPurposeIntent'],
+            'agree3BranchPurpose': branch_row['agreePurpose'],
+            'agree3BranchIntent': branch_row['agreeIntent']
+        }
+
+        analysis_data = analysis_data.append(row_data, ignore_index=True)
+
+    # Save the analysis data to a new sheet in the workbook
+    with pd.ExcelWriter(input_path, engine='openpyxl') as writer:
         writer.book = book
-        writer.sheets = {ws.title: ws for ws in book.worksheets}
-
-        output_data = pd.read_excel(input_path, sheet_name='output')
-
-        num_strategies = output_data['strategy'].nunique()
-        rows_per_strategy = len(output_data) // num_strategies
-
-        # Columns for "analysis" worksheet
-        columns = ["callID", "person", "transcript", 
-                   "fromOrigin", "originPurpose", "originIntent", "agreeOriginPurpose", "agreeOriginIntent", 
-                   "fromReset", "resetPurpose", "resetIntent", "agreeResetPurpose", "agreeResetIntent", 
-                   "3Branch", "branch", "3BranchPurpose", "3BranchIntent", "agree3BranchPurpose", "agree3BranchIntent"]
-        analysis_data = pd.DataFrame(columns=columns)
-
-        # Assemble strategy rows into columns on a single line
-        for i in range(rows_per_strategy):
-            origin_row = output_data.iloc[i]
-            reset_row = output_data.iloc[i + rows_per_strategy]
-            branch_row = output_data.iloc[i + 2 * rows_per_strategy]
-
-            row_data = {
-                'callID': origin_row['sessionID'].split('-')[0],
-                'person': origin_row['personID'],
-                'transcript': origin_row['transcript'],
-                'fromOrigin': origin_row['utterance'],
-                'originPurpose': origin_row['callPurpose'],
-                'originIntent': origin_row['rawPurposeIntent'],
-                'agreeOriginPurpose': origin_row['agreePurpose'],
-                'agreeOriginIntent': origin_row['agreeIntent'],
-                'fromReset': reset_row['utterance'],
-                'resetPurpose': reset_row['callPurpose'],
-                'resetIntent': reset_row['rawPurposeIntent'],
-                'agreeResetPurpose': reset_row['agreePurpose'],
-                'agreeResetIntent': reset_row['agreeIntent'],
-                '3Branch': branch_row['utterance'],
-                'branch': branch_row['trigger'],
-                '3BranchPurpose': branch_row['callPurpose'],
-                '3BranchIntent': branch_row['rawPurposeIntent'],
-                'agree3BranchPurpose': branch_row['agreePurpose'],
-                'agree3BranchIntent': branch_row['agreeIntent']
-            }
-
-            analysis_data = analysis_data.append(row_data, ignore_index=True)
-            print(f"Processed {i + 1} of {rows_per_strategy}")
-
-        # Write to 'analysis' worksheet
         analysis_data.to_excel(writer, sheet_name='analysis', index=False)
 
-        # Formatting
+        # Ensure existing sheets are not removed
+        writer.sheets = {ws.title: ws for ws in book.worksheets}
+
+        # Formatting and Conditional Formatting
         worksheet = writer.sheets['analysis']
-        column_names = {col[0].value: idx for idx, col in enumerate(worksheet.iter_cols())}
+        column_names = {col[0].value: idx for idx, col in enumerate(worksheet.iter_cols(min_col=1, max_col=worksheet.max_column))}
 
         thin_border = Border(left=Side(style='dotted'), 
                              right=Side(style='dotted'), 
@@ -86,9 +90,10 @@ def compareStrategies(dir, filename):
                 for cell in row:
                     cell.fill = blue_fill
 
+        # Freeze the top row
         worksheet.freeze_panes = 'A2'
 
     end_time = time.time()
     print(f"Process complete. Total time: {round((end_time - start_time) / 60, 1)} minutes.")
 
-compareStrategies('/projects/agent-assist/', 'call-analysis.xlsx')
+compareStrategies('/projects/agent-assist/', 'call-analysis-5.xlsx')
