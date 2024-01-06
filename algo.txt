@@ -81,7 +81,7 @@ def compareStrategies(dir, filename):
         for row in ws.iter_rows(min_row=2, max_row=len(df_analysis) + 1, min_col=1, max_col=len(analysis_columns)):
             originIntent = row[5].value
             resetIntent = row[10].value
-            threeBranchIntent = row[15].value
+            threeBranchIntent = row[16].value
 
             # Check if 'originIntent', 'resetIntent', and '3BranchIntent' are the same and not empty strings
             if originIntent == resetIntent == threeBranchIntent and originIntent != '':
@@ -89,7 +89,9 @@ def compareStrategies(dir, filename):
                     cell.fill = green_fill
 
             # Highlight rows where 'person' == 'person2'
+            print(f"person cell value: {row[1].value}")
             if row[1].value == 'person2':
+                print(f"Highlighting row {row[0].row} for person2")
                 for cell in row:
                     cell.fill = blue_fill
                     
@@ -97,4 +99,4 @@ def compareStrategies(dir, filename):
     elapsed = (final - prior)/60
     print(f"Analysis worksheet created and formatted successfully in {elapsed:.1f} minutes")
 
-# compareStrategies("/projects/agent-assist/", "call-analysis.xlsx")
+compareStrategies("/projects/agent-assist/", "call-analysis.xlsx")
