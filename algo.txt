@@ -7,19 +7,23 @@ def compareStrategies(dir, filename):
     start_time = time.time()
     input_path = dir + filename
 
+    # Load data from the 'output' worksheet
     output_data = pd.read_excel(input_path, sheet_name='output')
 
+    # Determine the number of rows per strategy
     num_strategies = output_data['strategy'].nunique()
     rows_per_strategy = len(output_data) // num_strategies
 
+    # Columns setup for the 'analysis' worksheet
     columns = ["callID", "person", "transcript", 
                "fromOrigin", "originPurpose", "originIntent", "agreeOriginPurpose", "agreeOriginIntent", 
                "fromReset", "resetPurpose", "resetIntent", "agreeResetPurpose", "agreeResetIntent", 
                "3Branch", "branch", "3BranchPurpose", "3BranchIntent", "agree3BranchPurpose", "agree3BranchIntent"]
     analysis_data = pd.DataFrame(columns=columns)
 
+    # Process rows for each strategy
     for i in range(rows_per_strategy):
-        print(f"processing row {i} / {rows_per_strategy}")
+        print(f"processing {i} / {rows_per_strategy}")
         origin_row = output_data.iloc[i]
         reset_row = output_data.iloc[i + rows_per_strategy]
         branch_row = output_data.iloc[i + 2 * rows_per_strategy]
@@ -48,18 +52,15 @@ def compareStrategies(dir, filename):
 
         analysis_data = pd.concat([analysis_data, pd.DataFrame([row_data])], ignore_index=True)
 
-    # Saving the DataFrame to a new Excel sheet
+    # Save the analysis data to a new sheet in the workbook
+    with pd.ExcelWriter(input_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        analysis_data.to_excel(writer, sheet_name='analysis', index=False)
+
+    # Load the workbook and the specific sheet for formatting
     book = load_workbook(input_path)
-    writer = pd.ExcelWriter(input_path, engine='openpyxl', mode='a')
-    writer.book = book
-    writer.sheets = {ws.title: ws for ws in book.worksheets}
+    worksheet = book['analysis']
 
-    analysis_data.to_excel(writer, sheet_name='analysis', index=False)
-
-    # Formatting and Conditional Formatting
-    worksheet = writer.book['analysis']
-    column_names = {col[0].value: idx for idx, col in enumerate(worksheet.iter_cols(min_col=1, max_col=worksheet.max_column))}
-
+    # Apply formatting and conditional formatting
     dotted_border = Border(left=Side(style='dotted'), 
                            right=Side(style='dotted'), 
                            top=Side(style='dotted'), 
@@ -73,11 +74,11 @@ def compareStrategies(dir, filename):
             cell.font = Font(size=8)
             cell.alignment = Alignment(wrap_text=True)
 
-        originIntent = row[column_names["originIntent"]].value
-        resetIntent = row[column_names["resetIntent"]].value
-        threeBranchIntent = row[column_names["3BranchIntent"]].value
-
-        if row[column_names["person"]].value == "person2":
+        originIntent = row[5].value
+        resetIntent = row[10].value
+        threeBranchIntent = row[15].value
+        
+        if row[1].value == "person2":
             for cell in row:
                 cell.fill = blue_fill
 
@@ -88,8 +89,8 @@ def compareStrategies(dir, filename):
 
     worksheet.freeze_panes = 'A2'
 
-    writer.save()
-    writer.close()
+    # Save the changes to the workbook
+    book.save(input_path)
 
     end_time = time.time()
     print(f"Process complete. Total time: {round((end_time - start_time) / 60, 1)} minutes.")
