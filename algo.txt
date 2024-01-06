@@ -53,12 +53,14 @@ def compareStrategies(dir, filename):
     book = load_workbook(input_path)
     with pd.ExcelWriter(input_path, engine='openpyxl') as writer:
         writer.book = book
-        analysis_data.to_excel(writer, sheet_name='analysis', index=False) #(over)write analysis to sheet
+        
+        #(over)write 'analysis' data (header and rows) to sheet
+        analysis_data.to_excel(writer, sheet_name='analysis', index=False)
 
         # keep existing sheets
         writer.sheets = {ws.title: ws for ws in book.worksheets}
 
-        # Formatting
+        # Format worksheet
         worksheet = writer.sheets['analysis']
         column_names = {col[0].value: idx for idx, col in enumerate(worksheet.iter_cols(min_col=1, max_col=worksheet.max_column))}
 
@@ -78,13 +80,17 @@ def compareStrategies(dir, filename):
             originIntent = row[column_names["originIntent"]].value
             resetIntent = row[column_names["resetIntent"]].value
             threeBranchIntent = row[column_names["3BranchIntent"]].value
+            
+            # Customer rows are blue
+            if row[column_names["person"]].value == "person2":
+                for cell in row:
+                    cell.fill = blue_fill
+                    
+            # Agreement across strategies is green
             if originIntent and resetIntent and threeBranchIntent and \
                originIntent == resetIntent == threeBranchIntent:
                 for cell in row:
                     cell.fill = green_fill
-            if row[column_names["person"]].value == "person2":
-                for cell in row:
-                    cell.fill = blue_fill
 
         # Freeze top row
         worksheet.freeze_panes = 'A2'
