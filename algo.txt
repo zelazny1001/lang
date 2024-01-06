@@ -21,6 +21,7 @@ def compareStrategies(dir, filename):
     analysis_data = pd.DataFrame(columns=columns)
 
     for i in range(rows_per_strategy):
+        print(f"processing {i} / {rows_per_strategy}")
         origin_row = output_data.iloc[i]
         reset_row = output_data.iloc[i + rows_per_strategy]
         branch_row = output_data.iloc[i + 2 * rows_per_strategy]
