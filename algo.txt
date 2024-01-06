@@ -7,23 +7,20 @@ def compareStrategies(dir, filename):
     start_time = time.time()
     input_path = dir + filename
 
+    # Load data from the 'output' worksheet
     with pd.ExcelFile(input_path) as xls:
         output_data = pd.read_excel(xls, sheet_name='output')
 
-    # Determine the number of rows per strategy
     num_strategies = output_data['strategy'].nunique()
     rows_per_strategy = len(output_data) // num_strategies
 
-    # Columns setup for the 'analysis' worksheet
     columns = ["callID", "person", "transcript", 
                "fromOrigin", "originPurpose", "originIntent", "agreeOriginPurpose", "agreeOriginIntent", 
                "fromReset", "resetPurpose", "resetIntent", "agreeResetPurpose", "agreeResetIntent", 
                "3Branch", "branch", "3BranchPurpose", "3BranchIntent", "agree3BranchPurpose", "agree3BranchIntent"]
     analysis_data = pd.DataFrame(columns=columns)
 
-    # Process rows for each strategy
     for i in range(rows_per_strategy):
-        print(f"processing {i} / {rows_per_strategy}")
         origin_row = output_data.iloc[i]
         reset_row = output_data.iloc[i + rows_per_strategy]
         branch_row = output_data.iloc[i + 2 * rows_per_strategy]
@@ -60,25 +57,34 @@ def compareStrategies(dir, filename):
     book = load_workbook(input_path)
     worksheet = book['analysis']
 
+    # Create a mapping of column names to indices
+    col_names = {worksheet.cell(row=1, column=col).value: col-1 for col in range(1, worksheet.max_column + 1)}
+
     # Apply formatting and conditional formatting
     dotted_border = Border(left=Side(style='dotted'), 
                            right=Side(style='dotted'), 
-                           top=Side(style='dotted'), 
-                           bottom=Side(style='dotted'))
+                           top=Side(style='thin', color='D3D3D3'),
+                           bottom=Side(style='thin', color='D3D3D3'))
+    yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
     green_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')
     blue_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
 
     for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
-        for cell in row:
-            cell.border = dotted_border
-            cell.font = Font(size=8)
-            cell.alignment = Alignment(wrap_text=False)
+        originIntent = row[col_names["originIntent"]].value
+        resetIntent = row[col_names["resetIntent"]].value
+        threeBranchIntent = row[col_names["3BranchIntent"]].value
 
-        originIntent = row[5].value
-        resetIntent = row[10].value
-        threeBranchIntent = row[15].value
-        
-        if row[1].value == "person2":
+        # Check if any of the intent columns are not empty
+        if originIntent or resetIntent or threeBranchIntent:
+            row[col_names["agreeOriginPurpose"]].fill = yellow_fill
+            row[col_names["agreeOriginIntent"]].fill = yellow_fill
+            row[col_names["agreeResetPurpose"]].fill = yellow_fill
+            row[col_names["agreeResetIntent"]].fill = yellow_fill
+            row[col_names["agree3BranchPurpose"]].fill = yellow_fill
+            row[col_names["agree3BranchIntent"]].fill = yellow_fill
+
+        # Additional formatting conditions
+        if row[1].value == "Person2" or row[1].value == "Customer":
             for cell in row:
                 cell.fill = blue_fill
 
@@ -87,13 +93,18 @@ def compareStrategies(dir, filename):
             for cell in row:
                 cell.fill = green_fill
 
+        for cell in row:
+            cell.border = dotted_border
+            cell.font = Font(size=8)
+            cell.alignment = Alignment(wrap_text=False)
+
     worksheet.freeze_panes = 'A2'
 
+    # Save the changes to the workbook
     book.save(input_path)
-    book.close()
-    
+
     end_time = time.time()
-    print(f"Process complete. Total time: {round((end_time - start_time) / 60, 1)} minutes.")
+    print(f"Process complete. Total time: {round((end_time - start_time), 0)} seconds.")
 
 # Example usage
-compareStrategies('/projects/agent-assist/', 'call-analysis-5.xlsx')
+compareStrategies('/projects/agent-assist/', 'call-analysis.xlsx')
