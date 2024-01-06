@@ -9,25 +9,23 @@ def compareStrategies(dir, filename):
 
     output_data = pd.read_excel(input_path, sheet_name='output')
 
-    num_strategies = output_data['strategy'].nunique() #num unique strategies
-    rows_per_strategy = len(output_data) // num_strategies  #int div
+    num_strategies = output_data['strategy'].nunique()
+    rows_per_strategy = len(output_data) // num_strategies
 
-    # "analysis" worksheet
     columns = ["callID", "person", "transcript", 
                "fromOrigin", "originPurpose", "originIntent", "agreeOriginPurpose", "agreeOriginIntent", 
                "fromReset", "resetPurpose", "resetIntent", "agreeResetPurpose", "agreeResetIntent", 
                "3Branch", "branch", "3BranchPurpose", "3BranchIntent", "agree3BranchPurpose", "agree3BranchIntent"]
     analysis_data = pd.DataFrame(columns=columns)
 
-    # Processing rows for each strategy
     for i in range(rows_per_strategy):
         print(f"processing row {i} / {rows_per_strategy}")
-        origin_row = output_data.iloc[i] #index loc
+        origin_row = output_data.iloc[i]
         reset_row = output_data.iloc[i + rows_per_strategy]
         branch_row = output_data.iloc[i + 2 * rows_per_strategy]
 
-        row_data = { # dict. of key:val. pairs
-            'callID': origin_row['sessionID'].split('-')[0], #0 indexed item after split on '-'
+        row_data = {
+            'callID': origin_row['sessionID'].split('-')[0],
             'person': origin_row['personID'],
             'transcript': origin_row['transcript'],
             'fromOrigin': origin_row['utterance'],
@@ -48,56 +46,53 @@ def compareStrategies(dir, filename):
             'agree3BranchIntent': branch_row['agreeIntent']
         }
 
-        #analysis_data = analysis_data.append(row_data, ignore_index=True)
         analysis_data = pd.concat([analysis_data, pd.DataFrame([row_data])], ignore_index=True)
 
-    # Save analysis data to a new sheet in the workbook
+    # Saving the DataFrame to a new Excel sheet
     book = load_workbook(input_path)
-    with pd.ExcelWriter(input_path, engine='openpyxl') as writer:
-        writer.book = book
-        
-        #(over)write 'analysis' data (header and rows) to sheet
-        analysis_data.to_excel(writer, sheet_name='analysis', index=False)
+    writer = pd.ExcelWriter(input_path, engine='openpyxl', mode='a')
+    writer.book = book
+    writer.sheets = {ws.title: ws for ws in book.worksheets}
 
-        # keep existing sheets
-        writer.sheets = {ws.title: ws for ws in book.worksheets}
+    analysis_data.to_excel(writer, sheet_name='analysis', index=False)
 
-        # Format worksheet
-        worksheet = writer.sheets['analysis']
-        column_names = {col[0].value: idx for idx, col in enumerate(worksheet.iter_cols(min_col=1, max_col=worksheet.max_column))}
+    # Formatting and Conditional Formatting
+    worksheet = writer.book['analysis']
+    column_names = {col[0].value: idx for idx, col in enumerate(worksheet.iter_cols(min_col=1, max_col=worksheet.max_column))}
 
-        dotted_border = Border(left=Side(style='dotted'), 
-                             right=Side(style='dotted'), 
-                             top=Side(style='dotted'), 
-                             bottom=Side(style='dotted'))
-        green_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')
-        blue_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+    dotted_border = Border(left=Side(style='dotted'), 
+                           right=Side(style='dotted'), 
+                           top=Side(style='dotted'), 
+                           bottom=Side(style='dotted'))
+    green_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')
+    blue_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
 
-        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
+    for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
+        for cell in row:
+            cell.border = dotted_border
+            cell.font = Font(size=8)
+            cell.alignment = Alignment(wrap_text=True)
+
+        originIntent = row[column_names["originIntent"]].value
+        resetIntent = row[column_names["resetIntent"]].value
+        threeBranchIntent = row[column_names["3BranchIntent"]].value
+
+        if row[column_names["person"]].value == "person2":
             for cell in row:
-                cell.border = dotted_border
-                cell.font = Font(size=8)
-                cell.alignment = Alignment(wrap_text=True)
+                cell.fill = blue_fill
 
-            originIntent = row[column_names["originIntent"]].value
-            resetIntent = row[column_names["resetIntent"]].value
-            threeBranchIntent = row[column_names["3BranchIntent"]].value
-            
-            # Customer rows are blue
-            if row[column_names["person"]].value == "person2":
-                for cell in row:
-                    cell.fill = blue_fill
-                    
-            # Agreement across strategies is green
-            if originIntent and resetIntent and threeBranchIntent and \
-               originIntent == resetIntent == threeBranchIntent:
-                for cell in row:
-                    cell.fill = green_fill
+        if originIntent and resetIntent and threeBranchIntent and \
+           originIntent == resetIntent == threeBranchIntent:
+            for cell in row:
+                cell.fill = green_fill
 
-        # Freeze top row
-        worksheet.freeze_panes = 'A2'
+    worksheet.freeze_panes = 'A2'
+
+    writer.save()
+    writer.close()
 
     end_time = time.time()
     print(f"Process complete. Total time: {round((end_time - start_time) / 60, 1)} minutes.")
 
+# Example usage
 compareStrategies('/projects/agent-assist/', 'call-analysis-5.xlsx')
