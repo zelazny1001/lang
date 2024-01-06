@@ -7,17 +7,12 @@ def compareStrategies(dir, filename):
     start_time = time.time()
     input_path = dir + filename
 
-    # Load the existing workbook
-    book = load_workbook(input_path)
-
-    # Read data from "output" worksheet
     output_data = pd.read_excel(input_path, sheet_name='output')
 
-    # Determine the number of rows per strategy
-    num_strategies = output_data['strategy'].nunique()
-    rows_per_strategy = len(output_data) // num_strategies
+    num_strategies = output_data['strategy'].nunique() #num unique strategies
+    rows_per_strategy = len(output_data) // num_strategies  #int div
 
-    # Columns setup for "analysis" worksheet
+    # "analysis" worksheet
     columns = ["callID", "person", "transcript", 
                "fromOrigin", "originPurpose", "originIntent", "agreeOriginPurpose", "agreeOriginIntent", 
                "fromReset", "resetPurpose", "resetIntent", "agreeResetPurpose", "agreeResetIntent", 
@@ -26,12 +21,12 @@ def compareStrategies(dir, filename):
 
     # Processing rows for each strategy
     for i in range(rows_per_strategy):
-        origin_row = output_data.iloc[i]
+        origin_row = output_data.iloc[i] #index loc
         reset_row = output_data.iloc[i + rows_per_strategy]
         branch_row = output_data.iloc[i + 2 * rows_per_strategy]
 
-        row_data = {
-            'callID': origin_row['sessionID'].split('-')[0],
+        row_data = { # dict. of key:val. pairs
+            'callID': origin_row['sessionID'].split('-')[0], #0 indexed item after split on '-'
             'person': origin_row['personID'],
             'transcript': origin_row['transcript'],
             'fromOrigin': origin_row['utterance'],
@@ -54,19 +49,20 @@ def compareStrategies(dir, filename):
 
         analysis_data = analysis_data.append(row_data, ignore_index=True)
 
-    # Save the analysis data to a new sheet in the workbook
+    # Save analysis data to a new sheet in the workbook
+    book = load_workbook(input_path)
     with pd.ExcelWriter(input_path, engine='openpyxl') as writer:
         writer.book = book
-        analysis_data.to_excel(writer, sheet_name='analysis', index=False)
+        analysis_data.to_excel(writer, sheet_name='analysis', index=False) #(over)write analysis to sheet
 
-        # Ensure existing sheets are not removed
+        # keep existing sheets
         writer.sheets = {ws.title: ws for ws in book.worksheets}
 
-        # Formatting and Conditional Formatting
+        # Formatting
         worksheet = writer.sheets['analysis']
         column_names = {col[0].value: idx for idx, col in enumerate(worksheet.iter_cols(min_col=1, max_col=worksheet.max_column))}
 
-        thin_border = Border(left=Side(style='dotted'), 
+        dotted_border = Border(left=Side(style='dotted'), 
                              right=Side(style='dotted'), 
                              top=Side(style='dotted'), 
                              bottom=Side(style='dotted'))
@@ -75,7 +71,7 @@ def compareStrategies(dir, filename):
 
         for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
             for cell in row:
-                cell.border = thin_border
+                cell.border = dotted_border
                 cell.font = Font(size=8)
                 cell.alignment = Alignment(wrap_text=True)
 
@@ -90,7 +86,7 @@ def compareStrategies(dir, filename):
                 for cell in row:
                     cell.fill = blue_fill
 
-        # Freeze the top row
+        # Freeze top row
         worksheet.freeze_panes = 'A2'
 
     end_time = time.time()
