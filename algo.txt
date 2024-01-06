@@ -7,8 +7,8 @@ def compareStrategies(dir, filename):
     start_time = time.time()
     input_path = dir + filename
 
-    # Load data from the 'output' worksheet
-    output_data = pd.read_excel(input_path, sheet_name='output')
+    with pd.ExcelFile(input_path) as xls:
+        output_data = pd.read_excel(xls, sheet_name='output')
 
     # Determine the number of rows per strategy
     num_strategies = output_data['strategy'].nunique()
@@ -72,7 +72,7 @@ def compareStrategies(dir, filename):
         for cell in row:
             cell.border = dotted_border
             cell.font = Font(size=8)
-            cell.alignment = Alignment(wrap_text=True)
+            cell.alignment = Alignment(wrap_text=False)
 
         originIntent = row[5].value
         resetIntent = row[10].value
@@ -89,9 +89,9 @@ def compareStrategies(dir, filename):
 
     worksheet.freeze_panes = 'A2'
 
-    # Save the changes to the workbook
     book.save(input_path)
-
+    book.close()
+    
     end_time = time.time()
     print(f"Process complete. Total time: {round((end_time - start_time) / 60, 1)} minutes.")
 
