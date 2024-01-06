@@ -21,6 +21,7 @@ def compareStrategies(dir, filename):
 
     # Processing rows for each strategy
     for i in range(rows_per_strategy):
+        print(f"processing row {i} / {rows_per_strategy}")
         origin_row = output_data.iloc[i] #index loc
         reset_row = output_data.iloc[i + rows_per_strategy]
         branch_row = output_data.iloc[i + 2 * rows_per_strategy]
@@ -47,7 +48,8 @@ def compareStrategies(dir, filename):
             'agree3BranchIntent': branch_row['agreeIntent']
         }
 
-        analysis_data = analysis_data.append(row_data, ignore_index=True)
+        #analysis_data = analysis_data.append(row_data, ignore_index=True)
+        analysis_data = pd.concat([analysis_data, pd.DataFrame([row_data])], ignore_index=True)
 
     # Save analysis data to a new sheet in the workbook
     book = load_workbook(input_path)
