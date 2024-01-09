@@ -11,6 +11,22 @@ public static String normalizePersonID(String input) {
     }
 }
 
+-------------------- python impl. ----------------------
+import re
+
+def normalizePersonID(input):
+    pattern = r"\d{1,2}\s-\sPerson\d"
+
+    match = re.match(pattern, input)   
+    if match:
+        # Extract the part "PersonX" from the input
+        return input.split(' ')[-1]
+    else:
+        return input
+
+# Test the function
+print(normalizePersonID("20 - Person1"))  # Should return "Person1"
+print(normalizePersonID("Person2"))       # Should return "Person2"
 ---------------------------------------------------------------------------
 
 import pandas as pd
