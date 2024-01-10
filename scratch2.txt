@@ -1,43 +1,27 @@
-public class TranscriptFormatter {
+def process_data_and_orchestrate(data, strategy, url):
+    # This function will process the dictionary and call orchestrate
+    def orchestrate(strategy, filename, sheets, url):
+        # Dummy orchestrate function for demonstration. Replace with actual function.
+        print(f"Orchestrating with {strategy}, {filename}, {sheets}, {url}")
 
-    public static String collapsePrefixedTranscript(String prefixedTranscript) {
-        StringBuilder result = new StringBuilder();
-        String lastPerson = null;
-        String currentLine = "";
+    # Process the dictionary
+    filenames = {}
+    for k, v in data.items():
+        # Generate filenames
+        filename = f"{k}_0_{k}_9_System_Transcripts.xlsx"
+        if filename not in filenames:
+            filenames[filename] = []
+        # Generate sheet names
+        sheet_name = f"Call_{k}_{v}"
+        if sheet_name not in filenames[filename]:
+            filenames[filename].append(sheet_name)
 
-        String[] lines = prefixedTranscript.split("\n");
+    # Call orchestrate for each filename and its sheets
+    for filename, sheets in filenames.items():
+        orchestrate(strategy, filename, sheets, url)
 
-        for (String line : lines) {
-            int separatorIndex = line.indexOf(':');
-            String person = line.substring(0, separatorIndex + 1);
-            String text = line.substring(separatorIndex + 1).trim();
-
-            if (lastPerson != null && !person.equals(lastPerson)) {
-                result.append(lastPerson).append(currentLine.trim()).append("\n");
-                currentLine = "";
-            }
-
-            currentLine += text + " ";
-            lastPerson = person;
-        }
-
-        // Append the last person's text
-        if (lastPerson != null && !currentLine.isEmpty()) {
-            result.append(lastPerson).append(currentLine.trim());
-        }
-
-        return result.toString();
-    }
-
-    public static void main(String[] args) {
-        String input = "#Person1#:first line for person 1\n" +
-                       "#Person1#:second line for person 1.\n" +
-                       "#Person1#:third line for person 1\n" +
-                       "#Person2#:first line for person 2.\n" +
-                       "#Person2#:second line for person 2\n" +
-                       "#Person1#:fourth line for person 1\n" +
-                       "#Person2#:third line for person 2";
-
-        System.out.println(collapsePrefixedTranscript(input));
-    }
-}
+# Example usage
+data = {'1': '3', '4': '7', '1': '6', '2': '9', '4': '0'}
+strategy = "YourStrategy"  # Replace with actual strategy
+url = "http://example.com"  # Replace with actual URL
+process_data_and_orchestrate(data, strategy, url)
