@@ -137,5 +137,85 @@ def compareStrategies(dir, filename):
     end_time = time.time()
     print(f"Process complete. Total time: {round((end_time - start_time), 0)} seconds.")
 
-# Example usage
-compareStrategies('/projects/agent-assist/', 'call-analysis-5.xlsx')
+# runtime usage
+# compareStrategies('/projects/agent-assist/', 'call-analysis-5.xlsx')
+
+----------------------------------------------- PASS / FAIL based on agreements -----------------
+
+import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+
+def compute_pass(agree_purpose, agree_intent):
+    if agree_purpose == "YES" and agree_intent == "YES":
+        return "YES"
+    elif agree_purpose == "YES" and agree_intent == "NO":
+        return "NO"
+    elif agree_purpose == "NO" and agree_intent == "NO":
+        return "YES"
+    elif agree_purpose == "NO" and agree_intent == "YES":
+        return ""
+    return ""
+
+def apply_formatting(worksheet):
+    col_names = {worksheet.cell(row=1, column=col).value: col-1 for col in range(1, worksheet.max_column + 1)}
+    dotted_border = Border(left=Side(style='dotted'), 
+                           right=Side(style='dotted'), 
+                           top=Side(style='thin', color='D3D3D3'),
+                           bottom=Side(style='thin', color='D3D3D3'))
+    yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+    green_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')
+    blue_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+
+    for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
+        originIntent = row[col_names["originIntent"]].value
+        resetIntent = row[col_names["resetIntent"]].value
+        threeBranchIntent = row[col_names["3BranchIntent"]].value
+
+        if row[1].value == "Person2" or row[1].value == "Customer":
+            for cell in row:
+                cell.fill = blue_fill
+
+        if originIntent and resetIntent and threeBranchIntent and \
+           originIntent == resetIntent == threeBranchIntent:
+            for cell in row:
+                cell.fill = green_fill
+
+        if originIntent or resetIntent or threeBranchIntent:
+            row[col_names["agreeOriginPurpose"]].fill = yellow_fill
+            row[col_names["agreeOriginIntent"]].fill = yellow_fill
+            row[col_names["agreeResetPurpose"]].fill = yellow_fill
+            row[col_names["agreeResetIntent"]].fill = yellow_fill
+            row[col_names["agree3BranchPurpose"]].fill = yellow_fill
+            row[col_names["agree3BranchIntent"]].fill = yellow_fill
+
+        for cell in row:
+            cell.border = dotted_border
+            cell.font = Font(size=8)
+            cell.alignment = Alignment(wrap_text=False)
+
+def insertPASS(filename="input_spreadsheet", sheetName="analysis"):
+    df = pd.read_excel(filename, sheet_name=sheetName)
+    df.insert(df.columns.get_loc("agreeOriginIntent") + 1, "PASS1", 
+              df.apply(lambda row: compute_pass(row['agreeOriginPurpose'], row['agreeOriginIntent']), axis=1))
+    df.insert(df.columns.get_loc("agreeResetIntent") + 1, "PASS2", 
+              df.apply(lambda row: compute_pass(row['agreeResetPurpose'], row['agreeResetIntent']), axis=1))
+    df.insert(df.columns.get_loc("agree3BranchIntent") + 1, "PASS3", 
+              df.apply(lambda row: compute_pass(row['agree3BranchPurpose'], row['agree3BranchIntent']), axis=1))
+
+    df.to_excel("output_spreadsheet.xlsx", index=False)
+
+    book = load_workbook("output_spreadsheet.xlsx")
+    worksheet = book[sheetName]
+    apply_formatting(worksheet)
+
+    pass_fill_color = PatternFill(start_color="7FFFD4", end_color="7FFFD4", fill_type="solid")
+    for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row):
+        for pass_column in ["PASS1", "PASS2", "PASS3"]:
+            pass_col_idx = df.columns.get_loc(pass_column) + 1
+            row[pass_col_idx].fill = pass_fill_color
+
+    book.save("output_spreadsheet.xlsx")
+
+#%% runtime
+insertPASS("input_spreadsheet.xlsx", "analysis")
