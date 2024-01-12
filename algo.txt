@@ -1,235 +1,73 @@
-public static String normalizePersonID(String input) {
-    String regex = "\\d{1,2}\\s-\\sPerson\\d";
-    Pattern pattern = Pattern.compile(regex);
-    Matcher matcher = pattern.matcher(input);
+#%%
+# given agreement spreadsheet, generate stats from agreement values
 
-    if (matcher.find()) {
-        String personPart = input.substring(input.indexOf("Person"));
-        return personPart;
-    } else {
-        return input;
+def generateAgreementStats(filename):
+    # Load the workbook and create or replace the 'stats' worksheet
+    workbook = load_workbook(filename)
+    if 'stats' in workbook:
+        del workbook['stats']
+    stats_sheet = workbook.create_sheet('stats')
+
+    # Assuming the presence of an 'analysis' worksheet with the specified columns
+    analysis_sheet = workbook['analysis']
+
+    # Create a dictionary to map column names to their indices
+    col_names = {analysis_sheet.cell(row=1, column=col).value: col for col in range(1, analysis_sheet.max_column + 1)}
+
+    # Define the strategy names and their corresponding columns
+    strategies = {
+        'Origin': ('agreeOriginPurpose', 'agreeOriginIntent'),
+        'Reset': ('agreeResetPurpose', 'agreeResetIntent'),
+        '3Branch': ('agree3BranchPurpose', 'agree3BranchIntent')
     }
-}
 
--------------------- python impl. ----------------------
-import re
+    # Set up headers for the 'stats' worksheet
+    headers = ['Strategy', 'YES-YES', 'YES-NO', 'NO-NO', 'NO-YES', 'Total', 'YY-Score', 'YY-Accuracy']
+    stats_sheet.append(headers)
 
-def normalizePersonID(input):
-    pattern = r"\d{1,2}\s-\sPerson\d"
-
-    match = re.match(pattern, input)   
-    if match:
-        # Extract the part "PersonX" from the input
-        return input.split(' ')[-1]
-    else:
-        return input
-
-# Test the function
-print(normalizePersonID("20 - Person1"))  # Should return "Person1"
-print(normalizePersonID("Person2"))       # Should return "Person2"
----------------------------------------------------------------------------
-
-import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
-import time
-
-def compareStrategies(dir, filename):
-    start_time = time.time()
-    input_path = dir + filename
-
-    # Load data from the 'output' worksheet
-    with pd.ExcelFile(input_path) as xls:
-        output_data = pd.read_excel(xls, sheet_name='output')
-
-    num_strategies = output_data['strategy'].nunique()
-    rows_per_strategy = len(output_data) // num_strategies
-
-    columns = ["callID", "person", "transcript", 
-               "fromOrigin", "originPurpose", "originIntent", "agreeOriginPurpose", "agreeOriginIntent", 
-               "fromReset", "resetPurpose", "resetIntent", "agreeResetPurpose", "agreeResetIntent", 
-               "3Branch", "branch", "3BranchPurpose", "3BranchIntent", "agree3BranchPurpose", "agree3BranchIntent"]
-    analysis_data = pd.DataFrame(columns=columns)
-
-    for i in range(rows_per_strategy):
-        print(f"processing {i} / {rows_per_strategy}")
-        origin_row = output_data.iloc[i]
-        reset_row = output_data.iloc[i + rows_per_strategy]
-        branch_row = output_data.iloc[i + 2 * rows_per_strategy]
-
-        row_data = {
-            'callID': origin_row['sessionID'].split('-')[0],
-            'person': origin_row['personID'],
-            'transcript': origin_row['transcript'],
-            'fromOrigin': origin_row['utterance'],
-            'originPurpose': origin_row['callPurpose'],
-            'originIntent': origin_row['rawPurposeIntent'],
-            'agreeOriginPurpose': origin_row['agreePurpose'],
-            'agreeOriginIntent': origin_row['agreeIntent'],
-            'fromReset': reset_row['utterance'],
-            'resetPurpose': reset_row['callPurpose'],
-            'resetIntent': reset_row['rawPurposeIntent'],
-            'agreeResetPurpose': reset_row['agreePurpose'],
-            'agreeResetIntent': reset_row['agreeIntent'],
-            '3Branch': branch_row['utterance'],
-            'branch': branch_row['trigger'],
-            '3BranchPurpose': branch_row['callPurpose'],
-            '3BranchIntent': branch_row['rawPurposeIntent'],
-            'agree3BranchPurpose': branch_row['agreePurpose'],
-            'agree3BranchIntent': branch_row['agreeIntent']
-        }
-
-        analysis_data = pd.concat([analysis_data, pd.DataFrame([row_data])], ignore_index=True)
-
-    # Save the analysis data to a new sheet in the workbook
-    with pd.ExcelWriter(input_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-        analysis_data.to_excel(writer, sheet_name='analysis', index=False)
-
-    # Load the workbook and the specific sheet for formatting
-    book = load_workbook(input_path)
-    worksheet = book['analysis']
-
-    # Create a mapping of column names to indices
-    col_names = {worksheet.cell(row=1, column=col).value: col-1 for col in range(1, worksheet.max_column + 1)}
-
-    # Apply formatting and conditional formatting
+    # Apply font and alignment styles
+    font_style = Font(size=8)
+    alignment_style = Alignment(horizontal='center')
     dotted_border = Border(left=Side(style='dotted'), 
                            right=Side(style='dotted'), 
                            top=Side(style='thin', color='D3D3D3'),
                            bottom=Side(style='thin', color='D3D3D3'))
-    yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-    green_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')
-    blue_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
 
-    for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row):
-        originIntent = row[col_names["originIntent"]].value
-        resetIntent = row[col_names["resetIntent"]].value
-        threeBranchIntent = row[col_names["3BranchIntent"]].value
+    # Iterate through each strategy to calculate the stats
+    for strategy, columns in strategies.items():
+        # Initialize counts
+        counts = {'YES-YES': 0, 'YES-NO': 0, 'NO-NO': 0, 'NO-YES': 0}
 
-        # Additional formatting conditions
-        if row[1].value == "Person2" or row[1].value == "Customer":
-            for cell in row:
-                cell.fill = blue_fill
+        # Iterate through each row in the analysis sheet
+        for row in range(2, analysis_sheet.max_row + 1):
+            purpose = analysis_sheet.cell(row=row, column=col_names[columns[0]]).value
+            intent = analysis_sheet.cell(row=row, column=col_names[columns[1]]).value
 
-        if originIntent and resetIntent and threeBranchIntent and \
-           originIntent == resetIntent == threeBranchIntent:
-            for cell in row:
-                cell.fill = green_fill
-                
-        if originIntent or resetIntent or threeBranchIntent:
-            row[col_names["agreeOriginPurpose"]].fill = yellow_fill
-            row[col_names["agreeOriginIntent"]].fill = yellow_fill
-            row[col_names["agreeResetPurpose"]].fill = yellow_fill
-            row[col_names["agreeResetIntent"]].fill = yellow_fill
-            row[col_names["agree3BranchPurpose"]].fill = yellow_fill
-            row[col_names["agree3BranchIntent"]].fill = yellow_fill
+            # Increment counts based on purpose and intent values
+            if purpose == 'YES' and intent == 'YES':
+                counts['YES-YES'] += 1
+            elif purpose == 'YES' and intent == 'NO':
+                counts['YES-NO'] += 1
+            elif purpose == 'NO' and intent == 'NO':
+                counts['NO-NO'] += 1
+            elif purpose == 'NO' and intent == 'YES':
+                counts['NO-YES'] += 1
 
+        # Calculate total, YY-Score and YY-Accuracy
+        total = sum(counts.values())
+        yy_score = f"{counts['YES-YES']} / {total}" if total != 0 else "0 / 0"
+        yy_accuracy = (counts['YES-YES'] / total * 100) if total != 0 else 0
+
+        # Append the row to the stats sheet
+        row_data = [strategy] + list(counts.values()) + [total, yy_score, f"{yy_accuracy:.1f}"]
+        stats_sheet.append(row_data)
+
+    # Apply formatting to the entire sheet
+    for row in stats_sheet:
         for cell in row:
+            cell.font = font_style
+            cell.alignment = alignment_style
             cell.border = dotted_border
-            cell.font = Font(size=8)
-            cell.alignment = Alignment(wrap_text=False)
 
-    worksheet.freeze_panes = 'A2'
-
-    # Save the changes to the workbook
-    book.save(input_path)
-
-    end_time = time.time()
-    print(f"Process complete. Total time: {round((end_time - start_time), 0)} seconds.")
-
-# runtime usage
-# compareStrategies('/projects/agent-assist/', 'call-analysis-5.xlsx')
-
------------------------------------------------ PASS / FAIL based on agreements -----------------
-
-import pandas as pd
-import os
-from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
-
-def compute_pass(agree_purpose, agree_intent):
-    if agree_purpose == "YES" and agree_intent == "YES":
-        return "YES"
-    elif agree_purpose == "YES" and agree_intent == "NO":
-        return "NO"
-    elif agree_purpose == "NO" and agree_intent == "NO":
-        return "NO"
-    elif agree_purpose == "NO" and agree_intent == "YES":
-        return "CHECK_THIS"
-    return ""
-
-def apply_formatting(worksheet):
-    col_names = {worksheet.cell(row=1, column=col).value: col-1 for col in range(1, worksheet.max_column + 1)}
-    dotted_border = Border(left=Side(style='dotted'), 
-                           right=Side(style='dotted'), 
-                           top=Side(style='thin', color='D3D3D3'),
-                           bottom=Side(style='thin', color='D3D3D3'))
-    yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-    green_fill = PatternFill(start_color='90EE90', end_color='90EE90', fill_type='solid')
-    blue_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
-
-    for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
-        originIntent = row[col_names["originIntent"]].value
-        resetIntent = row[col_names["resetIntent"]].value
-        threeBranchIntent = row[col_names["3BranchIntent"]].value
-
-        if row[1].value == "Person2" or row[1].value == "Customer":
-            for cell in row:
-                cell.fill = blue_fill
-
-        if originIntent and resetIntent and threeBranchIntent and \
-           originIntent == resetIntent == threeBranchIntent:
-            for cell in row:
-                cell.fill = green_fill
-
-        if originIntent or resetIntent or threeBranchIntent:
-            row[col_names["agreeOriginPurpose"]].fill = yellow_fill
-            row[col_names["agreeOriginIntent"]].fill = yellow_fill
-            row[col_names["agreeResetPurpose"]].fill = yellow_fill
-            row[col_names["agreeResetIntent"]].fill = yellow_fill
-            row[col_names["agree3BranchPurpose"]].fill = yellow_fill
-            row[col_names["agree3BranchIntent"]].fill = yellow_fill
-
-        for cell in row:
-            cell.border = dotted_border
-            cell.font = Font(size=8)
-            cell.alignment = Alignment(wrap_text=False)
-    
-    worksheet.freeze_panes = 'A2'
-    
-def insertPASS(inputDir, filename, sheetName):
-    df = pd.read_excel(filename, sheet_name=sheetName)
-    df.insert(df.columns.get_loc("agreeOriginIntent") + 1, "PASS1", 
-              df.apply(lambda row: compute_pass(row['agreeOriginPurpose'], row['agreeOriginIntent']), axis=1))
-    df.insert(df.columns.get_loc("agreeResetIntent") + 1, "PASS2", 
-              df.apply(lambda row: compute_pass(row['agreeResetPurpose'], row['agreeResetIntent']), axis=1))
-    df.insert(df.columns.get_loc("agree3BranchIntent") + 1, "PASS3", 
-              df.apply(lambda row: compute_pass(row['agree3BranchPurpose'], row['agree3BranchIntent']), axis=1))
-
-    name, ext = os.path.splitext(filename)
-    output_spreadsheet = inputDir + name + '-to-check' + ext
-    
-    df.to_excel(output_spreadsheet, sheet_name=sheetNameindex=False)
-    book = load_workbook(output_spreadsheet)
-    worksheet = book[sheetName]
-    apply_formatting(worksheet)
-
-    pass_fill_color = PatternFill(start_color="7FFFD4", end_color="7FFFD4", fill_type="solid")
-    col_names = {worksheet.cell(row=1, column=col).value: col-1 for col in range(1, worksheet.max_column + 1)}
-    
-    for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row):
-        originIntent = row[col_names["originIntent"]].value
-        resetIntent = row[col_names["resetIntent"]].value
-        threeBranchIntent = row[col_names["3BranchIntent"]].value
-        for pass_column in ["PASS1", "PASS2", "PASS3"]:
-            pass_col_idx = df.columns.get_loc(pass_column)
-            if originIntent or resetIntent or threeBranchIntent:
-                row[pass_col_idx].fill = pass_fill_color
-
-    book.save(output_spreadsheet)
-
-#%% runtime
-inputDir = '/projects/agent-assist/'
-filename = 'call-analysis-ground-truth-merged-0_4.xlsx'
-insertPASS(inputDir, filename, 'analysis')
-insertPASS("input_spreadsheet.xlsx", "analysis")
+    # Save the workbook
+    workbook.save(filename)
