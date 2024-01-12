@@ -143,6 +143,7 @@ def compareStrategies(dir, filename):
 ----------------------------------------------- PASS / FAIL based on agreements -----------------
 
 import pandas as pd
+import os
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 
@@ -152,9 +153,9 @@ def compute_pass(agree_purpose, agree_intent):
     elif agree_purpose == "YES" and agree_intent == "NO":
         return "NO"
     elif agree_purpose == "NO" and agree_intent == "NO":
-        return "YES"
+        return "NO"
     elif agree_purpose == "NO" and agree_intent == "YES":
-        return ""
+        return "CHECK_THIS"
     return ""
 
 def apply_formatting(worksheet):
@@ -193,8 +194,10 @@ def apply_formatting(worksheet):
             cell.border = dotted_border
             cell.font = Font(size=8)
             cell.alignment = Alignment(wrap_text=False)
-
-def insertPASS(filename="input_spreadsheet", sheetName="analysis"):
+    
+    worksheet.freeze_panes = 'A2'
+    
+def insertPASS(inputDir, filename, sheetName):
     df = pd.read_excel(filename, sheet_name=sheetName)
     df.insert(df.columns.get_loc("agreeOriginIntent") + 1, "PASS1", 
               df.apply(lambda row: compute_pass(row['agreeOriginPurpose'], row['agreeOriginIntent']), axis=1))
@@ -203,19 +206,30 @@ def insertPASS(filename="input_spreadsheet", sheetName="analysis"):
     df.insert(df.columns.get_loc("agree3BranchIntent") + 1, "PASS3", 
               df.apply(lambda row: compute_pass(row['agree3BranchPurpose'], row['agree3BranchIntent']), axis=1))
 
-    df.to_excel("output_spreadsheet.xlsx", index=False)
-
-    book = load_workbook("output_spreadsheet.xlsx")
+    name, ext = os.path.splitext(filename)
+    output_spreadsheet = inputDir + name + '-to-check' + ext
+    
+    df.to_excel(output_spreadsheet, sheet_name=sheetNameindex=False)
+    book = load_workbook(output_spreadsheet)
     worksheet = book[sheetName]
     apply_formatting(worksheet)
 
     pass_fill_color = PatternFill(start_color="7FFFD4", end_color="7FFFD4", fill_type="solid")
+    col_names = {worksheet.cell(row=1, column=col).value: col-1 for col in range(1, worksheet.max_column + 1)}
+    
     for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row):
+        originIntent = row[col_names["originIntent"]].value
+        resetIntent = row[col_names["resetIntent"]].value
+        threeBranchIntent = row[col_names["3BranchIntent"]].value
         for pass_column in ["PASS1", "PASS2", "PASS3"]:
-            pass_col_idx = df.columns.get_loc(pass_column) + 1
-            row[pass_col_idx].fill = pass_fill_color
+            pass_col_idx = df.columns.get_loc(pass_column)
+            if originIntent or resetIntent or threeBranchIntent:
+                row[pass_col_idx].fill = pass_fill_color
 
-    book.save("output_spreadsheet.xlsx")
+    book.save(output_spreadsheet)
 
 #%% runtime
+inputDir = '/projects/agent-assist/'
+filename = 'call-analysis-ground-truth-merged-0_4.xlsx'
+insertPASS(inputDir, filename, 'analysis')
 insertPASS("input_spreadsheet.xlsx", "analysis")
