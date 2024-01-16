@@ -22,7 +22,7 @@ def generateAgreementStats(filename):
     }
 
     # Set up headers for the 'stats' worksheet
-    headers = ['Strategy', 'YES-YES', 'YES-NO', 'NO-NO', 'NO-YES', 'Total', 'YY-Score', 'YY-Accuracy']
+    headers = ['Strategy', 'YES-YES', 'YES-NO', 'NO-NO', 'NO-YES', 'Total', 'YY-Score', 'YY-Accuracy', 'YPurposeAccuracy']
     stats_sheet.append(headers)
 
     # Apply font and alignment styles
@@ -57,9 +57,10 @@ def generateAgreementStats(filename):
         total = sum(counts.values())
         yy_score = f"{counts['YES-YES']} / {total}" if total != 0 else "0 / 0"
         yy_accuracy = (counts['YES-YES'] / total * 100) if total != 0 else 0
+        y_purpose_accuracy = ((counts['YES-YES'] + counts['YES-NO']) / total * 100) if total != 0 else 0
 
         # Append the row to the stats sheet
-        row_data = [strategy] + list(counts.values()) + [total, yy_score, f"{yy_accuracy:.1f}"]
+        row_data = [strategy] + list(counts.values()) + [total, yy_score, f"{yy_accuracy:.1f}", f"{y_purpose_accuracy:.1f}"]
         stats_sheet.append(row_data)
 
     # Apply formatting to the entire sheet
