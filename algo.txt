@@ -1,6 +1,9 @@
 #%%
 # given agreement spreadsheet, generate stats from agreement values
 
+from openpyxl import load_workbook
+from openpyxl.styles import Font, Alignment, Border, Side
+
 def generateAgreementStats(filename):
     # Load the workbook and create or replace the 'stats' worksheet
     workbook = load_workbook(filename)
@@ -53,7 +56,7 @@ def generateAgreementStats(filename):
             elif purpose == 'NO' and intent == 'YES':
                 counts['NO-YES'] += 1
 
-        # Calculate total, YY-Score and YY-Accuracy
+        # Calculate total, YY-Score, YY-Accuracy, and YPurposeAccuracy
         total = sum(counts.values())
         yy_score = f"{counts['YES-YES']} / {total}" if total != 0 else "0 / 0"
         yy_accuracy = (counts['YES-YES'] / total * 100) if total != 0 else 0
