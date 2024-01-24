@@ -1,77 +1,26 @@
-#%%
-# given agreement spreadsheet, generate stats from agreement values
+def createCallGroupNames(numberOfGroups=5, suffix='suffix', ext='xlsx'):
+    groupNames = []
+    for i in range(numberOfGroups):
+        groupName = f'{i}_1_{i+1}_0_{suffix}.{ext}'
+        groupNames.append(groupName)
+    return groupNames
 
-from openpyxl import load_workbook
-from openpyxl.styles import Font, Alignment, Border, Side
+def createCallNames(prefix='Call', groupName=''):
+    baseNumber = int(groupName.split('_')[0])
+    callNames = []
+    for i in range(10):
+        currentNumber = baseNumber if i < 9 else baseNumber + 1
+        nextDigit = i + 1 if i < 9 else 0
+        callName = f'{prefix}_{currentNumber}_{nextDigit}'
+        callNames.append(callName)
+    return callNames
 
-def generateAgreementStats(filename):
-    # Load the workbook and create or replace the 'stats' worksheet
-    workbook = load_workbook(filename)
-    if 'stats' in workbook:
-        del workbook['stats']
-    stats_sheet = workbook.create_sheet('stats')
+def executeOrchestrator(numberOfGroups, suffix, ext, prefix, strategyList, url):
+    groupNames = createCallGroupNames(numberOfGroups, suffix, ext)
+    for strategy in strategyList:
+        for groupName in groupNames:
+            callNames = createCallNames(prefix, groupName)
+            for callName in callNames:
+                processSheet(strategy, groupName, callName, url)
 
-    # Assuming the presence of an 'analysis' worksheet with the specified columns
-    analysis_sheet = workbook['analysis']
-
-    # Create a dictionary to map column names to their indices
-    col_names = {analysis_sheet.cell(row=1, column=col).value: col for col in range(1, analysis_sheet.max_column + 1)}
-
-    # Define the strategy names and their corresponding columns
-    strategies = {
-        'Origin': ('agreeOriginPurpose', 'agreeOriginIntent'),
-        'Reset': ('agreeResetPurpose', 'agreeResetIntent'),
-        '3Branch': ('agree3BranchPurpose', 'agree3BranchIntent')
-    }
-
-    # Set up headers for the 'stats' worksheet
-    headers = ['Strategy', 'YES-YES', 'YES-NO', 'NO-NO', 'NO-YES', 'Total', 'YY-Score', 'YY-Accuracy', 'YPurposeAccuracy']
-    stats_sheet.append(headers)
-
-    # Apply font and alignment styles
-    font_style = Font(size=8)
-    alignment_style = Alignment(horizontal='center')
-    dotted_border = Border(left=Side(style='dotted'), 
-                           right=Side(style='dotted'), 
-                           top=Side(style='thin', color='D3D3D3'),
-                           bottom=Side(style='thin', color='D3D3D3'))
-
-    # Iterate through each strategy to calculate the stats
-    for strategy, columns in strategies.items():
-        # Initialize counts
-        counts = {'YES-YES': 0, 'YES-NO': 0, 'NO-NO': 0, 'NO-YES': 0}
-
-        # Iterate through each row in the analysis sheet
-        for row in range(2, analysis_sheet.max_row + 1):
-            purpose = analysis_sheet.cell(row=row, column=col_names[columns[0]]).value
-            intent = analysis_sheet.cell(row=row, column=col_names[columns[1]]).value
-
-            # Increment counts based on purpose and intent values
-            if purpose == 'YES' and intent == 'YES':
-                counts['YES-YES'] += 1
-            elif purpose == 'YES' and intent == 'NO':
-                counts['YES-NO'] += 1
-            elif purpose == 'NO' and intent == 'NO':
-                counts['NO-NO'] += 1
-            elif purpose == 'NO' and intent == 'YES':
-                counts['NO-YES'] += 1
-
-        # Calculate total, YY-Score, YY-Accuracy, and YPurposeAccuracy
-        total = sum(counts.values())
-        yy_score = f"{counts['YES-YES']} / {total}" if total != 0 else "0 / 0"
-        yy_accuracy = (counts['YES-YES'] / total * 100) if total != 0 else 0
-        y_purpose_accuracy = ((counts['YES-YES'] + counts['YES-NO']) / total * 100) if total != 0 else 0
-
-        # Append the row to the stats sheet
-        row_data = [strategy] + list(counts.values()) + [total, yy_score, f"{yy_accuracy:.1f}", f"{y_purpose_accuracy:.1f}"]
-        stats_sheet.append(row_data)
-
-    # Apply formatting to the entire sheet
-    for row in stats_sheet:
-        for cell in row:
-            cell.font = font_style
-            cell.alignment = alignment_style
-            cell.border = dotted_border
-
-    # Save the workbook
-    workbook.save(filename)
+#executeOrchestrator(5, 'suffix', 'xlsx', 'Call', ['strategy1', 'strategy2'], 'http://localhost/orc')
