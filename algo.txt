@@ -1,36 +1,101 @@
-def createCallGroupNames(numberOfGroups=5, suffix='suffix', ext='xlsx'):
-    groupNames = []
-    for i in range(numberOfGroups):
-        groupName = f'{i}_1_{i+1}_0_{suffix}.{ext}'
-        groupNames.append(groupName)
-    return groupNames
+@startuml
 
-def createCallNames(prefix='Call', groupName=''):
-    baseNumber = int(groupName.split('_')[0])
-    callNames = []
-    for i in range(10):
-        currentNumber = baseNumber if i < 9 else baseNumber + 1
-        nextDigit = i + 1 if i < 9 else 0
-        callName = f'{prefix}_{currentNumber}_{nextDigit}'
-        callNames.append(callName)
-    return callNames
+class Candidate {
+    + start_idx: int
+    + start_dB: float
+    + num_voice_chunks: int
+    + num_non_voice_chunks: int
+    + add_voice(): void
+    + add_non_voice(): void
+}
 
-def executeOrchestrator(numberOfGroups, suffix, ext, prefix, strategyList, url):
-    groupNames = createCallGroupNames(numberOfGroups, suffix, ext)
-    for strategy in strategyList:
-        for groupName in groupNames:
-            callNames = createCallNames(prefix, groupName)
-            for callName in callNames:
-                processSheet(strategy, groupName, callName, url)
-                
-def orchestrateForStrategy(strategyName, numberOfGroups, url, suffix='System_Transcripts', ext='xlsx', prefix='Call'):
-    all_lists = []
-    groupNames = createCallGroupNames(numberOfGroups, suffix, ext)
-    for groupName in groupNames:
-        sheets = createCallNames(prefix, groupName)
-        result = orchestrate(strategyName, groupName, sheets, url)
-        all_lists.extend(result)       
-     return all_lists
+class Span {
+    + start_idx: int
+    + end_idx: int
+    + start_dB: float
+    + end_dB: float
+    + num_voice_chunks: int
+    + num_non_voice_chunks: int
+}
 
-#executeOrchestrator(5, 'suffix', 'xlsx', 'Call', ['strategy1', 'strategy2'], 'http://localhost/orc')
-#orchestrateForStrategy('3Branch', 5, 'http://localhost')
+class Metric {
+    + voice_energies: list[float]
+    + non_voice_energies: list[float]
+    + chunk_decibels: list[float]
+}
+
+class SpanDetector {
+    + sr: int
+    + energy_threshold_0: float
+    + energy_threshold_1: float
+    + min_voice_chunks: int
+    + min_non_voice_chunks: int
+    + curr_idx: int
+    + curr_candidate: Candidate
+    + spans: list[Span]
+    + metric: Metric
+    + add_to_stream(audio): tuple
+    + get_fft(audio): list
+    + is_candidate_eligible(): bool
+    + is_break_detected(): bool
+}
+
+SpanDetector "1" -- "1" Metric
+SpanDetector "1" -- "*" Span
+SpanDetector "0..1" -- "1" Candidate
+
+@enduml
+
+# ------------------ Sequence Diagram - Valid voice span detector
+
+@startuml
+
+actor Client
+entity "SpanDetector" as SpanDetector
+entity "Candidate" as Candidate
+entity "Metric" as Metric
+entity "Span" as Span
+
+Client -> SpanDetector : add_to_stream(audio)
+activate SpanDetector
+
+SpanDetector -> SpanDetector : get_fft(audio)
+activate SpanDetector
+
+SpanDetector -> Metric : update(chunk_decibels)
+activate Metric
+deactivate Metric
+
+alt energy >= voice_threshold
+    SpanDetector -> Candidate : add_voice()
+    activate Candidate
+    deactivate Candidate
+
+    SpanDetector -> Metric : update(voice_energies)
+    activate Metric
+    deactivate Metric
+
+    SpanDetector -> SpanDetector : is_break_detected()
+    activate SpanDetector
+    SpanDetector -> SpanDetector : is_candidate_eligible()
+    activate SpanDetector
+    deactivate SpanDetector
+    deactivate SpanDetector
+
+    alt candidate is eligible
+        SpanDetector -> Span : create new span
+        activate Span
+        deactivate Span
+    end
+else energy < voice_threshold
+    SpanDetector -> Candidate : add_non_voice()
+    activate Candidate
+    deactivate Candidate
+
+    SpanDetector -> Metric : update(non_voice_energies)
+    activate Metric
+    deactivate Metric
+end
+
+deactivate SpanDetector
+@enduml
