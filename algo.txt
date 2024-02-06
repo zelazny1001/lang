@@ -47,3 +47,8 @@
 
         return input;
     }
+    
+//    =================================== customer request mapper ========================
+
+        ObjectMapper mapper = new ObjectMapper();
+        myObject = mapper.readValue(jsonString, MyClass.class);
