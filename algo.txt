@@ -189,6 +189,7 @@ private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> co
 
 =================================================
 
+    // Method to find all common entities
     private static List<JsonNode> findAllCommonEntities(JsonNode node) {
         List<JsonNode> commonEntities = new ArrayList<>();
         Set<String> uniqueValueSets = new HashSet<>();
@@ -203,9 +204,10 @@ private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> co
                 if ("Entity".equals(entry.getKey()) && entry.getValue().isArray()) {
                     entry.getValue().forEach(entityConceptNode -> {
                         if (entityConceptNode.isObject() && entityConceptNode.has("predictor") 
-                                && !entityConceptNode.get("predictor").asText().equals("EntityIntent")) {
-                            String valueSet = entityConceptNode.has("valueSet") ? entityConceptNode.get("valueSet").asText() : null;
-                            if (valueSet != null && uniqueValueSets.add(valueSet)) {
+                                && !entityConceptNode.get("predictor").asText().equals("EntityIntent")
+                                && entityConceptNode.has("valueSet")) {
+                            String valueSet = entityConceptNode.get("valueSet").asText();
+                            if (uniqueValueSets.add(valueSet)) {
                                 commonEntities.add(entityConceptNode);
                             }
                         }
