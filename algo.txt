@@ -27,6 +27,7 @@
         input = input.replaceAll("=", ":");
 
         input = input.replaceAll("valueSet:\\[([^\\]]+)\\]", "\"valueSet\":[\"$1\"]");
+        input = input.replaceAll("concepts:\\[([^\\]]+)\\]", "\"concepts\":[\"$1\"]");
 
         // Double quote field names
         input = input.replaceAll("([\\{,])(\\s*)([A-Za-z0-9_]+)(\\s*:\\s*)", "$1\"$3\"$4");
@@ -54,3 +55,44 @@
 
         ObjectMapper mapper = new ObjectMapper();
         myObject = mapper.readValue(jsonString, MyClass.class);
+        
+// ========================================================================
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class TheJsonParser {
+
+    public static List<JsonNode> extractCommonEntities(String jsonString) throws JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode rootNode = objectMapper.readTree(jsonString);
+
+        return findAllCommonEntities(rootNode);
+    }
+
+    private static List<JsonNode> findAllCommonEntities(JsonNode node) {
+        List<JsonNode> commonEntities = new ArrayList<>();
+        if (node.isObject()) {
+            if (node.has("commonEntities")) {
+                commonEntities.add(node.get("commonEntities"));
+            }
+            node.elements().forEachRemaining(childNode -> commonEntities.addAll(findAllCommonEntities(childNode)));
+        } else if (node.isArray()) {
+            node.forEach(childNode -> commonEntities.addAll(findAllCommonEntities(childNode)));
+        }
+        return commonEntities;
+    }
+
+    public static void main(String[] args) {
+        String json = "{ \"commonEntities\": [{ \"name\": \"Entity1\" }, { \"name\": \"Entity2\" }] }";
+        try {
+            List<JsonNode> commonEntities = extractCommonEntities(json);
+            commonEntities.forEach(System.out::println);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+    }
+}
