@@ -97,3 +97,37 @@ public class TheJsonParser {
         }
     }
 }
+
+
+
+=================
+
+private static List<JsonNode> findAllCommonEntities(JsonNode node) {
+    List<JsonNode> commonEntities = new ArrayList<>();
+    if (node.isObject()) {
+        node.fields().forEachRemaining(entry -> {
+            if (entry.getKey().equals("commonEntities")) {
+                if (hasNonEntityIntentPredictor(entry.getValue())) {
+                    commonEntities.add(entry.getValue());
+                }
+            } else {
+                commonEntities.addAll(findAllCommonEntities(entry.getValue()));
+            }
+        });
+    } else if (node.isArray()) {
+        node.forEach(childNode -> commonEntities.addAll(findAllCommonEntities(childNode)));
+    }
+    return commonEntities;
+}
+
+private static boolean hasNonEntityIntentPredictor(JsonNode node) {
+    if (node.isArray()) {
+        for (JsonNode childNode : node) {
+            if (childNode.isObject() && childNode.has("predictor") && !childNode.get("predictor").asText().equals("EntityIntent")) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
