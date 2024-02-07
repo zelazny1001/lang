@@ -131,3 +131,25 @@ private static boolean hasNonEntityIntentPredictor(JsonNode node) {
     return false;
 }
 
+===========================
+
+private static List<JsonNode> findAllCommonEntities(JsonNode node) {
+    List<JsonNode> commonEntities = new ArrayList<>();
+    if (node.isObject()) {
+        if (node.has("Entity")) {
+            JsonNode entityArray = node.get("Entity");
+            if (entityArray.isArray()) {
+                entityArray.forEach(childNode -> {
+                    if (childNode.isObject() && childNode.has("predictor") 
+                            && !childNode.get("predictor").asText().equals("EntityIntent")) {
+                        commonEntities.add(childNode);
+                    }
+                });
+            }
+        }
+        node.fields().forEachRemaining(entry -> commonEntities.addAll(findAllCommonEntities(entry.getValue())));
+    } else if (node.isArray()) {
+        node.forEach(childNode -> commonEntities.addAll(findAllCommonEntities(childNode)));
+    }
+    return commonEntities;
+}
