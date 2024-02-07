@@ -198,51 +198,28 @@ private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> co
     }
 
     // Helper method for recursion
-    private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> commonEntities, Set<String> uniqueValueSets) {
-        if (node.isObject()) {
-            node.fields().forEachRemaining(entry -> {
-                if ("Entity".equals(entry.getKey()) && entry.getValue().isArray()) {
-                    entry.getValue().forEach(entityConceptNode -> {
-                        if (entityConceptNode.isObject() && entityConceptNode.has("predictor") 
-                                && !entityConceptNode.get("predictor").asText().equals("EntityIntent")
-                                && entityConceptNode.has("valueSet")) {
-                            String valueSet = entityConceptNode.get("valueSet").asText();
+private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> commonEntities, Set<String> uniqueValueSets) {
+    if (node.isObject()) {
+        node.fields().forEachRemaining(entry -> {
+            if ("Entity".equals(entry.getKey()) && entry.getValue().isArray()) {
+                entry.getValue().forEach(entityConceptNode -> {
+                    if (entityConceptNode.isObject() && entityConceptNode.has("predictor") 
+                            && !entityConceptNode.get("predictor").asText().equals("EntityIntent")
+                            && entityConceptNode.has("valueSet")) {
+                        JsonNode valueSetNode = entityConceptNode.get("valueSet");
+                        if (valueSetNode.isArray() && valueSetNode.size() > 0 && valueSetNode.get(0).isTextual()) {
+                            String valueSet = valueSetNode.get(0).asText();
                             if (uniqueValueSets.add(valueSet)) {
                                 commonEntities.add(entityConceptNode);
                             }
                         }
-                    });
-                } else {
-                    findAllCommonEntitiesHelper(entry.getValue(), commonEntities, uniqueValueSets);
-                }
-            });
-        } else if (node.isArray()) {
-            node.forEach(childNode -> findAllCommonEntitiesHelper(childNode, commonEntities, uniqueValueSets));
-        }
-    }
-    
-    ================================
-    
-    public static void main(String[] args) {
-        try {
-            String jsonData = "{"
-                    + "\"Entities\": ["
-                    + "  {\"Entity\": [{\"predictor\": \"SomePredictor\", \"valueSet\": \"Value1\"}]},"
-                    + "  {\"Entity\": [{\"predictor\": \"EntityIntent\", \"valueSet\": \"Value2\"}]},"
-                    + "  {\"Entity\": [{\"predictor\": \"AnotherPredictor\", \"valueSet\": \"Value1\"}]},"
-                    + "  {\"Entity\": [{\"predictor\": \"DifferentPredictor\", \"valueSet\": \"Value3\"}]}"
-                    + "]"
-                    + "}";
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode rootNode = objectMapper.readTree(jsonData);
-
-            List<JsonNode> commonEntities = findAllCommonEntities(rootNode);
-
-            for (JsonNode entity : commonEntities) {
-                System.out.println(entity.toString());
+                    }
+                });
+            } else {
+                findAllCommonEntitiesHelper(entry.getValue(), commonEntities, uniqueValueSets);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        });
+    } else if (node.isArray()) {
+        node.forEach(childNode -> findAllCommonEntitiesHelper(childNode, commonEntities, uniqueValueSets));
     }
+}
