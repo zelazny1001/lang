@@ -76,15 +76,16 @@ public class TheJsonParser {
     private static List<JsonNode> findAllCommonEntities(JsonNode node) {
         List<JsonNode> commonEntities = new ArrayList<>();
         if (node.isObject()) {
-            if (node.has("commonEntities")) {
+            if (node.has("commonEntities") && (!node.has("predictor") || !node.get("predictor").asText().equals("EntityIntent"))) {
                 commonEntities.add(node.get("commonEntities"));
             }
-            node.elements().forEachRemaining(childNode -> commonEntities.addAll(findAllCommonEntities(childNode)));
+            node.fields().forEachRemaining(entry -> commonEntities.addAll(findAllCommonEntities(entry.getValue())));
         } else if (node.isArray()) {
             node.forEach(childNode -> commonEntities.addAll(findAllCommonEntities(childNode)));
         }
         return commonEntities;
     }
+
 
     public static void main(String[] args) {
         String json = "{ \"commonEntities\": [{ \"name\": \"Entity1\" }, { \"name\": \"Entity2\" }] }";
