@@ -153,3 +153,34 @@ private static List<JsonNode> findAllCommonEntities(JsonNode node) {
     }
     return commonEntities;
 }
+
+======================================
+
+private static List<JsonNode> findAllCommonEntities(JsonNode node) {
+    List<JsonNode> commonEntities = new ArrayList<>();
+    Set<String> seenValueSets = new HashSet<>();
+    findAllCommonEntitiesHelper(node, commonEntities, seenValueSets);
+    return commonEntities;
+}
+
+private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> commonEntities, Set<String> seenValueSets) {
+    if (node.isObject()) {
+        if (node.has("Entity")) {
+            JsonNode entityArray = node.get("Entity");
+            if (entityArray.isArray()) {
+                entityArray.forEach(childNode -> {
+                    if (childNode.isObject() && childNode.has("predictor") && !childNode.get("predictor").asText().equals("EntityIntent")) {
+                        String valueSet = childNode.has("valueSet") ? childNode.get("valueSet").asText() : "";
+                        if (!seenValueSets.contains(valueSet)) {
+                            seenValueSets.add(valueSet);
+                            commonEntities.add(childNode);
+                        }
+                    }
+                });
+            }
+        }
+        node.fields().forEachRemaining(entry -> findAllCommonEntitiesHelper(entry.getValue(), commonEntities, seenValueSets));
+    } else if (node.isArray()) {
+        node.forEach(childNode -> findAllCommonEntitiesHelper(childNode, commonEntities, seenValueSets));
+    }
+}
