@@ -169,11 +169,13 @@ private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> co
             JsonNode entityArray = node.get("Entity");
             if (entityArray.isArray()) {
                 entityArray.forEach(childNode -> {
-                    if (childNode.isObject() && childNode.has("predictor") && !childNode.get("predictor").asText().equals("EntityIntent")) {
-                        String valueSet = childNode.has("valueSet") ? childNode.get("valueSet").asText() : "";
+                    if (childNode.isObject() && childNode.has("predictor") 
+                        && !childNode.get("predictor").asText().equals("EntityIntent") 
+                        && childNode.has("valueSet")) {
+                        String valueSet = childNode.get("valueSet").asText();
                         if (!seenValueSets.contains(valueSet)) {
-                            seenValueSets.add(valueSet);
                             commonEntities.add(childNode);
+                            seenValueSets.add(valueSet);
                         }
                     }
                 });
