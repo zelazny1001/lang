@@ -186,3 +186,35 @@ private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> co
         node.forEach(childNode -> findAllCommonEntitiesHelper(childNode, commonEntities, seenValueSets));
     }
 }
+
+=================================================
+
+    private static List<JsonNode> findAllCommonEntities(JsonNode node) {
+        List<JsonNode> commonEntities = new ArrayList<>();
+        Set<String> uniqueValueSets = new HashSet<>();
+        findAllCommonEntitiesHelper(node, commonEntities, uniqueValueSets);
+        return commonEntities;
+    }
+
+    // Helper method for recursion
+    private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> commonEntities, Set<String> uniqueValueSets) {
+        if (node.isObject()) {
+            node.fields().forEachRemaining(entry -> {
+                if ("Entity".equals(entry.getKey()) && entry.getValue().isArray()) {
+                    entry.getValue().forEach(entityConceptNode -> {
+                        if (entityConceptNode.isObject() && entityConceptNode.has("predictor") 
+                                && !entityConceptNode.get("predictor").asText().equals("EntityIntent")) {
+                            String valueSet = entityConceptNode.has("valueSet") ? entityConceptNode.get("valueSet").asText() : null;
+                            if (valueSet != null && uniqueValueSets.add(valueSet)) {
+                                commonEntities.add(entityConceptNode);
+                            }
+                        }
+                    });
+                } else {
+                    findAllCommonEntitiesHelper(entry.getValue(), commonEntities, uniqueValueSets);
+                }
+            });
+        } else if (node.isArray()) {
+            node.forEach(childNode -> findAllCommonEntitiesHelper(childNode, commonEntities, uniqueValueSets));
+        }
+    }
