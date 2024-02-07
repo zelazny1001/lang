@@ -223,15 +223,16 @@ private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> co
     
     ================================
     
-        public static void main(String[] args) {
+    public static void main(String[] args) {
         try {
             String jsonData = "{"
-                    + "\"Entity\": ["
-                    + "  {\"predictor\": \"SomePredictor\", \"valueSet\": \"Value1\"},"
-                    + "  {\"predictor\": \"EntityIntent\", \"valueSet\": \"Value2\"},"
-                    + "  {\"predictor\": \"AnotherPredictor\", \"valueSet\": \"Value1\"},"
-                    + "  {\"predictor\": \"DifferentPredictor\", \"valueSet\": \"Value3\"}"
-                    + "]}";
+                    + "\"Entities\": ["
+                    + "  {\"Entity\": [{\"predictor\": \"SomePredictor\", \"valueSet\": \"Value1\"}]},"
+                    + "  {\"Entity\": [{\"predictor\": \"EntityIntent\", \"valueSet\": \"Value2\"}]},"
+                    + "  {\"Entity\": [{\"predictor\": \"AnotherPredictor\", \"valueSet\": \"Value1\"}]},"
+                    + "  {\"Entity\": [{\"predictor\": \"DifferentPredictor\", \"valueSet\": \"Value3\"}]}"
+                    + "]"
+                    + "}";
 
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode rootNode = objectMapper.readTree(jsonData);
