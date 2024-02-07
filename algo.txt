@@ -220,3 +220,28 @@ private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> co
             node.forEach(childNode -> findAllCommonEntitiesHelper(childNode, commonEntities, uniqueValueSets));
         }
     }
+    
+    ================================
+    
+        public static void main(String[] args) {
+        try {
+            String jsonData = "{"
+                    + "\"Entity\": ["
+                    + "  {\"predictor\": \"SomePredictor\", \"valueSet\": \"Value1\"},"
+                    + "  {\"predictor\": \"EntityIntent\", \"valueSet\": \"Value2\"},"
+                    + "  {\"predictor\": \"AnotherPredictor\", \"valueSet\": \"Value1\"},"
+                    + "  {\"predictor\": \"DifferentPredictor\", \"valueSet\": \"Value3\"}"
+                    + "]}";
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(jsonData);
+
+            List<JsonNode> commonEntities = findAllCommonEntities(rootNode);
+
+            for (JsonNode entity : commonEntities) {
+                System.out.println(entity.toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
