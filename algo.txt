@@ -1,225 +1,24 @@
-    public static List<String> getSRCEntities(String input) {
-        List<String> entities = new ArrayList<>();
-        ObjectMapper mapper = new ObjectMapper();
-
-        String jsonInput = preprocessInput(input);
-
-        try {
-            JsonNode rootNode = mapper.readTree(jsonInput);
-            JsonNode commonEntitiesNode = rootNode.path("commonEntities").path("Entity");
-
-            if (commonEntitiesNode.isArray()) {
-                for (JsonNode entityNode : commonEntitiesNode) {
-                    String predictor = entityNode.path("predictor").asText();
-                    if (!"EntityIntent".equals(predictor)) {
-                        entities.add(entityNode.toString());
-                    }
-                }
-            }
-        } catch (IOException e) {
-            System.out.println("Error in EntityExtractor: " + e);
-        }
-
-        return entities;
-    }
-
-    private static String preprocessInput(String input) {
-        input = input.replaceAll("=", ":");
-
-        input = input.replaceAll("valueSet:\\[([^\\]]+)\\]", "\"valueSet\":[\"$1\"]");
-        input = input.replaceAll("concepts:\\[([^\\]]+)\\]", "\"concepts\":[\"$1\"]");
-
-        // Double quote field names
-        input = input.replaceAll("([\\{,])(\\s*)([A-Za-z0-9_]+)(\\s*:\\s*)", "$1\"$3\"$4");
-
-        // Double quote string values, spaces, and special cases
-        // Exclude true, false, and numeric values from quoting
-        input = input.replaceAll("(\"\\s*:\\s*)([^\",\\{\\[]+?)(\\s*[,\\}])", "$1\"$2\"$3");
-        input = input.replaceAll(":\"(true|false|\\d+(\\.\\d+)?(E[+-]?\\d+)?)\"", ":$1");
-
-        // Quote elements inside arrays. Do not quote booleans and numeric values
-        input = input.replaceAll("\\[([^\"\\]]+)\\]", "[$1]");
-        input = input.replaceAll("([A-Za-z_]+|\"[A-Za-z0-9_\\s]+)(,\\s*|\\])", "\"$1\"$2");
-        input = input.replaceAll("\"(true|false|\\d+(\\.\\d+)?(E[+-]?\\d+)?)\"(,\\s*|\\])", "$1$4");
-
-        // Quote lists and objects
-        input = input.replaceAll("\"\\[", "[");
-        input = input.replaceAll("\\]\"", "]");
-        input = input.replaceAll("\"\\{", "{");
-        input = input.replaceAll("\\}\"", "}");
-
-        return input;
-    }
-    
-//    =================================== customer request mapper ========================
-
-        ObjectMapper mapper = new ObjectMapper();
-        myObject = mapper.readValue(jsonString, MyClass.class);
-        
-// ========================================================================
-
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-public class TheJsonParser {
+public class EntityFilter {
 
-    public static List<JsonNode> extractCommonEntities(String jsonString) throws JsonProcessingException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode rootNode = objectMapper.readTree(jsonString);
+    public String filterForIntentConcepts(String intent, List<JsonNode> entities, CompatibleEntityMapping compatibleEntities) {
+        List<String> filteredEntities = new ArrayList<>();
 
-        return findAllCommonEntities(rootNode);
-    }
+        Map<String, List<String>> mapping = compatibleEntities.getCompatibleEntities();
+        List<String> compatibleConcepts = mapping.get(intent);
 
-    private static List<JsonNode> findAllCommonEntities(JsonNode node) {
-        List<JsonNode> commonEntities = new ArrayList<>();
-        if (node.isObject()) {
-            if (node.has("commonEntities") && (!node.has("predictor") || !node.get("predictor").asText().equals("EntityIntent"))) {
-                commonEntities.add(node.get("commonEntities"));
-            }
-            node.fields().forEachRemaining(entry -> commonEntities.addAll(findAllCommonEntities(entry.getValue())));
-        } else if (node.isArray()) {
-            node.forEach(childNode -> commonEntities.addAll(findAllCommonEntities(childNode)));
-        }
-        return commonEntities;
-    }
-
-
-    public static void main(String[] args) {
-        String json = "{ \"commonEntities\": [{ \"name\": \"Entity1\" }, { \"name\": \"Entity2\" }] }";
-        try {
-            List<JsonNode> commonEntities = extractCommonEntities(json);
-            commonEntities.forEach(System.out::println);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-    }
-}
-
-
-
-=================
-
-private static List<JsonNode> findAllCommonEntities(JsonNode node) {
-    List<JsonNode> commonEntities = new ArrayList<>();
-    if (node.isObject()) {
-        node.fields().forEachRemaining(entry -> {
-            if (entry.getKey().equals("commonEntities")) {
-                if (hasNonEntityIntentPredictor(entry.getValue())) {
-                    commonEntities.add(entry.getValue());
+        if (compatibleConcepts != null) {
+            for (JsonNode entity : entities) {
+                String entityConcept = entity.get("entityConcept").asText();
+                if (compatibleConcepts.contains(entityConcept)) {
+                    filteredEntities.add(entity.toString());
                 }
-            } else {
-                commonEntities.addAll(findAllCommonEntities(entry.getValue()));
-            }
-        });
-    } else if (node.isArray()) {
-        node.forEach(childNode -> commonEntities.addAll(findAllCommonEntities(childNode)));
-    }
-    return commonEntities;
-}
-
-private static boolean hasNonEntityIntentPredictor(JsonNode node) {
-    if (node.isArray()) {
-        for (JsonNode childNode : node) {
-            if (childNode.isObject() && childNode.has("predictor") && !childNode.get("predictor").asText().equals("EntityIntent")) {
-                return true;
             }
         }
-    }
-    return false;
-}
-
-===========================
-
-private static List<JsonNode> findAllCommonEntities(JsonNode node) {
-    List<JsonNode> commonEntities = new ArrayList<>();
-    if (node.isObject()) {
-        if (node.has("Entity")) {
-            JsonNode entityArray = node.get("Entity");
-            if (entityArray.isArray()) {
-                entityArray.forEach(childNode -> {
-                    if (childNode.isObject() && childNode.has("predictor") 
-                            && !childNode.get("predictor").asText().equals("EntityIntent")) {
-                        commonEntities.add(childNode);
-                    }
-                });
-            }
-        }
-        node.fields().forEachRemaining(entry -> commonEntities.addAll(findAllCommonEntities(entry.getValue())));
-    } else if (node.isArray()) {
-        node.forEach(childNode -> commonEntities.addAll(findAllCommonEntities(childNode)));
-    }
-    return commonEntities;
-}
-
-======================================
-
-private static List<JsonNode> findAllCommonEntities(JsonNode node) {
-    List<JsonNode> commonEntities = new ArrayList<>();
-    Set<String> seenValueSets = new HashSet<>();
-    findAllCommonEntitiesHelper(node, commonEntities, seenValueSets);
-    return commonEntities;
-}
-
-private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> commonEntities, Set<String> seenValueSets) {
-    if (node.isObject()) {
-        if (node.has("Entity")) {
-            JsonNode entityArray = node.get("Entity");
-            if (entityArray.isArray()) {
-                entityArray.forEach(childNode -> {
-                    if (childNode.isObject() && childNode.has("predictor") 
-                        && !childNode.get("predictor").asText().equals("EntityIntent") 
-                        && childNode.has("valueSet")) {
-                        String valueSet = childNode.get("valueSet").asText();
-                        if (!seenValueSets.contains(valueSet)) {
-                            commonEntities.add(childNode);
-                            seenValueSets.add(valueSet);
-                        }
-                    }
-                });
-            }
-        }
-        node.fields().forEachRemaining(entry -> findAllCommonEntitiesHelper(entry.getValue(), commonEntities, seenValueSets));
-    } else if (node.isArray()) {
-        node.forEach(childNode -> findAllCommonEntitiesHelper(childNode, commonEntities, seenValueSets));
-    }
-}
-
-=================================================
-
-    // Method to find all common entities
-    private static List<JsonNode> findAllCommonEntities(JsonNode node) {
-        List<JsonNode> commonEntities = new ArrayList<>();
-        Set<String> uniqueValueSets = new HashSet<>();
-        findAllCommonEntitiesHelper(node, commonEntities, uniqueValueSets);
-        return commonEntities;
-    }
-
-    // Helper method for recursion
-private static void findAllCommonEntitiesHelper(JsonNode node, List<JsonNode> commonEntities, Set<String> uniqueValueSets) {
-    if (node.isObject()) {
-        node.fields().forEachRemaining(entry -> {
-            if ("Entity".equals(entry.getKey()) && entry.getValue().isArray()) {
-                entry.getValue().forEach(entityConceptNode -> {
-                    if (entityConceptNode.isObject() && entityConceptNode.has("predictor") 
-                            && !entityConceptNode.get("predictor").asText().equals("EntityIntent")
-                            && entityConceptNode.has("valueSet")) {
-                        JsonNode valueSetNode = entityConceptNode.get("valueSet");
-                        if (valueSetNode.isArray() && valueSetNode.size() > 0 && valueSetNode.get(0).isTextual()) {
-                            String valueSet = valueSetNode.get(0).asText();
-                            if (uniqueValueSets.add(valueSet)) {
-                                commonEntities.add(entityConceptNode);
-                            }
-                        }
-                    }
-                });
-            } else {
-                findAllCommonEntitiesHelper(entry.getValue(), commonEntities, uniqueValueSets);
-            }
-        });
-    } else if (node.isArray()) {
-        node.forEach(childNode -> findAllCommonEntitiesHelper(childNode, commonEntities, uniqueValueSets));
+        return filteredEntities.toString();
     }
 }
