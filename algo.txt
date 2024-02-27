@@ -1,76 +1,34 @@
-package org.example;
-
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class JsonDuplicateRemover {
-    public static List<JsonNode> removeDuplicates(List<JsonNode> compatibleEntities, List<JsonNode> aiEntities) {
-        List<JsonNode> filteredEntities = new ArrayList<>();
+public class JsonNodeListComparator {
 
-        for (JsonNode node : compatibleEntities) {
-            if (!isDuplicateWithinSameList(node, compatibleEntities) && !isDuplicateWithinAnotherList(node, aiEntities)) {
-                filteredEntities.add(node);
-            }
-        }
-
-        return filteredEntities;
-    }
-
-    private static boolean isDuplicateWithinSameList(JsonNode node, List<JsonNode> entities) {
-        for (JsonNode otherNode : entities) {
-            if (node != otherNode && isSameEntityButSubset(node, otherNode)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean isDuplicateWithinAnotherList(JsonNode node, List<JsonNode> otherEntities) {
-        for (JsonNode otherNode : otherEntities) {
-            if (isSubset(node, otherNode)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean isSameEntityButSubset(JsonNode node1, JsonNode node2) {
-        if (node1 == node2) return false; // Avoid comparing the same node
-        return isSubset(node1, node2) && !isSubset(node2, node1);
-    }
-
-    private static boolean isSubset(JsonNode node1, JsonNode node2) {
-        if (!node1.get("entityConcept").asText().equals(node2.get("entityConcept").asText())) {
+    public static boolean compareJsonNodeLists(List<JsonNode> list1, List<JsonNode> list2) {
+        if (list1.size() != list2.size()) {
             return false;
         }
-        String rawText1 = node1.get("rawText").asText();
-        String rawText2 = node2.get("rawText").asText();
-        if (!rawText2.contains(rawText1)) {
-            return false;
-        }
-        int start1 = node1.get("start").asInt();
-        int end1 = node1.get("end").asInt();
-        int start2 = node2.get("start").asInt();
-        int end2 = node2.get("end").asInt();
-        return start2 <= start1 && end1 <= end2;
+
+        Map<JsonNode, Integer> map1 = createFrequencyMap(list1);
+        Map<JsonNode, Integer> map2 = createFrequencyMap(list2);
+
+        return map1.equals(map2);
     }
 
-    public static void main(String[] args) throws Exception { // quick sanity check
-        ObjectMapper mapper = new ObjectMapper();
-        ArrayNode compatibleEntitiesNode = (ArrayNode) mapper.readTree(("[{'entityConcept':'concept1', 'rawText':'text for concept 1', 'start':5, 'end':20}, {'entityConcept':'concept2', 'rawText':'text for concept 2', 'start':27, 'end':35}, {'entityConcept':'concept1', 'rawText':'concept 1', 'start':8, 'end':15}, {'entityConcept':'concept6', 'rawText':'concept 6', 'start':41, 'end':58}, {'entityConcept':'concept6', 'rawText':'this is a longer concept 6', 'start':41, 'end':58}]").replace("'", "\""));
-        ArrayNode aiEntitiesNode = (ArrayNode) mapper.readTree(("[{'entityConcept':'concept3', 'rawText':'text for concept 3', 'start':5, 'end':20}, {'entityConcept':'concept2', 'rawText':'text for concept 2', 'start':23, 'end':35}, {'entityConcept':'concept4', 'rawText':'concept 1', 'start':8, 'end':15}, {'entityConcept':'concept1', 'rawText':'this is the raw text for concept 1', 'start':2, 'end':40}]").replace("'", "\""));
+    private static Map<JsonNode, Integer> createFrequencyMap(List<JsonNode> list) {
+        Map<JsonNode, Integer> frequencyMap = new HashMap<>();
+        for (JsonNode node : list) {
+            frequencyMap.put(node, frequencyMap.getOrDefault(node, 0) + 1);
+        }
+        return frequencyMap;
+    }
 
-        List<JsonNode> compatibleEntities = new ArrayList<>();
-        compatibleEntitiesNode.forEach(compatibleEntities::add);
-
-        List<JsonNode> aiEntities = new ArrayList<>();
-        aiEntitiesNode.forEach(aiEntities::add);
-
-        List<JsonNode> result = removeDuplicates(compatibleEntities, aiEntities);
-        result.forEach(System.out::println);
+    // main method for testing
+    public static void main(String[] args) {
+        // Example usage
+        // List<JsonNode> list1 = ...
+        // List<JsonNode> list2 = ...
+        // boolean isEqual = compareJsonNodeLists(list1, list2);
     }
 }
