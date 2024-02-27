@@ -1,34 +1,30 @@
 import com.fasterxml.jackson.databind.JsonNode;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
-public class JsonNodeListComparator {
+public class JsonNodeListMerger {
 
-    public static boolean compareJsonNodeLists(List<JsonNode> list1, List<JsonNode> list2) {
-        if (list1.size() != list2.size()) {
-            return false;
+    public static List<JsonNode> mergeJsonNodeLists(List<JsonNode> sourceList, List<JsonNode> destinationList) {
+        Set<JsonNode> uniqueNodes = new HashSet<>(destinationList);
+        List<JsonNode> mergedList = new ArrayList<>(destinationList);
+
+        for (JsonNode node : sourceList) {
+            if (!uniqueNodes.contains(node)) {
+                mergedList.add(node);
+                uniqueNodes.add(node);
+            }
         }
 
-        Map<JsonNode, Integer> map1 = createFrequencyMap(list1);
-        Map<JsonNode, Integer> map2 = createFrequencyMap(list2);
-
-        return map1.equals(map2);
-    }
-
-    private static Map<JsonNode, Integer> createFrequencyMap(List<JsonNode> list) {
-        Map<JsonNode, Integer> frequencyMap = new HashMap<>();
-        for (JsonNode node : list) {
-            frequencyMap.put(node, frequencyMap.getOrDefault(node, 0) + 1);
-        }
-        return frequencyMap;
+        return mergedList;
     }
 
     // main method for testing
     public static void main(String[] args) {
         // Example usage
-        // List<JsonNode> list1 = ...
-        // List<JsonNode> list2 = ...
-        // boolean isEqual = compareJsonNodeLists(list1, list2);
+        // List<JsonNode> sourceList = ...
+        // List<JsonNode> destinationList = ...
+        // List<JsonNode> mergedList = mergeJsonNodeLists(sourceList, destinationList);
     }
 }
