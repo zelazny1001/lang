@@ -1,30 +1,25 @@
 import com.fasterxml.jackson.databind.JsonNode;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.HashSet;
-import java.util.Set;
 
-public class JsonNodeListMerger {
+public class JsonUtil {
 
-    public static List<JsonNode> mergeJsonNodeLists(List<JsonNode> sourceList, List<JsonNode> destinationList) {
-        Set<JsonNode> uniqueNodes = new HashSet<>(destinationList);
-        List<JsonNode> mergedList = new ArrayList<>(destinationList);
-
-        for (JsonNode node : sourceList) {
-            if (!uniqueNodes.contains(node)) {
-                mergedList.add(node);
-                uniqueNodes.add(node);
-            }
+    public static boolean isPreexisting(JsonNode node, List<JsonNode> priors) {
+        if (node == null || priors == null) {
+            return false;
         }
 
-        return mergedList;
-    }
+        String entityConcept = node.has("entityConcept") ? node.get("entityConcept").asText() : null;
+        String rawText = node.has("rawText") ? node.get("rawText").asText() : null;
+        String start = node.has("start") ? node.get("start").asText() : null;
+        String stop = node.has("stop") ? node.get("stop").asText() : null;
 
-    // main method for testing
-    public static void main(String[] args) {
-        // Example usage
-        // List<JsonNode> sourceList = ...
-        // List<JsonNode> destinationList = ...
-        // List<JsonNode> mergedList = mergeJsonNodeLists(sourceList, destinationList);
+        return priors.stream().anyMatch(prior -> {
+            boolean sameEntityConcept = entityConcept != null && entityConcept.equals(prior.path("entityConcept").asText());
+            boolean sameRawText = rawText != null && rawText.equals(prior.path("rawText").asText());
+            boolean sameStart = start != null && start.equals(prior.path("start").asText());
+            boolean sameStop = stop != null && stop.equals(prior.path("stop").asText());
+
+            return sameEntityConcept && sameRawText && sameStart && sameStop;
+        });
     }
 }
