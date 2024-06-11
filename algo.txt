@@ -1,1 +1,30 @@
-algo.txt
+import org.springframework.integration.annotation.Aggregator;
+import org.springframework.integration.annotation.MessageEndpoint;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.support.MessageBuilder;
+
+import java.util.List;
+
+@MessageEndpoint
+public class CustomMessageAggregator {
+
+    @Aggregator
+    public Message<?> aggregate(List<Message<?>> messages, @Header("sequenceSize") int sequenceSize) {
+        StringBuilder aggregatedPayload = new StringBuilder();
+        for (Message<?> message : messages) {
+            aggregatedPayload.append(message.getPayload().toString()).append(";");
+        }
+        return MessageBuilder.withPayload(aggregatedPayload.toString()).build();
+    }
+}
+
+===========
+
+.aggregate(a -> a.correlationStrategy(m -> "fixedCorrelationId")
+                                .releaseStrategy(group -> group.size() == 3)
+                                .outputProcessor(new CustomMessageAggregator()))
+                .handle((GenericHandler<String>) (payload, headers) -> {
+                    System.out.println("Aggregated payload: " + payload);
+                    return null;
+                }).
