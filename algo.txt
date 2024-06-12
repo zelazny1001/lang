@@ -1,16 +1,18 @@
-import org.springframework.integration.annotation.MessageEndpoint;
-import org.springframework.integration.annotation.Aggregator;
+import org.springframework.integration.aggregator.MessageGroupProcessor;
+import org.springframework.integration.store.MessageGroup;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-@MessageEndpoint
-public class PreVADMessageAggregator {
+@Component
+public class PreVADMessageAggregator implements MessageGroupProcessor {
 
-    @Aggregator
-    public Message<?> aggregate(List<Message<?>> messages) {
+    @Override
+    public Message<?> processMessageGroup(MessageGroup group) {
+        List<Message<?>> messages = group.getMessages();
         String aggregatedPayload = messages.stream()
                 .map(Message::getPayload)
                 .map(Object::toString)
@@ -19,7 +21,6 @@ public class PreVADMessageAggregator {
     }
 }
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.aggregator.AggregatingMessageHandler;
@@ -28,10 +29,10 @@ import org.springframework.integration.store.SimpleMessageStore;
 import org.springframework.messaging.MessageHandler;
 
 @Configuration
-public class AggregatorConfig {
+public class AggregationConfig {
 
     private int x = 3; //CCHAppResourceBundle.getIntegerProperty(DMLConstants.PRE_VAD_AGGREGATOR_SIZE);
-
+    
     @Bean
     public MessageGroupStore messageStore() {
         return new SimpleMessageStore();
@@ -39,12 +40,13 @@ public class AggregatorConfig {
 
     @Bean
     public MessageHandler aggregatingMessageHandler(PreVADMessageAggregator aggregator) {
-        AggregatingMessageHandler handler = new AggregatingMessageHandler(aggregator::aggregate, messageStore());
-        handler.setCorrelationStrategy(message -> ((RTPPacket) message.getPayload()).getSsrc());
+        AggregatingMessageHandler handler = new AggregatingMessageHandler(aggregator, messageStore());
+        handler.setCorrelationStrategy(message -> ((RTPPacket) message.getPayload()).ssrc);
         handler.setReleaseStrategy(group -> group.size() == x);
         return handler;
     }
 }
+
 
 =============================== SAMPLE ====================
 
@@ -60,6 +62,9 @@ public class IntegrationFlowService {
 
     @Autowired
     private MessageHandler aggregatingMessageHandler;
+
+    @Value("${aggregation.group.size}")
+    private int groupSize;
 
     public IntegrationFlow defineFlow() {
         return IntegrationFlows.from("inputChannel")
