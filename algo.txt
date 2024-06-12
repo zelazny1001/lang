@@ -1,30 +1,79 @@
-import org.springframework.integration.annotation.Aggregator;
 import org.springframework.integration.annotation.MessageEndpoint;
+import org.springframework.integration.annotation.Aggregator;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.support.MessageBuilder;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @MessageEndpoint
-public class CustomMessageAggregator {
+public class PreVADMessageAggregator {
 
     @Aggregator
-    public Message<?> aggregate(List<Message<?>> messages, @Header("sequenceSize") int sequenceSize) {
-        StringBuilder aggregatedPayload = new StringBuilder();
-        for (Message<?> message : messages) {
-            aggregatedPayload.append(message.getPayload().toString()).append(";");
-        }
-        return MessageBuilder.withPayload(aggregatedPayload.toString()).build();
+    public Message<?> aggregate(List<Message<?>> messages) {
+        String aggregatedPayload = messages.stream()
+                .map(Message::getPayload)
+                .map(Object::toString)
+                .collect(Collectors.joining(";"));
+        return MessageBuilder.withPayload(aggregatedPayload).build();
     }
 }
 
-===========
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.aggregator.AggregatingMessageHandler;
+import org.springframework.integration.store.MessageGroupStore;
+import org.springframework.integration.store.SimpleMessageStore;
+import org.springframework.messaging.MessageHandler;
 
-.aggregate(a -> a.correlationStrategy(m -> "fixedCorrelationId")
-                                .releaseStrategy(group -> group.size() == 3)
-                                .outputProcessor(new CustomMessageAggregator()))
-                .handle((GenericHandler<String>) (payload, headers) -> {
+@Configuration
+public class AggregatorConfig {
+
+    private int x = 3; //CCHAppResourceBundle.getIntegerProperty(DMLConstants.PRE_VAD_AGGREGATOR_SIZE);
+
+    @Bean
+    public MessageGroupStore messageStore() {
+        return new SimpleMessageStore();
+    }
+
+    @Bean
+    public MessageHandler aggregatingMessageHandler(PreVADMessageAggregator aggregator) {
+        AggregatingMessageHandler handler = new AggregatingMessageHandler(aggregator::aggregate, messageStore());
+        handler.setCorrelationStrategy(message -> ((RTPPacket) message.getPayload()).getSsrc());
+        handler.setReleaseStrategy(group -> group.size() == x);
+        return handler;
+    }
+}
+
+=============================== SAMPLE ====================
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.integration.dsl.IntegrationFlow;
+import org.springframework.integration.dsl.IntegrationFlows;
+import org.springframework.integration.dsl.support.Transformers;
+import org.springframework.messaging.MessageHandler;
+import org.springframework.stereotype.Service;
+
+@Service
+public class IntegrationFlowService {
+
+    @Autowired
+    private MessageHandler aggregatingMessageHandler;
+
+    public IntegrationFlow defineFlow() {
+        return IntegrationFlows.from("inputChannel")
+                .enrichHeaders(headers -> headers.header("correlationId", "fixedCorrelationId"))
+                .transform(new RtpMessageTransformer())  // Assuming RtpMessageTransformer exists
+                .filter(m -> m != null)
+                .resequence(spec -> spec.correlationStrategy(m -> ((RTPPacket) m.getPayload()).getSsrc())
+                                        .releaseStrategy(group -> group.size() == groupSize))
+                .filter(m -> true)
+                .handle(aggregatingMessageHandler)
+                .handle((payload, headers) -> {
                     System.out.println("Aggregated payload: " + payload);
                     return null;
-                }).
+                })
+                .get();
+    }
+}
