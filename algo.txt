@@ -1,25 +1,63 @@
+import net.sf.fmj.media.rtp.util.RTPPacket;
 import org.springframework.integration.aggregator.MessageGroupProcessor;
 import org.springframework.integration.store.MessageGroup;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Collection;
 
 @Component
 public class PreVADMessageAggregator implements MessageGroupProcessor {
 
     @Override
     public Message<?> processMessageGroup(MessageGroup group) {
-        List<Message<?>> messages = group.getMessages();
-        String aggregatedPayload = messages.stream()
-                .map(Message::getPayload)
-                .map(Object::toString)
-                .collect(Collectors.joining(";"));
-        return MessageBuilder.withPayload(aggregatedPayload).build();
+        Collection<Message<?>> messages = group.getMessages();
+
+        if (messages.isEmpty()) {
+            return null;
+        }
+
+        RTPPacket firstPacket = (RTPPacket) messages.iterator().next().getPayload();
+        byte[] header = extractHeader(firstPacket);
+        byte[] aggregatedData = new byte[header.length];
+
+        System.arraycopy(header, 0, aggregatedData, 0, header.length);
+
+        for (Message<?> message : messages) {
+            RTPPacket rtpPacket = (RTPPacket) message.getPayload();
+            byte[] data = rtpPacket.data;
+            aggregatedData = concatenate(aggregatedData, data);
+        }
+
+        RTPPacket aggregatedPacket = new RTPPacket();
+        aggregatedPacket.payloadType = firstPacket.payloadType;
+        aggregatedPacket.seqnum = firstPacket.seqnum;
+        aggregatedPacket.timestamp = firstPacket.timestamp;
+        aggregatedPacket.ssrc = firstPacket.ssrc;
+        aggregatedPacket.data = aggregatedData;
+        aggregatedPacket.payloadLength = aggregatedData.length - 12;  // Exclude header length
+        aggregatedPacket.payloadoffset = 12;
+        aggregatedPacket.length = aggregatedData.length;
+
+        return MessageBuilder.withPayload(aggregatedPacket).build();
+    }
+
+    private byte[] extractHeader(RTPPacket packet) {
+        byte[] header = new byte[12];
+        System.arraycopy(packet.data, 0, header, 0, 12);
+        return header;
+    }
+
+    private byte[] concatenate(byte[] first, byte[] second) {
+        byte[] result = new byte[first.length + second.length];
+        System.arraycopy(first, 0, result, 0, first.length);
+        System.arraycopy(second, 0, result, first.length, second.length);
+        return result;
     }
 }
+
+============================================
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
