@@ -1,1 +1,19 @@
-algo
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+public class JsonRequestHandler {
+
+    public static boolean areKeysPresent(HttpServletRequest request, String... keysToCheck) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode rootNode = mapper.readTree(request.getInputStream());
+        Set<String> presentKeys = new HashSet<>();
+        rootNode.fieldNames().forEachRemaining(presentKeys::add);
+        Set<String> requiredKeys = new HashSet<>(Set.of(keysToCheck));
+        return requiredKeys.stream().allMatch(presentKeys::contains);
+    }
+}
