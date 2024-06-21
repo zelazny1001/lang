@@ -1,1 +1,26 @@
-algo.txt
+    public RTPPacket(DatagramPacket packet) {
+        byte[] packetData = packet.getData();
+        int offset = packet.getOffset();
+        int length = packet.getLength();
+
+        // Parse RTP Header (assuming the first 12 bytes are header)
+        version = (packetData[offset] >> 6) & 0x03;
+        padding = (packetData[offset] & 0x20) != 0;
+        extension = (packetData[offset] & 0x10) != 0;
+        csrcCount = packetData[offset] & 0x0F;
+        marker = (packetData[offset + 1] & 0x80) != 0;
+        payloadType = packetData[offset + 1] & 0x7F;
+        sequenceNumber = ((packetData[offset + 2] & 0xFF) << 8) | (packetData[offset + 3] & 0xFF);
+        timestamp = ((packetData[offset + 4] & 0xFF) << 24) | ((packetData[offset + 5] & 0xFF) << 16) |
+                    ((packetData[offset + 6] & 0xFF) << 8) | (packetData[offset + 7] & 0xFF);
+        ssrc = ((packetData[offset + 8] & 0xFF) << 24) | ((packetData[offset + 9] & 0xFF) << 16) |
+               ((packetData[offset + 10] & 0xFF) << 8) | (packetData[offset + 11] & 0xFF);
+
+        // Allocate memory for data
+        this.data = new byte[length - 12]; // assuming header is always 12 bytes
+        copyData(packetData, offset + 12, this.data, 0, length - 12);
+    }
+
+    private void copyData(byte[] src, int srcPos, byte[] dest, int destPos, int length) {
+        System.arraycopy(src, srcPos, dest, destPos, length);
+    }
