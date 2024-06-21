@@ -1,0 +1,64 @@
+import java.net.DatagramPacket;
+import net.sf.fmj.media.rtp.util.RTPPacket;
+import net.sf.fmj.media.rtp.util.Packet;
+
+public class RTPConverter {
+    
+    public RTPPacket convertDatagramToRTPPacket(DatagramPacket packet) {
+        byte[] data = packet.getData();
+        int offset = packet.getOffset();
+        int length = packet.getLength();
+        
+        if (length < 12) { // Minimum RTP header size
+            throw new IllegalArgumentException("Invalid RTP packet, too short to contain header");
+        }
+        
+        RTPPacket rtpPacket = new RTPPacket();
+        rtpPacket.base = new Packet();
+        rtpPacket.base.data = data;
+        rtpPacket.base.length = length;
+        rtpPacket.base.offset = offset;
+        
+        // RTP header parts
+        int vpxcc = data[offset] & 0xFF;
+        rtpPacket.version = (vpxcc >> 6) & 0x03; // Version, 2 bits
+        boolean padding = (vpxcc & 0x20) != 0; // Padding bit
+        boolean extension = (vpxcc & 0x10) != 0; // Extension bit
+        int csrcCount = vpxcc & 0x0F; // CSRC count, 4 bits
+        
+        int mpt = data[offset + 1] & 0xFF;
+        rtpPacket.marker = (mpt >> 7) & 0x01;
+        rtpPacket.payloadType = mpt & 0x7F;
+        
+        rtpPacket.seqnum = ((data[offset + 2] & 0xFF) << 8) | (data[offset + 3] & 0xFF);
+        rtpPacket.timestamp = ((data[offset + 4] & 0xFF) << 24) | ((data[offset + 5] & 0xFF) << 16)
+                            | ((data[offset + 6] & 0xFF) << 8) | (data[offset + 7] & 0xFF);
+        rtpPacket.ssrc = ((data[offset + 8] & 0xFF) << 24) | ((data[offset + 9] & 0xFF) << 16)
+                       | ((data[offset + 10] & 0xFF) << 8) | (data[offset + 11] & 0xFF);
+        
+        // CSRCs
+        rtpPacket.csrc = new int[csrcCount];
+        int csrcOffset = 12;
+        for (int i = 0; i < csrcCount; i++) {
+            rtpPacket.csrc[i] = ((data[offset + csrcOffset] & 0xFF) << 24) | ((data[offset + csrcOffset + 1] & 0xFF) << 16)
+                              | ((data[offset + csrcOffset + 2] & 0xFF) << 8) | (data[offset + csrcOffset + 3] & 0xFF);
+            csrcOffset += 4;
+        }
+
+        // Handle extension headers if present
+        if (extension) {
+            rtpPacket.extensionPresent = true;
+            rtpPacket.extensionType = ((data[offset + csrcOffset] & 0xFF) << 8) | (data[offset + csrcOffset + 1] & 0xFF);
+            int extensionLength = ((data[offset + csrcOffset + 2] & 0xFF) << 8) | (data[offset + csrcOffset + 3] & 0xFF);
+            rtpPacket.extension = new byte[extensionLength * 4];
+            System.arraycopy(data, offset + csrcOffset + 4, rtpPacket.extension, 0, extensionLength * 4);
+            csrcOffset += 4 + extensionLength * 4;
+        }
+        
+        // Calculate payload offset and length
+        rtpPacket.payloadoffset = offset + csrcOffset;
+        rtpPacket.payloadlength = length - csrcOffset;
+        
+        return rtpPacket;
+    }
+}
