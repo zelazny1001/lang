@@ -1,1 +1,33 @@
-algo.txt2
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
+public class RTPToFloatConverter {
+
+    public static float[] convertPcmToFloat(byte[] payload) {
+        int sampleCount = payload.length / 2; // 2 bytes per sample (16-bits per sample)
+        float[] floatArray = new float[sampleCount];
+
+        ByteBuffer byteBuffer = ByteBuffer.wrap(payload).order(ByteOrder.LITTLE_ENDIAN);
+
+        for (int i = 0; i < sampleCount; i++) {
+            short pcmValue = byteBuffer.getShort();
+            floatArray[i] = pcmValue / 32768.0f; // Normalize to -1.0 to 1.0
+        }
+
+        return floatArray;
+    }
+
+    public static void main(String[] args) { // sanity check
+        byte[] payload = new byte[] {
+            (byte)0x00, (byte)0x7F, // +32767
+            (byte)0x00, (byte)0x80, // -32768
+            (byte)0x00, (byte)0x00, // 0
+        };
+
+        float[] floatArray = convertPcmToFloat(payload);
+
+        for (float sample : floatArray) {
+            System.out.println(sample);
+        }
+    }
+}
