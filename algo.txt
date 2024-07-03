@@ -1,33 +1,218 @@
+package audio;
+
+import org.springframework.integration.transformer.AbstractTransformer;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+public class AudioMessageTransformer extends AbstractTransformer {
+
+    @Override
+    protected Message<List<float[]>> doTransform(Message<?> message) {
+        byte[] rtpData = (byte[]) message.getPayload();
+        MessageHeaders headers = message.getHeaders();
+        String speaker = (String) headers.get("speaker");
+
+        WavToPCMConverter wavToPCMConverter = new WavToPCMConverter();
+        float[][] audioData = wavToPCMConverter.convertByteArrayToPcm(rtpData, 1);
+        float[] singleChannelData = audioData[0];
+
+        SpanDetector spanDetector = new SpanDetector();
+        SpanDetect channelVAD = new SpanDetect(16, 1, 0.01f, 0.02f, 4, 4);
+        List<Span> spans = spanDetector.addToStream(channelVAD, singleChannelData, speaker);
+
+        List<float[]> vadSpans = new ArrayList<>();
+        for (Span span : spans) {
+            int startIndex = span.getStartIdx();
+            int endIndex = span.getEndIdx();
+            float[] spanData = new float[endIndex - startIndex];
+            System.arraycopy(singleChannelData, startIndex, spanData, 0, endIndex - startIndex);
+            vadSpans.add(spanData);
+        }
+
+        return MessageBuilder.withPayload(vadSpans).copyHeaders(headers).build();
+    }
+}
+
+------------------------------------------------------------- .wav file to audio
+
+package audio;
+
+import javax.sound.sampled.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+
+public class WavPlayer {
+
+    public static void playWavFile(String filePath) {
+        File wavFile = new File(filePath);
+        CountDownLatch latch = new CountDownLatch(1);
+
+        try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(wavFile)) {
+            AudioFormat format = audioStream.getFormat();
+            DataLine.Info info = new DataLine.Info(Clip.class, format);
+            Clip audioClip = (Clip) AudioSystem.getLine(info);
+
+            audioClip.addLineListener(event -> {
+                if (event.getType() == LineEvent.Type.STOP) {
+                    latch.countDown();
+                }
+            });
+
+            audioClip.open(audioStream);
+            audioClip.start();
+            latch.await();
+            audioClip.close();
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | InterruptedException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        String filePath = "j:/downloads/OSR_us_000_0040_8k.wav";
+        playWavFile(filePath);
+    }
+}
+
+------------------------------------------------------------- .wav or data to float[][] pcm
+
+package audio;
+
+import javax.sound.sampled.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public class RTPToFloatConverter {
+public class WavToPCMConverter {
 
-    public static float[] convertPcmToFloat(byte[] payload) {
-        int sampleCount = payload.length / 2; // 2 bytes per sample (16-bits per sample)
-        float[] floatArray = new float[sampleCount];
-
-        ByteBuffer byteBuffer = ByteBuffer.wrap(payload).order(ByteOrder.LITTLE_ENDIAN);
+    public float[][] convertByteArrayToPcm(byte[] byteBuffer, int numChannels) {
+        int sampleCount = byteBuffer.length / numChannels;
+        float[][] floatArray = new float[numChannels][sampleCount];
 
         for (int i = 0; i < sampleCount; i++) {
-            short pcmValue = byteBuffer.getShort();
-            floatArray[i] = pcmValue / 32768.0f; // Normalize to -1.0 to 1.0
+            for (int channel = 0; channel < numChannels; channel++) {
+                floatArray[channel][i] = ((byteBuffer[i * numChannels + channel] & 0xFF) / 255.0f) * 2 - 1;
+            }
         }
 
         return floatArray;
     }
 
-    public static void main(String[] args) { // sanity check
-        byte[] payload = new byte[] {
-            (byte)0x00, (byte)0x7F, // +32767
-            (byte)0x00, (byte)0x80, // -32768
-            (byte)0x00, (byte)0x00, // 0
-        };
+    public float[][] convertWavToPcm(String filePath) {
+        File wavFile = new File(filePath);
 
-        float[] floatArray = convertPcmToFloat(payload);
+        try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(wavFile)) {
+            AudioFormat format = audioStream.getFormat();
 
-        for (float sample : floatArray) {
-            System.out.println(sample);
+            if (format.getSampleRate() != 8000.0f || format.getSampleSizeInBits() != 16) {
+                throw new UnsupportedAudioFileException("The audio file must be 8kHz and 16-bit.");
+            }
+
+            int numChannels = format.getChannels();
+            int bytesPerSample = format.getSampleSizeInBits() / 8;
+            byte[] byteBuffer = new byte[audioStream.available()];
+            int bytesRead = audioStream.read(byteBuffer);
+            if (bytesRead == -1) {
+                throw new IOException("Unable to read the audio file.");
+            }
+
+            int sampleCount = byteBuffer.length / (bytesPerSample * numChannels);
+            float[][] floatArray = new float[numChannels][sampleCount];
+            ByteBuffer byteBuf = ByteBuffer.wrap(byteBuffer).order(ByteOrder.LITTLE_ENDIAN);
+
+            for (int i = 0; i < sampleCount; i++) {
+                for (int channel = 0; channel < numChannels; channel++) {
+                    floatArray[channel][i] = byteBuf.getShort() / 32768.0f;
+                }
+            }
+
+            return floatArray;
+
+        } catch (UnsupportedAudioFileException | IOException ex) {
+            ex.printStackTrace();
+        }
+
+        return new float[0][0];
+    }
+
+    public void pcmDataToFile(float[][] pcmData, String filename) {
+        try (FileWriter writer = new FileWriter(filename)) {
+            for (int channel = 0; channel < pcmData.length; channel++) {
+                writer.write("Channel " + (channel + 1) + ":\n");
+                for (float sample : pcmData[channel]) {
+                    writer.write(sample + "\n");
+                }
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
         }
     }
+
+    public static void main(String[] args) { // sanity check...
+        String filePath = "j:/downloads/OSR_us_000_0040_8k.wav";
+
+        WavToPCMConverter wavToPCMConverter = new WavToPCMConverter();
+        float[][] pcmData = wavToPCMConverter.convertWavToPcm(filePath);
+
+        System.out.println("Channels: " + pcmData.length);
+        for (int channel = 0; channel < pcmData.length; channel++) {
+            System.out.println("Channel " + (channel + 1) + ":");
+            for (float sample : pcmData[channel]) {
+                System.out.println(sample);
+            }
+        }
+
+        wavToPCMConverter.pcmDataToFile(pcmData, "j:/downloads/pcm_output.txt");
+    }
 }
+
+------------------------------------------------- librosa comparison ---------------------------
+
+import librosa
+import numpy as np
+
+def write_pcm_values(wav_filename, output_filename):
+    y, sr = librosa.load(wav_filename, sr=8000, mono=False)
+    with open(output_filename, 'w') as f:
+        if y.ndim == 1:
+            f.write('Channel 1:\n')
+            np.savetxt(f, y)
+        else:
+            for channel in range(y.shape[0]):
+                f.write(f'Channel {channel + 1}:\n')
+                np.savetxt(f, y[channel])
+
+def compare_float_values(file1, file2, tolerance=1e-6):
+    with open(file1, 'r') as f1, open(file2, 'r') as f2:
+        lines1 = f1.readlines()
+        lines2 = f2.readlines()
+        
+        values1 = [float(line.strip()) for line in lines1 if line.strip() and not line.startswith('Channel')]
+        values2 = [float(line.strip()) for line in lines2 if line.strip() and not line.startswith('Channel')]
+        
+        if len(values1) != len(values2):
+            return False
+        
+        for v1, v2 in zip(values1, values2):
+            if abs(v1 - v2) > tolerance:
+                return False
+                
+        return True
+
+# Example usage:
+wav_filename = 'j:/downloads/OSR_us_000_0040_8k.wav'
+output_filename = 'j:/downloads/pcm_values_librosa.txt'
+write_pcm_values(wav_filename, output_filename)
+
+file1 = 'j:/downloads/pcm_values_librosa.txt'
+file2 = 'j:/downloads/pcm_output.txt'
+is_equal = compare_float_values(file1, file2)
+print('Files are equal:', is_equal)
