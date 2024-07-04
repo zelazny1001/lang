@@ -1,1 +1,114 @@
-algo.txt
+package com.example.vad;
+
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.commons.math3.complex.Complex;
+import org.apache.commons.math3.transform.DftNormalization;
+import org.apache.commons.math3.transform.FastFourierTransformer;
+import org.apache.commons.math3.transform.TransformType;
+
+public class SpanDetector {
+    private int sr;
+    private int currIdx;
+    private Candidate currCandidate;
+    private List<Span> spans;
+    private float backgroundEnergyTimeout;
+    private boolean backgroundEnergyInitialized;
+    private float backgroundEnergy;
+    private float dbOffset;
+    private float minSoFar;
+
+    public SpanDetector(int sr) {
+        this.sr = sr;
+        this.currIdx = 0;
+        this.currCandidate = null;
+        this.spans = new ArrayList<>();
+        this.backgroundEnergyTimeout = 2.0f;
+        this.backgroundEnergyInitialized = false;
+        this.backgroundEnergy = 0.0f;
+        this.dbOffset = 2.5f;
+        this.minSoFar = Float.POSITIVE_INFINITY;
+    }
+
+    public List<Span> addToStream(float[] audio, String speaker) {
+        int nSamples = audio.length;
+        float secondsPerFrame = 20e-3f;
+        int samplesPerFrame = (int) (secondsPerFrame * sr);
+        List<Span> spans = new ArrayList<>();
+
+        for (int i = 0; i < nSamples - 1; i += samplesPerFrame) {
+            int start = i + currIdx;
+            int end = start + samplesPerFrame;
+            float[] audioB = new float[samplesPerFrame];
+            System.arraycopy(audio, i, audioB, 0, samplesPerFrame);
+
+            float frameEnergy = calculateFrameEnergy(audioB);
+
+            if (frameEnergy < minSoFar) {
+                minSoFar = frameEnergy;
+            }
+
+            if ((float) currIdx / sr < backgroundEnergyTimeout) {
+                if (!backgroundEnergyInitialized) {
+                    backgroundEnergy = frameEnergy;
+                    backgroundEnergyInitialized = true;
+                } else {
+                    backgroundEnergy += (frameEnergy - backgroundEnergy) / (end / samplesPerFrame);
+                }
+                continue;
+            }
+
+            float offset = (float)Math.log10(frameEnergy / backgroundEnergy);
+            if (offset < 0) {
+                backgroundEnergy = (0.1f * backgroundEnergy + 0.9f * frameEnergy);
+            } else if (offset > dbOffset) {
+                backgroundEnergy = (0.90f * backgroundEnergy + 0.10f * frameEnergy);
+                if (currCandidate == null) {
+                    currCandidate = new Candidate(start, frameEnergy);
+                }
+                Span span = new Span(currCandidate.getStartIdx(), end, currCandidate.getStartDb(), frameEnergy,
+                        currCandidate.getNumVoiceChunks(), currCandidate.getNumNonVoiceChunks(), speaker);
+                spans.add(span);
+                this.spans.add(span);
+
+                currCandidate = null;
+            }
+        }
+        currIdx += nSamples;
+        return spans;
+    }
+
+    private float calculateFrameEnergy(float[] audioB) {
+        int N = audioB.length;
+        float[] windowedAudio = applyHammingWindow(audioB);
+        float[] fftResult = calculateFFT(windowedAudio);
+        float sum = 0.0f;
+        for (float v : fftResult) {
+            sum += Math.abs(v) * Math.abs(v);
+        }
+        return sum / N;
+    }
+
+    private float[] applyHammingWindow(float[] audio) {
+        int N = audio.length;
+        float[] windowedAudio = new float[N];
+        for (int i = 0; i < N; i++) {
+            windowedAudio[i] = (float)(audio[i] * (0.54 - 0.46 * Math.cos(2 * Math.PI * i / (N - 1))));
+        }
+        return windowedAudio;
+    }
+
+    private float[] calculateFFT(float[] audio) {
+        FastFourierTransformer transformer = new FastFourierTransformer(DftNormalization.UNITARY);
+        double[] audioDouble = new double[audio.length];
+        for (int i = 0; i < audio.length; i++) {
+            audioDouble[i] = audio[i];
+        }
+        Complex[] complexResult = transformer.transform(audioDouble, TransformType.FORWARD);
+        float[] result = new float[complexResult.length];
+        for (int i = 0; i < complexResult.length; i++) {
+            result[i] = (float) complexResult[i].abs();
+        }
+        return result;
+    }
+}
