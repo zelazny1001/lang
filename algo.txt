@@ -1,10 +1,3 @@
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.commons.math3.complex.Complex;
-import org.apache.commons.math3.transform.DftNormalization;
-import org.apache.commons.math3.transform.FastFourierTransformer;
-import org.apache.commons.math3.transform.TransformType;
-
 public class SpanDetector {
     private int sr;
     private int currIdx;
@@ -91,10 +84,20 @@ public class SpanDetector {
 
     private double[] getFFT(float[] audio) {
         int N = audio.length;
-        double[] windowedAudio = new double[N];
+        int powerOfTwo = Integer.highestOneBit(N);
+        if (powerOfTwo != N) {
+            powerOfTwo <<= 1;
+        }
+
+        double[] windowedAudio = new double[powerOfTwo];
         for (int i = 0; i < N; i++) {
             windowedAudio[i] = audio[i] * (0.54 - 0.46 * Math.cos(2 * Math.PI * i / (N - 1)));
         }
+
+        for (int i = N; i < powerOfTwo; i++) {
+            windowedAudio[i] = 0.0; // Padding with zeros
+        }
+
         FastFourierTransformer transformer = new FastFourierTransformer(DftNormalization.STANDARD);
         Complex[] complexResult = transformer.transform(windowedAudio, TransformType.FORWARD);
         double[] result = new double[complexResult.length];
@@ -110,91 +113,5 @@ public class SpanDetector {
         String speaker = "speaker1";
         List<Span> spans = detector.addToStream(audio, speaker);
         // Process spans
-    }
-}
-
-class Candidate {
-    private int startIdx;
-    private double startDb;
-    private int numVoiceChunks;
-    private int numNonVoiceChunks;
-
-    public Candidate(int startIdx, double startDb) {
-        this.startIdx = startIdx;
-        this.startDb = startDb;
-        this.numVoiceChunks = 0;
-        this.numNonVoiceChunks = 0;
-    }
-
-    public void addVoice() {
-        numVoiceChunks++;
-    }
-
-    public void addNonVoice() {
-        numNonVoiceChunks++;
-    }
-
-    public int getStartIdx() {
-        return startIdx;
-    }
-
-    public double getStartDb() {
-        return startDb;
-    }
-
-    public int getNumVoiceChunks() {
-        return numVoiceChunks;
-    }
-
-    public int getNumNonVoiceChunks() {
-        return numNonVoiceChunks;
-    }
-}
-
-class Span {
-    private int startIdx;
-    private int endIdx;
-    private double startDb;
-    private double endDb;
-    private int numVoiceChunks;
-    private int numNonVoiceChunks;
-    private String speaker;
-
-    public Span(int startIdx, int endIdx, double startDb, double endDb, int numVoiceChunks, int numNonVoiceChunks, String speaker) {
-        this.startIdx = startIdx;
-        this.endIdx = endIdx;
-        this.startDb = startDb;
-        this.endDb = endDb;
-        this.numVoiceChunks = numVoiceChunks;
-        this.numNonVoiceChunks = numNonVoiceChunks;
-        this.speaker = speaker;
-    }
-
-    public int getStartIdx() {
-        return startIdx;
-    }
-
-    public int getEndIdx() {
-        return endIdx;
-    }
-
-    public double getStartDb() {
-        return startDb;
-    }
-
-    public double getEndDb() {
-        return endDb;
-    }
-
-    public int getNumVoiceChunks() {
-        return numVoiceChunks;
-    }
-
-    public int getNumNonVoiceChunks() {
-        return numNonVoiceChunks;
-    }
-
-    public String getSpeaker() {
-        return speaker;
     }
 }
