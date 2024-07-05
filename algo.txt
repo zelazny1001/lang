@@ -7,27 +7,27 @@ public class SpanDetector {
     private int currIdx;
     private Candidate currCandidate;
     private List<Span> spans;
-    private double backgroundEnergyTimeout;
+    private float backgroundEnergyTimeout;
     private boolean backgroundEnergyInitialized;
-    private double backgroundEnergy;
-    private double dbOffset;
-    private double minSoFar;
+    private float backgroundEnergy;
+    private float dbOffset;
+    private float minSoFar;
 
     public SpanDetector(int sr) {
         this.sr = sr;
         this.currIdx = 0;
         this.currCandidate = null;
         this.spans = new ArrayList<>();
-        this.backgroundEnergyTimeout = 2.0;
+        this.backgroundEnergyTimeout = 2.0f;
         this.backgroundEnergyInitialized = false;
-        this.backgroundEnergy = 0.0;
-        this.dbOffset = 2.5;
-        this.minSoFar = Double.POSITIVE_INFINITY;
+        this.backgroundEnergy = 0.0f;
+        this.dbOffset = 2.5f;
+        this.minSoFar = Float.POSITIVE_INFINITY;
     }
 
     public List<Span> addToStream(float[] audio, String speaker) {
         int nSamples = audio.length;
-        double secondsPerFrame = 20e-3;
+        float secondsPerFrame = 20e-3f;
         int samplesPerFrame = (int) (secondsPerFrame * sr);
         List<Span> spans = new ArrayList<>();
 
@@ -37,12 +37,12 @@ public class SpanDetector {
             float[] audioB = new float[samplesPerFrame];
             System.arraycopy(audio, i, audioB, 0, samplesPerFrame);
 
-            double frameEnergy = calculateFrameEnergy(audioB);
+            float frameEnergy = calculateFrameEnergy(audioB);
             if (frameEnergy < minSoFar) {
                 minSoFar = frameEnergy;
             }
 
-            if ((double) currIdx / sr < backgroundEnergyTimeout) {
+            if ((float) currIdx / sr < backgroundEnergyTimeout) {
                 if (!backgroundEnergyInitialized) {
                     backgroundEnergy = frameEnergy;
                     backgroundEnergyInitialized = true;
@@ -52,15 +52,15 @@ public class SpanDetector {
                 continue;
             }
 
-            double offset = Math.log10(frameEnergy / backgroundEnergy);
+            float offset = (float) Math.log10(frameEnergy / backgroundEnergy);
             if (offset < 0) {
-                backgroundEnergy = (0.1 * backgroundEnergy + 0.9 * frameEnergy);
+                backgroundEnergy = (0.1f * backgroundEnergy + 0.9f * frameEnergy);
                 continue;
-            } else if (Math.log10(frameEnergy / backgroundEnergy) > dbOffset) {
+            } else if (offset > dbOffset) {
                 if (offset > 5) {
-                    backgroundEnergy = (0.98 * backgroundEnergy + 0.02 * frameEnergy);
+                    backgroundEnergy = (0.98f * backgroundEnergy + 0.02f * frameEnergy);
                 } else {
-                    backgroundEnergy = (0.90 * backgroundEnergy + 0.10 * minSoFar);
+                    backgroundEnergy = (0.90f * backgroundEnergy + 0.10f * minSoFar);
                 }
                 if (currCandidate == null) {
                     currCandidate = new Candidate(start, frameEnergy);
@@ -77,29 +77,29 @@ public class SpanDetector {
         return spans;
     }
 
-    private double calculateFrameEnergy(float[] audioB) {
-        double[] fftResult = getFFT(audioB);
-        double sumSquares = 0.0;
-        for (double v : fftResult) {
+    private float calculateFrameEnergy(float[] audioB) {
+        float[] fftResult = getFFT(audioB);
+        float sumSquares = 0.0f;
+        for (float v : fftResult) {
             sumSquares += v * v;
         }
         return sumSquares / fftResult.length;
     }
 
-    private double[] getFFT(float[] audio) {
+    private float[] getFFT(float[] audio) {
         int N = audio.length;
         float[] windowedAudio = new float[N];
         for (int i = 0; i < N; i++) {
-            windowedAudio[i] = audio[i] * (0.54 - 0.46 * Math.cos(2 * Math.PI * i / (N - 1)));
+            windowedAudio[i] = (float)(audio[i] * (0.54f - 0.46f * Math.cos(2 * Math.PI * i / (N - 1))));
         }
 
         FloatFFT_1D fft = new FloatFFT_1D(N);
         fft.realForward(windowedAudio);
 
-        double[] result = new double[N / 2];
+        float[] result = new float[N / 2];
         result[0] = windowedAudio[0]; // DC component
         for (int i = 1; i < N / 2; i++) {
-            result[i] = Math.sqrt(windowedAudio[2 * i] * windowedAudio[2 * i] + windowedAudio[2 * i + 1] * windowedAudio[2 * i + 1]);
+            result[i] = (float) Math.sqrt(windowedAudio[2 * i] * windowedAudio[2 * i] + windowedAudio[2 * i + 1] * windowedAudio[2 * i + 1]);
         }
         return result;
     }
