@@ -112,3 +112,89 @@ public class SpanDetector {
         // Process spans
     }
 }
+
+class Candidate {
+    private int startIdx;
+    private double startDb;
+    private int numVoiceChunks;
+    private int numNonVoiceChunks;
+
+    public Candidate(int startIdx, double startDb) {
+        this.startIdx = startIdx;
+        this.startDb = startDb;
+        this.numVoiceChunks = 0;
+        this.numNonVoiceChunks = 0;
+    }
+
+    public void addVoice() {
+        numVoiceChunks++;
+    }
+
+    public void addNonVoice() {
+        numNonVoiceChunks++;
+    }
+
+    public int getStartIdx() {
+        return startIdx;
+    }
+
+    public double getStartDb() {
+        return startDb;
+    }
+
+    public int getNumVoiceChunks() {
+        return numVoiceChunks;
+    }
+
+    public int getNumNonVoiceChunks() {
+        return numNonVoiceChunks;
+    }
+}
+
+class Span {
+    private int startIdx;
+    private int endIdx;
+    private double startDb;
+    private double endDb;
+    private int numVoiceChunks;
+    private int numNonVoiceChunks;
+    private String speaker;
+
+    public Span(int startIdx, int endIdx, double startDb, double endDb, int numVoiceChunks, int numNonVoiceChunks, String speaker) {
+        this.startIdx = startIdx;
+        this.endIdx = endIdx;
+        this.startDb = startDb;
+        this.endDb = endDb;
+        this.numVoiceChunks = numVoiceChunks;
+        this.numNonVoiceChunks = numNonVoiceChunks;
+        this.speaker = speaker;
+    }
+
+    public int getStartIdx() {
+        return startIdx;
+    }
+
+    public int getEndIdx() {
+        return endIdx;
+    }
+
+    public double getStartDb() {
+        return startDb;
+    }
+
+    public double getEndDb() {
+        return endDb;
+    }
+
+    public int getNumVoiceChunks() {
+        return numVoiceChunks;
+    }
+
+    public int getNumNonVoiceChunks() {
+        return numNonVoiceChunks;
+    }
+
+    public String getSpeaker() {
+        return speaker;
+    }
+}
