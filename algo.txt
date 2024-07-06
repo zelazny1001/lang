@@ -1,53 +1,19 @@
-public List<Span> addToStream(float[] audio, String speaker) {
-    int nSamples = audio.length;
-    float secondsPerFrame = 20e-3f;
-    int samplesPerFrame = (int) (secondsPerFrame * sr);
-    List<Span> spans = new ArrayList<>();
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-    for (int i = 0; i < nSamples - 1; i += samplesPerFrame) {
-        int start = i + currIdx;
-        int end = start + samplesPerFrame;
-        float[] audioB = new float[samplesPerFrame];
-        System.arraycopy(audio, i, audioB, 0, samplesPerFrame);
+public class ByteArrayToFileAppender {
 
-        float frameEnergy = calculateFrameEnergy(audioB);
-        if (frameEnergy < minSoFar) {
-            minSoFar = frameEnergy;
+    public static void appendByteArrayToFile(String pathRoot, String port, byte[] byteArray) throws IOException {
+        String filename = pathRoot + "vg_data_for_" + port + ".txt";
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, true))) {
+            String byteString = IntStream.range(0, byteArray.length)
+                    .mapToObj(i -> Byte.toString(byteArray[i]))
+                    .collect(Collectors.joining(","));
+            writer.write(byteString);
+            writer.newLine();
         }
-
-        if ((float) currIdx / sr < backgroundEnergyTimeout) {
-            if (!backgroundEnergyInitialized) {
-                backgroundEnergy = frameEnergy;
-                backgroundEnergyInitialized = true;
-            } else {
-                backgroundEnergy += (frameEnergy - backgroundEnergy) / (end / samplesPerFrame);
-            }
-            currIdx += samplesPerFrame;  // Increment currIdx properly
-            continue;
-        }
-
-        float offset = (float) Math.log10(frameEnergy / backgroundEnergy);
-        if (offset < 0) {
-            backgroundEnergy = (0.1f * backgroundEnergy + 0.9f * frameEnergy);
-            currIdx += samplesPerFrame;  // Increment currIdx properly
-            continue;
-        } else if (offset > dbOffset) {
-            if (offset > 5) {
-                backgroundEnergy = (0.98f * backgroundEnergy + 0.02f * frameEnergy);
-            } else {
-                backgroundEnergy = (0.90f * backgroundEnergy + 0.10f * minSoFar);
-            }
-            if (currCandidate == null) {
-                currCandidate = new Candidate(start, frameEnergy);
-            }
-            Span span = new Span(currCandidate.getStartIdx(), end, currCandidate.getStartDb(), frameEnergy,
-                    currCandidate.getNumVoiceChunks(), currCandidate.getNumNonVoiceChunks(), speaker);
-            spans.add(span);
-            this.spans.add(span);
-
-            currCandidate = null;
-        }
-        currIdx += samplesPerFrame;  // Increment currIdx properly
     }
-    return spans;
 }
