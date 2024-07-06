@@ -1,19 +1,7 @@
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-public class ByteArrayToFileAppender {
-
-    public static void appendByteArrayToFile(String pathRoot, String port, byte[] byteArray) throws IOException {
-        String filename = pathRoot + "vg_data_for_" + port + ".txt";
+    public static void appendStringToFile(String pathRoot, String port, String data) throws IOException {
+        String filename = pathRoot + "_" + port;
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, true))) {
-            String byteString = IntStream.range(0, byteArray.length)
-                    .mapToObj(i -> Byte.toString(byteArray[i]))
-                    .collect(Collectors.joining(","));
-            writer.write(byteString);
+            writer.write(data);
             writer.newLine();
         }
     }
-}
