@@ -1,7 +1,52 @@
-    public static float[] signed8bitToFloat(byte[] pcm) {
-        float[] floatData = new float[pcm.length];
-        for (int i = 0; i < pcm.length; i++) {
-            floatData[i] = pcm[i] / 127.0f;
+import net.sf.fmj.media.rtp.util.RTPPacket;
+import org.springframework.integration.core.GenericSelector;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+@Service
+public class AudioMessageFilter implements GenericSelector<Message<?>> {
+
+    @Override
+    public boolean accept(Message<?> message) {
+        MessageHeaders headers = message.getHeaders();
+
+        if (!headers.containsKey("VAD_REJECTED")) {
+            headers = MessageBuilder.fromMessage(message)
+                    .setHeader("VAD_REJECTED", new ArrayList<Integer>())
+                    .build()
+                    .getHeaders();
         }
-        return floatData;
+        if (!headers.containsKey("VAD_ACCEPTED")) {
+            headers = MessageBuilder.fromMessage(message)
+                    .setHeader("VAD_ACCEPTED", new ArrayList<Integer>())
+                    .build()
+                    .getHeaders();
+        }
+
+        RTPPacket rtpPacket = (RTPPacket) message.getPayload();
+        int sequenceNumber = rtpPacket.seqnum;
+        byte[] rtpData = (byte[]) message.getPayload();
+
+        Set<Byte> dataSet = new HashSet<>();
+        for (byte b : rtpData) {
+            dataSet.add(b);
+        }
+
+        if (dataSet.size() == 2 && dataSet.contains((byte) 126) && dataSet.contains((byte) -1)) {
+            List<Integer> vadRejected = (List<Integer>) headers.get("VAD_REJECTED");
+            vadRejected.add(sequenceNumber);
+            return false;
+        } else {
+            List<Integer> vadAccepted = (List<Integer>) headers.get("VAD_ACCEPTED");
+            vadAccepted.add(sequenceNumber);
+            return true;
+        }
     }
+}
