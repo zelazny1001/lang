@@ -1,0 +1,54 @@
+    public static void convertTextToWav(String inputFilename, String outputFilename, float sampleRate, int channels) {
+        try {
+            List<byte[]> pcmDataList = new ArrayList<>();
+
+            try (BufferedReader reader = Files.newBufferedReader(Paths.get(inputFilename))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    byte[] pcmBytes = convertLineToPCM(line);
+                    if (pcmBytes != null) {
+                        pcmDataList.add(pcmBytes);
+                    }
+                }
+            }
+
+            int totalBytes = pcmDataList.stream().mapToInt(arr -> arr.length).sum();
+            byte[] allPcmData = new byte[totalBytes];
+            int currentPos = 0;
+            for (byte[] pcmBytes : pcmDataList) {
+                System.arraycopy(pcmBytes, 0, allPcmData, currentPos, pcmBytes.length);
+                currentPos += pcmBytes.length;
+            }
+
+            AudioFormat format = new AudioFormat(sampleRate, 8, channels, true, false);
+            try (AudioInputStream audioInputStream = new AudioInputStream(
+                    new ByteArrayInputStream(allPcmData),
+                    format,
+                    allPcmData.length / format.getFrameSize())) {
+                AudioSystem.write(audioInputStream, AudioFileFormat.Type.WAVE, new File(outputFilename));
+            }
+
+        } catch (IOException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    private static byte[] convertLineToPCM(String line) {
+        String[] stringValues = line.trim().split("\\s+");
+        byte[] pcmBytes = new byte[stringValues.length];
+        for (int i = 0; i < stringValues.length; i++) {
+            pcmBytes[i] = Byte.parseByte(stringValues[i]);
+        }
+        return pcmBytes;
+    }
+
+    public static void main(String[] args) { // sanity check
+        String inputFilename = "input.txt";
+        String outputFilename = "output.wav";
+        float sampleRate = 8000.0f;
+        int channels = 1;
+
+        convertTextToWav(inputFilename, outputFilename, sampleRate, channels);
+        System.out.println("Conversion completed");
+    }
+}
