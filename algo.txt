@@ -20,7 +20,7 @@
                 currentPos += pcmBytes.length;
             }
 
-            AudioFormat format = new AudioFormat(sampleRate, 8, channels, true, false);
+            AudioFormat format = new AudioFormat(sampleRate, 16, channels, true, false);
             try (AudioInputStream audioInputStream = new AudioInputStream(
                     new ByteArrayInputStream(allPcmData),
                     format,
@@ -34,21 +34,12 @@
     }
 
     private static byte[] convertLineToPCM(String line) {
-        String[] stringValues = line.trim().split("\\s+");
-        byte[] pcmBytes = new byte[stringValues.length];
+        String[] stringValues = line.trim().split(",");
+        byte[] pcmBytes = new byte[stringValues.length * 2];
         for (int i = 0; i < stringValues.length; i++) {
-            pcmBytes[i] = Byte.parseByte(stringValues[i]);
+            int value = Integer.parseInt(stringValues[i]);
+            pcmBytes[2 * i] = (byte) (value & 0xFF);
+            pcmBytes[2 * i + 1] = (byte) ((value >> 8) & 0xFF);
         }
         return pcmBytes;
     }
-
-    public static void main(String[] args) { // sanity check
-        String inputFilename = "input.txt";
-        String outputFilename = "output.wav";
-        float sampleRate = 8000.0f;
-        int channels = 1;
-
-        convertTextToWav(inputFilename, outputFilename, sampleRate, channels);
-        System.out.println("Conversion completed");
-    }
-}
