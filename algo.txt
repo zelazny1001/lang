@@ -1,45 +1,24 @@
-    public static void convertTextToWav(String inputFilename, String outputFilename, float sampleRate, int channels) {
+    public static void writeCSVToG711(String inputFilename, String outputFilename) {
         try {
-            List<byte[]> pcmDataList = new ArrayList<>();
+            StringBuilder g711Content = new StringBuilder();
 
-            try (BufferedReader reader = Files.newBufferedReader(Paths.get(inputFilename))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    byte[] pcmBytes = convertLineToPCM(line);
-                    if (pcmBytes != null) {
-                        pcmDataList.add(pcmBytes);
-                    }
+            Files.lines(Paths.get(inputFilename)).forEach(line -> {
+                String[] values = line.split(",");
+                for (String value : values) {
+                    g711Content.append(Byte.parseByte(value.trim())).append(",");
                 }
+            });
+
+            String[] allValues = g711Content.toString().split(",");
+            byte[] g711Data = new byte[allValues.length];
+            for (int i = 0; i < allValues.length; i++) {
+                g711Data[i] = Byte.parseByte(allValues[i].trim());
             }
 
-            int totalBytes = pcmDataList.stream().mapToInt(arr -> arr.length).sum();
-            byte[] allPcmData = new byte[totalBytes];
-            int currentPos = 0;
-            for (byte[] pcmBytes : pcmDataList) {
-                System.arraycopy(pcmBytes, 0, allPcmData, currentPos, pcmBytes.length);
-                currentPos += pcmBytes.length;
+            try (FileOutputStream fos = new FileOutputStream(outputFilename)) {
+                fos.write(g711Data);
             }
-
-            AudioFormat format = new AudioFormat(sampleRate, 16, channels, true, false);
-            try (AudioInputStream audioInputStream = new AudioInputStream(
-                    new ByteArrayInputStream(allPcmData),
-                    format,
-                    allPcmData.length / format.getFrameSize())) {
-                AudioSystem.write(audioInputStream, AudioFileFormat.Type.WAVE, new File(outputFilename));
-            }
-
         } catch (IOException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("Error writing G711 file: " + e.getMessage());
         }
-    }
-
-    private static byte[] convertLineToPCM(String line) {
-        String[] stringValues = line.trim().split(",");
-        byte[] pcmBytes = new byte[stringValues.length * 2];
-        for (int i = 0; i < stringValues.length; i++) {
-            int value = Integer.parseInt(stringValues[i]);
-            pcmBytes[2 * i] = (byte) (value & 0xFF);
-            pcmBytes[2 * i + 1] = (byte) ((value >> 8) & 0xFF);
-        }
-        return pcmBytes;
     }
