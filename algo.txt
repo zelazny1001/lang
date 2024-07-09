@@ -1,24 +1,45 @@
-    public static void writeCSVToG711(String inputFilename, String outputFilename) {
-        try {
-            StringBuilder g711Content = new StringBuilder();
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.FileOutputStream;
 
-            Files.lines(Paths.get(inputFilename)).forEach(line -> {
-                String[] values = line.split(",");
-                for (String value : values) {
-                    g711Content.append(Byte.parseByte(value.trim())).append(",");
-                }
-            });
+public class BytesToFileAppender extends DataToFileAppender<byte[]> {
 
-            String[] allValues = g711Content.toString().split(",");
-            byte[] g711Data = new byte[allValues.length];
-            for (int i = 0; i < allValues.length; i++) {
-                g711Data[i] = Byte.parseByte(allValues[i].trim());
-            }
+    @Override
+    protected String convertDataToString(byte[] data) {
+        return "";
+    }
 
-            try (FileOutputStream fos = new FileOutputStream(outputFilename)) {
-                fos.write(g711Data);
+    @Override
+    public void appendToFile(String pathRoot, String name, String port, byte[] data, String header) {
+        if (pathRoot == null) {
+            pathRoot = getDefaultRoot();
+        }
+        String filePath = pathRoot + name + "_" + port + ".txt";
+        File file = new File(filePath);
+        boolean fileExists = file.exists();
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, true))) {
+            if (!fileExists && header != null) {
+                writer.write(header);
+                writer.newLine();
             }
         } catch (IOException e) {
-            System.out.println("Error writing G711 file: " + e.getMessage());
+            System.out.println("Error: " + e.getMessage());
+        }
+
+        try (FileOutputStream outputStream = new FileOutputStream(file, true)) {
+            outputStream.write(data);
+        } catch (IOException e) {
+            System.out.println("Error: " + e.getMessage());
         }
     }
+
+    public static void main(String[] args) {
+        BytesToFileAppender appender = new BytesToFileAppender();
+        byte[] data = {65, 66, 67, 68, 1, 2, 3, 4, 5, -20, 50};
+        String pathRoot = "j:/downloads/";
+        appender.appendToFile(pathRoot, "rawbytes", "57001", data, null);
+    }
+}
