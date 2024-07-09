@@ -1,7 +1,44 @@
-    public static boolean zerosAreAcceptable() {
-        if (zeros.size() < ACCEPTABLE_CONSECUTIVE_ZEROS) {
-            return false;
-        }
-        return zeros.subList(zeros.size() - ACCEPTABLE_CONSECUTIVE_ZEROS, zeros.size()).stream()
-                .allMatch(val -> val == 1);
+Select the point on the waveform, then read the amplitude in the status bar at the bottom of Audacity.
+
+Edit preferences, tracks, display, change from time to samples.
+
+package utils;
+
+public class CircularBuffer<T> {
+    private final T[] buffer;
+    private int head;
+    private int tail;
+    private int count;
+
+    @SuppressWarnings("unchecked")
+    public CircularBuffer(int capacity) {
+        buffer = (T[]) new Object[capacity];
     }
+
+    public synchronized void add(T item) {
+        buffer[tail] = item;
+        if (count == buffer.length) {
+            head = (head + 1) % buffer.length; // Overwrite the oldest item
+        } else {
+            count++;
+        }
+        tail = (tail + 1) % buffer.length;
+    }
+
+    public synchronized T[] getLastK(int k) {
+        if (k > count) {
+            k = count;
+        }
+        @SuppressWarnings("unchecked")
+        T[] result = (T[]) new Object[k];
+        for (int i = 0; i < k; i++) {
+            result[i] = buffer[(tail - 1 - i + buffer.length) % buffer.length];
+        }
+        return result;
+    }
+
+    public synchronized int size() {
+        return count;
+    }
+}
+
