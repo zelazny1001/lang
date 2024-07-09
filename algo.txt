@@ -1,11 +1,7 @@
-    public boolean checkMostRecentKElements(int k) {
-        if (values.size() < k) {
+    public static boolean zerosAreAcceptable() {
+        if (zeros.size() < ACCEPTABLE_CONSECUTIVE_ZEROS) {
             return false;
         }
-        for (int i = values.size() - k; i < values.size(); i++) {
-            if (values.get(i) != 1) {
-                return false;
-            }
-        }
-        return true;
+        return zeros.subList(zeros.size() - ACCEPTABLE_CONSECUTIVE_ZEROS, zeros.size()).stream()
+                .allMatch(val -> val == 1);
     }
