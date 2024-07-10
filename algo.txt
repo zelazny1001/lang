@@ -1,53 +1,9 @@
-public class CircularBuffer<T> {
-    private final T[] buffer;
-    private int head;
-    private int tail;
-    private int count;
+        int chunkSize = 160;
+        int index = 0;
 
-    @SuppressWarnings("unchecked")
-    public CircularBuffer(int capacity) {
-        buffer = (T[]) new Object[capacity];
-    }
-
-    public synchronized void add(T item) {
-        buffer[tail] = item;
-        if (count == buffer.length) {
-            head = (head + 1) % buffer.length;
-        } else {
-            count++;
+        while (index < floatArray.length) {
+            float[] chunk = new float[chunkSize];
+            System.arraycopy(floatArray, index, chunk, 0, chunkSize);
+            processChunk(chunk);
+            index += chunkSize;
         }
-        tail = (tail + 1) % buffer.length;
-    }
-
-    public synchronized T[] getMostRecentK(int k) {
-        if (k > count) {
-            k = count;
-        }
-        @SuppressWarnings("unchecked")
-        T[] result = (T[]) new Object[k];
-        for (int i = 0; i < k; i++) {
-            result[k - 1 - i] = buffer[(tail - 1 - i + buffer.length) % buffer.length];
-        }
-        return result;
-    }
-
-    public synchronized int size() {
-        return count;
-    }
-
-    public static void main(String[] args) {
-        CircularBuffer<float[]> buffer = new CircularBuffer<>(5);
-
-        buffer.add(new float[]{1.0f, 2.0f});
-        buffer.add(new float[]{3.0f, 4.0f});
-        buffer.add(new float[]{5.0f, 6.0f});
-        buffer.add(new float[]{7.0f, 8.0f});
-        buffer.add(new float[]{9.0f, 10.0f});
-        buffer.add(new float[]{11.0f, 12.0f});
-
-        float[][] last2 = buffer.getMostRecentK(2);
-        for (float[] array : last2) {
-            System.out.println(java.util.Arrays.toString(array));
-        }
-    }
-}
