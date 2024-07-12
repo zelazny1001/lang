@@ -1,17 +1,24 @@
+package utils;
+
 import java.util.Arrays;
 import java.util.List;
 
 public class BooleanListProcessor {
-
-    public static String processBooleanList(List<Boolean> list) {
-        long numOfTrues = list.stream().filter(Boolean::booleanValue).count();
-        long numOfFalses = list.size() - numOfTrues;
-        return "accepted: " + numOfTrues + ", rejected: " + numOfFalses;
+    List<Boolean> list;
+    public BooleanListProcessor(List<Boolean> list) {
+        this.list = list;
     }
-
-    public static void main(String[] args) {
-        List<Boolean> testList = Arrays.asList(true, false, true, true, false, false, true);
-        String result = processBooleanList(testList);
-        System.out.println(result);
+    
+    public int numTrue() {
+        list.stream().filter(Boolean::booleanValue).count();
+    }
+    
+    public int numFalse() {
+        return list.size() - numTrue();
+    }
+    
+    @Override
+    public String toString () {
+        return "accepted: " + numTrue() + ", rejected: " + numFalse();
     }
 }
