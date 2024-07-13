@@ -1,20 +1,32 @@
 package utils;
 
-public class ResultsAnalyzer {
+import java.util.List;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.Arrays;
+
+public class ByteArrayFilter {
+    public static List<byte[]> removeRejected(List<Boolean> acceptedFlags, List<byte[]> allData) {
+        return IntStream.range(0, acceptedFlags.size())
+                .filter(i -> acceptedFlags.get(i))
+                .mapToObj(allData::get)
+                .collect(Collectors.toList());
+    }
 
     public static void main(String[] args) {
-        int numAccepted = 500;
-        for (float offset = 0.5f; offset <= 2.5f; offset += 0.1f) {
-            String name = generateName(offset, numAccepted);
-            getResults(offset, name);
+        List<Boolean> acceptedFlags = Arrays.asList(true, false, true, false, true);
+        List<byte[]> allData = new ArrayList<>();
+        allData.add(new byte[]{1, 2, 3});
+        allData.add(new byte[]{4, 5, 6});
+        allData.add(new byte[]{7, 8, 9});
+        allData.add(new byte[]{10, 11, 12});
+        allData.add(new byte[]{13, 14, 15});
+
+        List<byte[]> result = removeRejected(acceptedFlags, allData);
+
+        for (byte[] array : result) {
+            System.out.println(Arrays.toString(array));
         }
-    }
-
-    public static String generateName(float offset, int numAccepted) {
-        return String.format("accepted_voice_%.1f_%d", offset, numAccepted);
-    }
-
-    public static void getResults(float offset, String name) {
-        System.out.println("Offset: " + offset + ", Name: " + name);
     }
 }
