@@ -1,24 +1,30 @@
-package utils;
+package appenders;
 
-import java.util.Arrays;
-import java.util.List;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
-public class BooleanListProcessor {
-    List<Boolean> list;
-    public BooleanListProcessor(List<Boolean> list) {
-        this.list = list;
+public class RawByteArrayToFileAppender {
+
+    public void appendToFile(String pathRoot, String name, int port, byte[] data, String header) {
+        if (pathRoot == null) {
+            pathRoot = "j:/data/";
+        }
+        String filePath = pathRoot + name + "_" + port + ".bin"; // Changed to .bin for binary data
+        File file = new File(filePath);
+        boolean fileExists = file.exists();
+
+        try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file, true))) {
+            outputStream.write(data);
+        } catch (IOException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
     }
-    
-    public int numTrue() {
-        list.stream().filter(Boolean::booleanValue).count();
-    }
-    
-    public int numFalse() {
-        return list.size() - numTrue();
-    }
-    
-    @Override
-    public String toString () {
-        return "accepted: " + numTrue() + ", rejected: " + numFalse();
+
+    public static void main(String[] args) {
+        RawByteArrayToFileAppender appender = new RawByteArrayToFileAppender();
+        byte[] data = {1, 2, 3, 4, 5, -1, -2, -3, -4, -5}; // Including non-printable characters
+        appender.appendToFile(null, "binary", 8000, data, "Header");
     }
 }
