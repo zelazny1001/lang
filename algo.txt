@@ -1,45 +1,25 @@
+package utils;
+
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
-public class TextFileComparator {
+public class FileHandler {
 
-    public static void compareText(String filename1, String filename2) throws IOException {
-        List<String> wordsFile1 = Files.lines(Paths.get(filename1))
-                .flatMap(line -> Arrays.stream(line.split("\\W+")))
-                .collect(Collectors.toList());
+    public static void clearFileIfExists(String filePath) {
+        File file = new File(filePath);
 
-        List<String> wordsFile2 = Files.lines(Paths.get(filename2))
-                .flatMap(line -> Arrays.stream(line.split("\\W+")))
-                .collect(Collectors.toList());
-
-        Set<String> setFile1 = wordsFile1.stream().collect(Collectors.toSet());
-        Set<String> setFile2 = wordsFile2.stream().collect(Collectors.toSet());
-
-        Set<String> uniqueToFile1 = setFile1.stream()
-                .filter(word -> !setFile2.contains(word))
-                .collect(Collectors.toSet());
-
-        Set<String> uniqueToFile2 = setFile2.stream()
-                .filter(word -> !setFile1.contains(word))
-                .collect(Collectors.toSet());
-
-        System.out.println("Words found in " + filename1 + " but not in " + filename2 + ":");
-        uniqueToFile1.forEach(System.out::println);
-
-        System.out.println("\nWords found in " + filename2 + " but not in " + filename1 + ":");
-        uniqueToFile2.forEach(System.out::println);
+        if (file.exists()) {
+            try (FileWriter writer = new FileWriter(file, false)) {
+                writer.write("");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public static void main(String[] args) {
-        try {
-            compareText("file1.txt", "file2.txt");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        String filePath = "path/to/your/file.txt";
+        clearFileIfExists(filePath);
     }
 }
