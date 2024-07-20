@@ -1,33 +1,25 @@
-package state;
+package utils;
 
-import org.springframework.stereotype.Service;
-import java.util.concurrent.ConcurrentHashMap;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 
-@Service
-public class AcceptRejectStateManager {
+public class FileHandler {
 
-    private ConcurrentHashMap<Integer, AcceptRejectData> dataMap = new ConcurrentHashMap<>();
+    public static void clearFileIfExists(String filePath) {
+        File file = new File(filePath);
 
-    public AcceptRejectData getAcceptRejectData(int port) {
-        return dataMap.get(port);
-    }
-
-    public boolean addAccepted(int port, byte[] acceptedItem) {
-        AcceptRejectData acceptRejectData = dataMap.computeIfAbsent(port, k -> new AcceptRejectData());
-        return acceptRejectData.addAccepted(acceptedItem);
-    }
-
-    public boolean addRejected(int port, byte[] rejectedItem) {
-        AcceptRejectData acceptRejectData = dataMap.computeIfAbsent(port, k -> new AcceptRejectData());
-        return acceptRejectData.addRejected(rejectedItem);
-    }
-
-    public boolean delete(int port) {
-        if (dataMap.containsKey(port)) {
-            dataMap.remove(port);
-            return true;
-        } else {
-            throw new IllegalArgumentException("No element found for port: " + port);
+        if (file.exists()) {
+            try (FileWriter writer = new FileWriter(file, false)) {
+                writer.write("");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
+    }
+
+    public static void main(String[] args) {
+        String filePath = "path/to/your/file.txt";
+        clearFileIfExists(filePath);
     }
 }
