@@ -1,20 +1,17 @@
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.Files;
+    public static int compareStrings(String s1, String s2) {
+        List<String> wordsList1 = Arrays.stream(s1.split("\\W+")).collect(Collectors.toList());
+        List<String> wordsList2 = Arrays.stream(s2.split("\\W+")).collect(Collectors.toList());
 
-public class DirectoryCreator {
-    public static void main(String[] args) {
-        createDirIfAbsent("/example/directory/");
-    }
+        Set<String> set1 = wordsList1.stream().collect(Collectors.toSet());
+        Set<String> set2 = wordsList2.stream().collect(Collectors.toSet());
 
-    public static void createDirIfAbsent(String pathToDir) {
-        Path path = Paths.get(pathToDir);
-        if (Files.notExists(path)) {
-            try {
-                Files.createDirectories(path);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+        Set<String> uniqueToSet1 = set1.stream()
+                .filter(word -> !set2.contains(word))
+                .collect(Collectors.toSet());
+
+        Set<String> uniqueToSet2 = set2.stream()
+                .filter(word -> !set1.contains(word))
+                .collect(Collectors.toSet());
+
+        return uniqueToSet1.size() + uniqueToSet2.size();
     }
-}
