@@ -1,17 +1,25 @@
-    public static int compareStrings(String s1, String s2) {
-        List<String> wordsList1 = Arrays.stream(s1.split("\\W+")).collect(Collectors.toList());
-        List<String> wordsList2 = Arrays.stream(s2.split("\\W+")).collect(Collectors.toList());
+import pandas as pd
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
-        Set<String> set1 = wordsList1.stream().collect(Collectors.toSet());
-        Set<String> set2 = wordsList2.stream().collect(Collectors.toSet());
+# Read data from CSV file
+file_path = 'your_file.csv'  # Replace with your actual file path
+data = pd.read_csv(file_path)
 
-        Set<String> uniqueToSet1 = set1.stream()
-                .filter(word -> !set2.contains(word))
-                .collect(Collectors.toSet());
+# Extract the necessary columns
+x = data['macroPause']
+y = data['offset']
+z = data['diff']
 
-        Set<String> uniqueToSet2 = set2.stream()
-                .filter(word -> !set1.contains(word))
-                .collect(Collectors.toSet());
+# Create a 3-D scatter plot
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+scatter = ax.scatter(x, y, z, c='r', marker='o')
 
-        return uniqueToSet1.size() + uniqueToSet2.size();
-    }
+# Add labels
+ax.set_xlabel('macroPause')
+ax.set_ylabel('offset')
+ax.set_zlabel('diff')
+
+# Show the plot
+plt.show()
