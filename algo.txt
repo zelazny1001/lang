@@ -2,24 +2,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-# Read data from CSV file
-file_path = 'your_file.csv'  # Replace with your actual file path
+file_path = 'your_file.csv'
 data = pd.read_csv(file_path)
 
-# Extract the necessary columns
 x = data['macroPause']
 y = data['offset']
 z = data['diff']
 
-# Create a 3-D scatter plot
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-scatter = ax.scatter(x, y, z, c='r', marker='o')
 
-# Add labels
+colors = ['blue' if value == 0 else 'red' for value in z]
+scatter = ax.scatter(x, y, z, c=colors, marker='o', s=20)
+
 ax.set_xlabel('macroPause')
 ax.set_ylabel('offset')
-ax.set_zlabel('diff')
+ax.set_zlabel('diff', labelpad=20)
 
-# Show the plot
+plt.tight_layout()
 plt.show()
