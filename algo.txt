@@ -1,0 +1,6 @@
+    public List<byte[]> removeRejectedFromRange(List<Boolean> acceptedFlags, List<byte[]> allData, int start, int stop) {
+        return IntStream.range(start, Math.min(stop, acceptedFlags.size()))
+                .filter(i -> acceptedFlags.get(i))
+                .mapToObj(allData::get)
+                .collect(Collectors.toList());
+    }
