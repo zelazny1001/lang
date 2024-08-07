@@ -1,0 +1,29 @@
+import java.util.ArrayList;
+import java.util.List;
+
+public class BooleanArrayGenerator {
+
+    public static List<Boolean> generateBooleanArray(BooleanCount... pairs) {
+        List<Boolean> result = new ArrayList<>();
+
+        for (BooleanCount pair : pairs) {
+            boolean value = pair.getValue();
+            int count = pair.getCount();
+
+            for (int j = 0; j < count; j++) {
+                result.add(value);
+            }
+        }
+
+        return result;
+    }
+
+    public static void main(String[] args) {
+        List<Boolean> result = generateBooleanArray(
+                new BooleanCount(true, 5),
+                new BooleanCount(false, 0.6f),
+                new BooleanCount(true, 2)
+        );
+        System.out.println(result);
+    }
+}
