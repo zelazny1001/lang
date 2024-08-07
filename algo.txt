@@ -1,6 +1,79 @@
-    public List<byte[]> removeRejectedFromRange(List<Boolean> acceptedFlags, List<byte[]> allData, int start, int stop) {
-        return IntStream.range(start, Math.min(stop, acceptedFlags.size())) 
-                .filter(i -> acceptedFlags.get(i))
-                .mapToObj(allData::get)
-                .collect(Collectors.toList());
+package transcription;
+
+import java.util.List;
+
+/**
+ * State of transcription. Used by TranscriptionEngine, Span Detector, and Conversation
+ * to maintain state and triggering of transcription.
+ * Unit of time is the sample (20 milliseconds)
+ */
+public class TranscriptionState {
+    private static final int SAMPLES_PER_SECOND = 50;
+    public static final int SPEECH_LIMIT = 3 * SAMPLES_PER_SECOND; // 3 seconds
+    public static final int QUIET_LIMIT = (int)(SAMPLES_PER_SECOND * 900/1000); // 900 milliseconds for macropause
+    private int mostRecentSpeech = 0;
+    private int mostRecentTranscription = 0;
+    private int currentPosition = 0;
+    private boolean aboveSpeechLimit = false;
+    private boolean aboveQuietLimit = false;
+    private List<Boolean> accepted;
+
+    public TranscriptionState(List<Boolean> accepted) {
+        this.accepted = accepted;
     }
+
+    public boolean readyToTranscribe() {
+        return aboveSpeechLimit && aboveQuietLimit;
+    }
+
+    public boolean advanceWithoutTranscription() {
+        return (mostRecentSpeech <= mostRecentTranscription) && ()
+    }
+
+    public boolean isSpeaking() {
+        return accepted.get(accepted.size()-1);
+    }
+
+    public boolean isQuiet() {
+        return !isSpeaking();
+    }
+
+    public int getMostRecentSpeech() {
+        return mostRecentSpeech;
+    }
+
+    public void setMostRecentSpeech(int mostRecentSpeech) {
+        this.mostRecentSpeech = mostRecentSpeech;
+        this.aboveSpeechLimit = mostRecentSpeech - mostRecentTranscription >= SPEECH_LIMIT;
+    }
+
+    public int getMostRecentTranscription() {
+        return mostRecentTranscription;
+    }
+
+    public void setMostRecentTranscription(int mostRecentTranscription) {
+        this.mostRecentTranscription = mostRecentTranscription;
+        this.aboveSpeechLimit = mostRecentSpeech - mostRecentTranscription >= SPEECH_LIMIT;
+    }
+
+    public void setCurrentPosition(int currentPosition) {
+        this.currentPosition = currentPosition;
+        this.aboveQuietLimit = lastContiguousN(false, QUIET_LIMIT);
+    }
+
+    public int getCurrentPosition() {
+        return currentPosition;
+    }
+
+    public boolean lastContiguousN(boolean value, int n) {
+        if (accepted == null || accepted.size() < n) {
+            return false;
+        }
+        for (int i = accepted.size() - n; i < accepted.size(); i++) {
+            if (accepted.get(i) != value) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
