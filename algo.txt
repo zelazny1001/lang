@@ -1,79 +1,133 @@
-package transcription;
-
+import java.util.ArrayList;
 import java.util.List;
 
-/**
- * State of transcription. Used by TranscriptionEngine, Span Detector, and Conversation
- * to maintain state and triggering of transcription.
- * Unit of time is the sample (20 milliseconds)
- */
-public class TranscriptionState {
-    private static final int SAMPLES_PER_SECOND = 50;
-    public static final int SPEECH_LIMIT = 3 * SAMPLES_PER_SECOND; // 3 seconds
-    public static final int QUIET_LIMIT = (int)(SAMPLES_PER_SECOND * 900/1000); // 900 milliseconds for macropause
-    private int mostRecentSpeech = 0;
-    private int mostRecentTranscription = 0;
-    private int currentPosition = 0;
-    private boolean aboveSpeechLimit = false;
-    private boolean aboveQuietLimit = false;
-    private List<Boolean> accepted;
+public class BoolGen {
 
-    public TranscriptionState(List<Boolean> accepted) {
-        this.accepted = accepted;
-    }
-
-    public boolean readyToTranscribe() {
-        return aboveSpeechLimit && aboveQuietLimit;
-    }
-
-    public boolean advanceWithoutTranscription() {
-        return (mostRecentSpeech <= mostRecentTranscription) && ()
-    }
-
-    public boolean isSpeaking() {
-        return accepted.get(accepted.size()-1);
-    }
-
-    public boolean isQuiet() {
-        return !isSpeaking();
-    }
-
-    public int getMostRecentSpeech() {
-        return mostRecentSpeech;
-    }
-
-    public void setMostRecentSpeech(int mostRecentSpeech) {
-        this.mostRecentSpeech = mostRecentSpeech;
-        this.aboveSpeechLimit = mostRecentSpeech - mostRecentTranscription >= SPEECH_LIMIT;
-    }
-
-    public int getMostRecentTranscription() {
-        return mostRecentTranscription;
-    }
-
-    public void setMostRecentTranscription(int mostRecentTranscription) {
-        this.mostRecentTranscription = mostRecentTranscription;
-        this.aboveSpeechLimit = mostRecentSpeech - mostRecentTranscription >= SPEECH_LIMIT;
-    }
-
-    public void setCurrentPosition(int currentPosition) {
-        this.currentPosition = currentPosition;
-        this.aboveQuietLimit = lastContiguousN(false, QUIET_LIMIT);
-    }
-
-    public int getCurrentPosition() {
-        return currentPosition;
-    }
-
-    public boolean lastContiguousN(boolean value, int n) {
-        if (accepted == null || accepted.size() < n) {
-            return false;
+    public static List<Boolean> generateVADBoolSeconds(int... startEndSeconds) {
+        List<Boolean> result = new ArrayList<>();
+        int cumulativeSamples = 0;
+        for (int i = 0; i < startEndSeconds.length; i++) {
+            int endSample = startEndSeconds[i] * 50;
+            boolean value = (i % 2 == 1);
+            for (int j = cumulativeSamples; j < endSample; j++) {
+                result.add(value);
+            }
+            cumulativeSamples = endSample;
         }
-        for (int i = accepted.size() - n; i < accepted.size(); i++) {
-            if (accepted.get(i) != value) {
-                return false;
+        return result;
+    }
+
+    public static List<Boolean> generateVADBoolSamples(int... startEndSamples) {
+        List<Boolean> result = new ArrayList<>();
+        int cumulativeSamples = 0;
+        for (int i = 0; i < startEndSamples.length; i++) {
+            int endSample = startEndSamples[i];
+            boolean value = (i % 2 == 1);
+            for (int j = cumulativeSamples; j < endSample; j++) {
+                result.add(value);
+            }
+            cumulativeSamples = endSample;
+        }
+        return result;
+    }
+
+    public static List<Integer> generateVADBoolStartEndSeconds(List<Boolean> samples) {
+        List<Integer> startEndSeconds = new ArrayList<>();
+        boolean currentValue = samples.get(0);
+        int startSample = 0;
+
+        for (int i = 1; i < samples.size(); i++) {
+            if (samples.get(i) != currentValue) {
+                if (currentValue) {
+                    startEndSeconds.add(startSample / 50);
+                    startEndSeconds.add(i / 50);
+                }
+                currentValue = samples.get(i);
+                startSample = i;
             }
         }
-        return true;
+        if (currentValue) {
+            startEndSeconds.add(startSample / 50);
+            startEndSeconds.add(samples.size() / 50);
+        }
+
+        return startEndSeconds;
+    }
+
+    public static List<Integer> generateVADBoolStartEndSamples(List<Boolean> samples) {
+        List<Integer> startEndSeconds = generateVADBoolStartEndSeconds(samples);
+        List<Integer> startEndSamples = new ArrayList<>();
+        for (Integer second : startEndSeconds) {
+            startEndSamples.add(second * 50);
+        }
+        return startEndSamples;
     }
 }
+
+=================================================
+
+import static org.junit.Assert.assertEquals;
+import org.junit.Test;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class BoolGenTest {
+
+    @Test
+    public void testGenerateVADBoolSeconds() {
+        List<Boolean> result = BoolGen.generateVADBoolSeconds(5, 8, 12, 16, 20, 30);
+        int index = 0;
+        for (int i = 0; i < 250; i++, index++) assertEquals(false, result.get(index));
+        for (int i = 0; i < 150; i++, index++) assertEquals(true, result.get(index));
+        for (int i = 0; i < 200; i++, index++) assertEquals(false, result.get(index));
+        for (int i = 0; i < 200; i++, index++) assertEquals(true, result.get(index));
+        for (int i = 0; i < 200; i++, index++) assertEquals(false, result.get(index));
+        for (int i = 0; i < 500; i++, index++) assertEquals(true, result.get(index));
+    }
+
+    @Test
+    public void testGenerateVADBoolSamples() {
+        List<Boolean> result = BoolGen.generateVADBoolSamples(250, 400, 600, 800, 1000, 1500);
+        int index = 0;
+        for (int i = 0; i < 250; i++, index++) assertEquals(false, result.get(index));
+        for (int i = 0; i < 150; i++, index++) assertEquals(true, result.get(index));
+        for (int i = 0; i < 200; i++, index++) assertEquals(false, result.get(index));
+        for (int i = 0; i < 200; i++, index++) assertEquals(true, result.get(index));
+        for (int i = 0; i < 200; i++, index++) assertEquals(false, result.get(index));
+        for (int i = 0; i < 500; i++, index++) assertEquals(true, result.get(index));
+    }
+
+    @Test
+    public void testGenerateVADBoolStartEndSeconds() {
+        List<Boolean> samples = new ArrayList<>();
+        for (int i = 0; i < 250; i++) samples.add(false);
+        for (int i = 0; i < 150; i++) samples.add(true);
+        for (int i = 0; i < 200; i++) samples.add(false);
+        for (int i = 0; i < 200; i++) samples.add(true);
+        for (int i = 0; i < 200; i++) samples.add(false);
+        for (int i = 0; i < 500; i++) samples.add(true);
+
+        List<Integer> startEndSeconds = BoolGen.generateVADBoolStartEndSeconds(samples);
+        List<Integer> expectedStartEndSeconds = Arrays.asList(5, 8, 12, 16, 20, 30);
+
+        assertEquals(expectedStartEndSeconds, startEndSeconds);
+    }
+
+    @Test
+    public void testGenerateVADBoolStartEndSamples() {
+        List<Boolean> samples = new ArrayList<>();
+        for (int i = 0; i < 250; i++) samples.add(false);
+        for (int i = 0; i < 150; i++) samples.add(true);
+        for (int i = 0; i < 200; i++) samples.add(false);
+        for (int i = 0; i < 200; i++) samples.add(true);
+        for (int i = 0; i < 200; i++) samples.add(false);
+        for (int i = 0; i < 500; i++) samples.add(true);
+
+        List<Integer> startEndSamples = BoolGen.generateVADBoolStartEndSamples(samples);
+        List<Integer> expectedStartEndSamples = Arrays.asList(250, 400, 600, 800, 1000, 1500);
+
+        assertEquals(expectedStartEndSamples, startEndSamples);
+    }
+}
+================================================
