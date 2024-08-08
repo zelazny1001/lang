@@ -1,201 +1,28 @@
 import java.util.ArrayList;
 import java.util.List;
 
-public class BoolGen {
+public class TranscriptionHelper {
 
-    public static List<Boolean> generateVADBoolSeconds(int... startEndSeconds) {
-        List<Boolean> result = new ArrayList<>();
-        int cumulativeSamples = 0;
-        for (int i = 0; i < startEndSeconds.length; i++) {
-            int endSample = startEndSeconds[i] * 50;
-            boolean value = (i % 2 == 1);
-            for (int j = cumulativeSamples; j < endSample; j++) {
-                result.add(value);
-            }
-            cumulativeSamples = endSample;
-        }
-        return result;
-    }
-    
-    public static List<Boolean> generateVADBoolSeconds(float... startEndSeconds) {
-        List<Boolean> result = new ArrayList<>();
-        int cumulativeSamples = 0;
-        for (int i = 0; i < startEndSeconds.length; i++) {
-            int endSample = Math.round(startEndSeconds[i] * 50);
-            boolean value = (i % 2 == 1);
-            for (int j = cumulativeSamples; j < endSample; j++) {
-                result.add(value);
-            }
-            cumulativeSamples = endSample;
-        }
-        return result;
-    }
+    public static List<Integer> getTranscriptionPairs(List<Boolean> accepted) {
+        List<Integer> transcriptionPairs = new ArrayList<>();
+        Integer mrSpeech = null;
 
-    public static List<Boolean> generateVADBoolSamples(int... startEndSamples) {
-        List<Boolean> result = new ArrayList<>();
-        int cumulativeSamples = 0;
-        for (int i = 0; i < startEndSamples.length; i++) {
-            int endSample = startEndSamples[i];
-            boolean value = (i % 2 == 1);
-            for (int j = cumulativeSamples; j < endSample; j++) {
-                result.add(value);
-            }
-            cumulativeSamples = endSample;
-        }
-        return result;
-    }
+        for (int seqNum = 0; seqNum < accepted.size(); seqNum++) {
+            if (seqNum == 0) continue;
+            boolean current = accepted.get(seqNum);
+            boolean previous = accepted.get(seqNum - 1);
 
-    public static List<Integer> generateVADBoolStartEndSeconds(List<Boolean> samples) {
-        List<Integer> startEndSeconds = new ArrayList<>();
-        boolean currentValue = samples.get(0);
-        int startSample = 0;
-
-        for (int i = 1; i < samples.size(); i++) {
-            if (samples.get(i) != currentValue) {
-                if (currentValue) {
-                    startEndSeconds.add(startSample / 50);
-                    startEndSeconds.add(i / 50);
+            if (!previous && current) {
+                mrSpeech = seqNum;
+            } else if (previous && !current) {
+                if (mrSpeech != null) {
+                    int transcriptionMark = seqNum;
+                    transcriptionPairs.add(mrSpeech);
+                    transcriptionPairs.add(transcriptionMark - 1);
                 }
-                currentValue = samples.get(i);
-                startSample = i;
             }
         }
-        if (currentValue) {
-            startEndSeconds.add(startSample / 50);
-            startEndSeconds.add(samples.size() / 50);
-        }
 
-        return startEndSeconds;
-    }
-
-    public static List<Integer> generateVADBoolStartEndSamples(List<Boolean> samples) {
-        List<Integer> startEndSeconds = generateVADBoolStartEndSeconds(samples);
-        List<Integer> startEndSamples = new ArrayList<>();
-        for (Integer second : startEndSeconds) {
-            startEndSamples.add(second * 50);
-        }
-        return startEndSamples;
-    }
-    
-    public static List<Boolean> generateVADBoolSeconds(float... startEndSeconds) {
-        List<Boolean> result = new ArrayList<>();
-        int cumulativeSamples = 0;
-        for (int i = 0; i < startEndSeconds.length; i++) {
-            int endSample = Math.round(startEndSeconds[i] * 50);
-            boolean value = (i % 2 == 1);
-            for (int j = cumulativeSamples; j < endSample; j++) {
-                result.add(value);
-            }
-            cumulativeSamples = endSample;
-        }
-        return result;
+        return transcriptionPairs;
     }
 }
-
-=================================================
-
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-public class BoolGenTest {
-
-    @Test
-    public void testGenerateVADBoolSeconds() {
-        List<Boolean> result = BoolGen.generateVADBoolSeconds(5, 8, 12, 16, 20, 30);
-        int index = 0;
-        for (int i = 0; i < 250; i++, index++) assertEquals(false, result.get(index));
-        for (int i = 0; i < 150; i++, index++) assertEquals(true, result.get(index));
-        for (int i = 0; i < 200; i++, index++) assertEquals(false, result.get(index));
-        for (int i = 0; i < 200; i++, index++) assertEquals(true, result.get(index));
-        for (int i = 0; i < 200; i++, index++) assertEquals(false, result.get(index));
-        for (int i = 0; i < 500; i++, index++) assertEquals(true, result.get(index));
-    }
-
-    @Test
-    public void testGenerateVADBoolSamples() {
-        List<Boolean> result = BoolGen.generateVADBoolSamples(250, 400, 600, 800, 1000, 1500);
-        int index = 0;
-        for (int i = 0; i < 250; i++, index++) assertEquals(false, result.get(index));
-        for (int i = 0; i < 150; i++, index++) assertEquals(true, result.get(index));
-        for (int i = 0; i < 200; i++, index++) assertEquals(false, result.get(index));
-        for (int i = 0; i < 200; i++, index++) assertEquals(true, result.get(index));
-        for (int i = 0; i < 200; i++, index++) assertEquals(false, result.get(index));
-        for (int i = 0; i < 500; i++, index++) assertEquals(true, result.get(index));
-    }
-
-    @Test
-    public void testGenerateVADBoolStartEndSeconds() {
-        List<Boolean> samples = new ArrayList<>();
-        for (int i = 0; i < 250; i++) samples.add(false);
-        for (int i = 0; i < 150; i++) samples.add(true);
-        for (int i = 0; i < 200; i++) samples.add(false);
-        for (int i = 0; i < 200; i++) samples.add(true);
-        for (int i = 0; i < 200; i++) samples.add(false);
-        for (int i = 0; i < 500; i++) samples.add(true);
-
-        List<Integer> startEndSeconds = BoolGen.generateVADBoolStartEndSeconds(samples);
-        List<Integer> expectedStartEndSeconds = Arrays.asList(5, 8, 12, 16, 20, 30);
-        assertEquals(expectedStartEndSeconds, startEndSeconds);
-    }
-
-    @Test
-    public void testGenerateVADBoolStartEndSamples() {
-        List<Boolean> samples = new ArrayList<>();
-        for (int i = 0; i < 250; i++) samples.add(false);
-        for (int i = 0; i < 150; i++) samples.add(true);
-        for (int i = 0; i < 200; i++) samples.add(false);
-        for (int i = 0; i < 200; i++) samples.add(true);
-        for (int i = 0; i < 200; i++) samples.add(false);
-        for (int i = 0; i < 500; i++) samples.add(true);
-
-        List<Integer> startEndSamples = BoolGen.generateVADBoolStartEndSamples(samples);
-        List<Integer> expectedStartEndSamples = Arrays.asList(250, 400, 600, 800, 1000, 1500);
-        assertEquals(expectedStartEndSamples, startEndSamples);
-    }
-
-    @Test
-    public void testMatchedWithinTolerance() {
-        List<Integer> expected = Arrays.asList(5, 8, 12, 16, 20, 30);
-        List<Integer> actual = Arrays.asList(5, 8, 12, 16, 20, 30);
-        float tolerance = 1.0f; //
-        assertTrue(matchedWithinTolerance(tolerance, expected, actual));
-
-        List<Integer> actualWithinTolerance = Arrays.asList(5, 8, 12, 16, 20, 30);
-        assertTrue(matchedWithinTolerance(tolerance, expected, actualWithinTolerance));
-
-        List<Integer> actualOutsideTolerance = Arrays.asList(5, 8, 12, 16, 20, 31);
-        assertTrue(matchedWithinTolerance(tolerance, expected, actualOutsideTolerance));
-
-        List<Integer> actualLessThanExpectedWithinTolerance = Arrays.asList(4, 7, 11, 15, 19, 29);
-        assertTrue(!matchedWithinTolerance(tolerance, expected, actualLessThanExpectedWithinTolerance));
-
-        List<Integer> actualGreaterThanExpectedWithinTolerance = Arrays.asList(4, 8, 12, 16, 20, 31);
-        assertTrue(matchedWithinTolerance(tolerance, expected, actualGreaterThanExpectedWithinTolerance));
-    }
-
-    private boolean matchedWithinTolerance(float tolerance, List<Integer> expectedStartEndSeconds, List<Integer> actualStartEndSeconds) {
-        if (expectedStartEndSeconds.size() != actualStartEndSeconds.size()) {
-            return false;
-        }
-        int toleranceInSamples = Math.round(tolerance * 50);
-        for (int i = 0; i < expectedStartEndSeconds.size(); i += 2) {
-            int expectedStartInSamples = expectedStartEndSeconds.get(i) * 50;
-            int actualStartInSamples = actualStartEndSeconds.get(i) * 50;
-            if (actualStartInSamples > expectedStartInSamples || (expectedStartInSamples - actualStartInSamples) > toleranceInSamples) {
-                return false;
-            }
-            int expectedEndInSamples = expectedStartEndSeconds.get(i + 1) * 50;
-            int actualEndInSamples = actualStartEndSeconds.get(i + 1) * 50;
-            if (actualEndInSamples < expectedEndInSamples || (actualEndInSamples - expectedEndInSamples) > toleranceInSamples) {
-                return false;
-            }
-        }
-        return true;
-    }
-}
-
-================================================
