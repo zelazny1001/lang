@@ -16,6 +16,20 @@ public class BoolGen {
         }
         return result;
     }
+    
+    public static List<Boolean> generateVADBoolSeconds(float... startEndSeconds) {
+        List<Boolean> result = new ArrayList<>();
+        int cumulativeSamples = 0;
+        for (int i = 0; i < startEndSeconds.length; i++) {
+            int endSample = Math.round(startEndSeconds[i] * 50);
+            boolean value = (i % 2 == 1);
+            for (int j = cumulativeSamples; j < endSample; j++) {
+                result.add(value);
+            }
+            cumulativeSamples = endSample;
+        }
+        return result;
+    }
 
     public static List<Boolean> generateVADBoolSamples(int... startEndSamples) {
         List<Boolean> result = new ArrayList<>();
@@ -61,6 +75,20 @@ public class BoolGen {
             startEndSamples.add(second * 50);
         }
         return startEndSamples;
+    }
+    
+    public static List<Boolean> generateVADBoolSeconds(float... startEndSeconds) {
+        List<Boolean> result = new ArrayList<>();
+        int cumulativeSamples = 0;
+        for (int i = 0; i < startEndSeconds.length; i++) {
+            int endSample = Math.round(startEndSeconds[i] * 50);
+            boolean value = (i % 2 == 1);
+            for (int j = cumulativeSamples; j < endSample; j++) {
+                result.add(value);
+            }
+            cumulativeSamples = endSample;
+        }
+        return result;
     }
 }
 
