@@ -67,6 +67,7 @@ public class BoolGen {
 =================================================
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -110,7 +111,6 @@ public class BoolGenTest {
 
         List<Integer> startEndSeconds = BoolGen.generateVADBoolStartEndSeconds(samples);
         List<Integer> expectedStartEndSeconds = Arrays.asList(5, 8, 12, 16, 20, 30);
-
         assertEquals(expectedStartEndSeconds, startEndSeconds);
     }
 
@@ -126,8 +126,48 @@ public class BoolGenTest {
 
         List<Integer> startEndSamples = BoolGen.generateVADBoolStartEndSamples(samples);
         List<Integer> expectedStartEndSamples = Arrays.asList(250, 400, 600, 800, 1000, 1500);
-
         assertEquals(expectedStartEndSamples, startEndSamples);
     }
+
+    @Test
+    public void testMatchedWithinTolerance() {
+        List<Integer> expected = Arrays.asList(5, 8, 12, 16, 20, 30);
+        List<Integer> actual = Arrays.asList(5, 8, 12, 16, 20, 30);
+        float tolerance = 1.0f; //
+        assertTrue(matchedWithinTolerance(tolerance, expected, actual));
+
+        List<Integer> actualWithinTolerance = Arrays.asList(5, 8, 12, 16, 20, 30);
+        assertTrue(matchedWithinTolerance(tolerance, expected, actualWithinTolerance));
+
+        List<Integer> actualOutsideTolerance = Arrays.asList(5, 8, 12, 16, 20, 31);
+        assertTrue(matchedWithinTolerance(tolerance, expected, actualOutsideTolerance));
+
+        List<Integer> actualLessThanExpectedWithinTolerance = Arrays.asList(4, 7, 11, 15, 19, 29);
+        assertTrue(!matchedWithinTolerance(tolerance, expected, actualLessThanExpectedWithinTolerance));
+
+        List<Integer> actualGreaterThanExpectedWithinTolerance = Arrays.asList(4, 8, 12, 16, 20, 31);
+        assertTrue(matchedWithinTolerance(tolerance, expected, actualGreaterThanExpectedWithinTolerance));
+    }
+
+    private boolean matchedWithinTolerance(float tolerance, List<Integer> expectedStartEndSeconds, List<Integer> actualStartEndSeconds) {
+        if (expectedStartEndSeconds.size() != actualStartEndSeconds.size()) {
+            return false;
+        }
+        int toleranceInSamples = Math.round(tolerance * 50);
+        for (int i = 0; i < expectedStartEndSeconds.size(); i += 2) {
+            int expectedStartInSamples = expectedStartEndSeconds.get(i) * 50;
+            int actualStartInSamples = actualStartEndSeconds.get(i) * 50;
+            if (actualStartInSamples > expectedStartInSamples || (expectedStartInSamples - actualStartInSamples) > toleranceInSamples) {
+                return false;
+            }
+            int expectedEndInSamples = expectedStartEndSeconds.get(i + 1) * 50;
+            int actualEndInSamples = actualStartEndSeconds.get(i + 1) * 50;
+            if (actualEndInSamples < expectedEndInSamples || (actualEndInSamples - expectedEndInSamples) > toleranceInSamples) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
+
 ================================================
