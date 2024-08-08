@@ -26,3 +26,53 @@ public class TranscriptionHelper {
         return transcriptionPairs;
     }
 }
+
+========================================
+
+package diagnostics;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.Arrays;
+import java.util.List;
+
+public class TranscriptionHelperTest {
+
+    @Test
+    public void testGetTranscriptionPairs() {
+        List<Boolean> accepted = Arrays.asList(false, false, true, true, false, false, true, false, true, true, false);
+        List<Integer> expected = Arrays.asList(2, 3, 6, 6, 8, 9);
+        assertEquals(expected, TranscriptionHelper.getTranscriptionPairs(accepted));
+    }
+
+    @Test
+    public void testNoTransitions() {
+        List<Boolean> accepted = Arrays.asList(false, false, false, false);
+        List<Integer> expected = Arrays.asList();
+        assertEquals(expected, TranscriptionHelper.getTranscriptionPairs(accepted));
+
+        accepted = Arrays.asList(true, true, true, true);
+        assertEquals(expected, TranscriptionHelper.getTranscriptionPairs(accepted));
+    }
+
+    @Test
+    public void testSingleTransition() {
+        List<Boolean> accepted = Arrays.asList(false, true, false);
+        List<Integer> expected = Arrays.asList(1, 1);
+        assertEquals(expected, TranscriptionHelper.getTranscriptionPairs(accepted));
+    }
+
+    @Test
+    public void testMultipleTransitions() {
+        List<Boolean> accepted = Arrays.asList(false, true, false, true, false, true, false);
+        List<Integer> expected = Arrays.asList(1, 1, 3, 3, 5, 5);
+        assertEquals(expected, TranscriptionHelper.getTranscriptionPairs(accepted));
+    }
+
+    @Test
+    public void testEdgeCases() {
+        List<Boolean> accepted = Arrays.asList(false, true, true, false, false, true, false, true, false, false);
+        List<Integer> expected = Arrays.asList(1, 2, 5, 5, 7, 7);
+        assertEquals(expected, TranscriptionHelper.getTranscriptionPairs(accepted));
+    }
+}
