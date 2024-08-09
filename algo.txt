@@ -1,6 +1,6 @@
 The Whisper model, as depicted in diagram 3.1, is structured around three main components: Multitask Training Data, Sequence-to-Sequence Learning, and Multitask Training Format. Each of these components is now described.
 
-Multitask Training Data
+a. Multitask Training Data
 
 The Whisper model is trained on a large, diverse dataset consisting of 680,000 hours of supervised data. The dataset represents the result of various tasks such as:
 English Transcription: Converting English speech into text.
@@ -44,6 +44,8 @@ GELU: Gaussian Error Linear Unit, a non-linear activation function that introduc
 Once the encoding process is complete, the transformed sequence is passed to the Transformer Decoder Blocks. These decoders are responsible for generating the output sequence, or transcribed text. By iteratively predicting tokens based on the encoded input, previously generated text, and learned positional information, the decoder constructs the final transcription.
 
 The decoding process leverages the training undergone by the model to learn the mapping between input audio (represented as Log-Mel spectrograms) and output text. Training involves minimizing the discrepancy between the predicted and actual text sequences. During transcription (at runtime), the model shifts its focus to generating transcriptions by converting the incoming audio to encoded representations which are then fed into the decoder. The decoder subsequently predicts text tokens sequentially, thereby achieving real-time text transcription from the input audio.
+
+c. Multitask Training Format
 
 A third critical component of the Whisper architecture is the Multitask Training Format. The multitask training format is a method that enables diverse tasks to be performed through the use of special tokens that guide the model's behavior. Tasks such as language identification, transcription, and handling non-speech elements are performed using a set of specialized tokens.
 
