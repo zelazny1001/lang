@@ -53,7 +53,7 @@ For instance, tokens like PREV, START OF TRANSCRIPT, and LANGUAGE TAG provide es
 
 2. Conceptual Soundness of Using Whisper for Speech-to-Text
 Whisper is conceptually sound for speech-to-text tasks based on the following factors:
-
+
 Multilingual Capabilities: Whisper’s training on a diverse dataset that includes multiple languages enables it to accurately transcribe and translate speech in various languages, making it highly versatile for global applications.
 
 Handling of Non-Speech Elements: Whisper can distinguish between speech and non-speech elements (e.g., background noise), which is crucial for accurate transcription in noisy environments.
