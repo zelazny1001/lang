@@ -52,7 +52,7 @@ A third critical component of the Whisper architecture is the Multitask Training
 For instance, tokens like PREV, START OF TRANSCRIPT, and LANGUAGE TAG provide essential metadata about the input audio. Additionally, tokens such as NO SPEECH and TRANSLATE indicate specific processing requirements. Furthermore, Voice Activity Detection (VAD) is integrated to isolate speech segments, optimizing computational efficiency. Through the use of these special tokens, multiple tasks can be handled in parallel by the model. The application of such tokens is depicted in the lower portion of the architecture diagram of Figure 3.1
 
 2. Conceptual Soundness of Using Whisper for Speech-to-Text
-Whisper is conceptually sound for speech-to-text tasks due to several key factors:
+Whisper is conceptually sound for speech-to-text tasks based on the following factors:
 
 Multilingual Capabilities: Whisper’s training on a diverse dataset that includes multiple languages enables it to accurately transcribe and translate speech in various languages, making it highly versatile for global applications.
 
@@ -61,7 +61,7 @@ Handling of Non-Speech Elements: Whisper can distinguish between speech and non-
 Efficiency and Real-Time Processing: The use of self-attention and multi-head attention mechanisms allows the model to process long sequences of audio efficiently, making it suitable for real-time transcription tasks where low latency is essential.
 
 3. Pre-processing and Its Advantages
-In your specific application, pre-processing the audio using voice activity detection (VAD) to isolate speech elements and suppress silent gaps, followed by aggregating detected voice segments into 3-second batches, provides several advantages:
+Pre-processing the audio using voice activity detection (VAD) to isolate speech elements and suppress silent gaps, followed by aggregating detected voice segments into 3-second batches, provides several advantages:
 
 Compute Efficiency: Isolating and focusing on speech segments reduces the amount of data to be processed, speeding up transcription and reducing computational overhead.
 
