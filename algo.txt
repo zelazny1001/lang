@@ -110,3 +110,121 @@ public class TranscriptionEngineTest {
         assertNull(engine.getTranscriptionBoundaries(accept, 1));
     }
 }
+
+==================================================
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class TranscriptionAnalyzer {
+
+    public List<Integer> getTranscriptionPairs(List<Boolean> accept) {
+        TranscriptionEngine engine = new TranscriptionEngine();
+        List<Integer> transcriptionPairs = new ArrayList<>();
+
+        for (int seqNum = 1; seqNum < accept.size(); seqNum++) {
+            List<Integer> boundaries = engine.getTranscriptionBoundaries(accept, seqNum);
+            if (boundaries != null) {
+                transcriptionPairs.addAll(boundaries);
+            }
+        }
+
+        return transcriptionPairs;
+    }
+}
+
+============================================
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import java.util.Arrays;
+import java.util.List;
+
+public class TranscriptionAnalyzerTest {
+
+    @Test
+    public void testTranscriptionPairs_MultipleBlocks() {
+        TranscriptionAnalyzer analyzer = new TranscriptionAnalyzer();
+        List<Boolean> accept = Arrays.asList(
+                false, false, true, true, false, // Block 1: [2, 3]
+                false, true, true, false,        // Block 2: [6, 7]
+                false, true, false,              // Block 3: [10, 10]
+                false, true, true, true, false,  // Block 4: [13, 15]
+                false, false, true, false        // Block 5: [19, 19]
+        );
+
+        List<Integer> expected = Arrays.asList(2, 3, 6, 7, 10, 10, 13, 15, 19, 19);
+        List<Integer> result = analyzer.getTranscriptionPairs(accept);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testTranscriptionPairs_SingleBlock() {
+        TranscriptionAnalyzer analyzer = new TranscriptionAnalyzer();
+        List<Boolean> accept = Arrays.asList(false, true, true, true, false);
+
+        List<Integer> expected = Arrays.asList(1, 3);
+        List<Integer> result = analyzer.getTranscriptionPairs(accept);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testTranscriptionPairs_NoTrueValues() {
+        TranscriptionAnalyzer analyzer = new TranscriptionAnalyzer();
+        List<Boolean> accept = Arrays.asList(false, false, false, false, false);
+
+        List<Integer> expected = Arrays.asList();
+        List<Integer> result = analyzer.getTranscriptionPairs(accept);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testTranscriptionPairs_AllTrueValues() {
+        TranscriptionAnalyzer analyzer = new TranscriptionAnalyzer();
+        List<Boolean> accept = Arrays.asList(true, true, true, true);
+
+        List<Integer> expected = Arrays.asList();
+        List<Integer> result = analyzer.getTranscriptionPairs(accept);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testTranscriptionPairs_SingleTrueValue() {
+        TranscriptionAnalyzer analyzer = new TranscriptionAnalyzer();
+        List<Boolean> accept = Arrays.asList(false, true, false);
+
+        List<Integer> expected = Arrays.asList(1, 1);
+        List<Integer> result = analyzer.getTranscriptionPairs(accept);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testTranscriptionPairs_TrueAtStartAndEnd() {
+        TranscriptionAnalyzer analyzer = new TranscriptionAnalyzer();
+        List<Boolean> accept = Arrays.asList(true, true, false, true, false, true, true, false, true, true);
+
+        List<Integer> expected = Arrays.asList(0, 1, 3, 3, 5, 6);
+        List<Integer> result = analyzer.getTranscriptionPairs(accept);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testTranscriptionPairs_EmptyList() {
+        TranscriptionAnalyzer analyzer = new TranscriptionAnalyzer();
+        List<Boolean> accept = Arrays.asList();
+
+        List<Integer> expected = Arrays.asList();
+        List<Integer> result = analyzer.getTranscriptionPairs(accept);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testTranscriptionPairs_AlternatingTrueFalse() {
+        TranscriptionAnalyzer analyzer = new TranscriptionAnalyzer();
+        List<Boolean> accept = Arrays.asList(false, true, false, true, false, true, false);
+
+        List<Integer> expected = Arrays.asList(1, 1, 3, 3, 5, 5);
+        List<Integer> result = analyzer.getTranscriptionPairs(accept);
+        assertEquals(expected, result);
+    }
+}
