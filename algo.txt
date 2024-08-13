@@ -1,1 +1,29 @@
-algo
+mport java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+public class CombineLists {
+    public List<String> CombineIndicesWithTranscription(List<Integer> intList, List<String> strList) {
+        return IntStream.range(0, strList.size())
+            .mapToObj(i -> intList.get(2 * i) + "," + intList.get(2 * i + 1) + "," + strList.get(i))
+            .collect(Collectors.toList());
+    }
+}
+
+========
+
+import java.util.Arrays;
+import java.util.List;
+
+public class CombineListsTest {
+    public static void main(String[] args) {
+        CombineLists combineLists = new CombineLists();
+
+        List<Integer> intList = Arrays.asList(1, 2, 3, 4, 5, 6);
+        List<String> strList = Arrays.asList("a", "b", "c");
+
+        List<String> result = combineLists.CombineIndicesWithTranscription(intList, strList);
+
+        result.forEach(System.out::println);
+    }
+}
