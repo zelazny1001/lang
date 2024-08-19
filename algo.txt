@@ -1,244 +1,267 @@
-    public List<Integer> getTranscriptionBoundaries(List<Boolean> accepted, int seqNum) {
-        if (accepted == null || accepted.size() < 2) {
-            return null;
-        }
-        if (seqNum <= 1 || !(!accepted.get(seqNum - 1) && accepted.get(seqNum - 2))) { // not a valid transition point
-            return null;
-        }
-        int end = seqNum - 2; // last TRUE in the accepted list. transcription will start here
-        int start = end;
-        while (start >= 0 && accepted.get(start)) { // find first TRUE in the last contiguous block of accepted TRUEs.
-            start--;
-        }
-        start++;
-        if (start <= end) {
-            return Arrays.asList(start, end);
-        }
-        return null;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@RestController
+public class CallViewController {
+
+    private String mostRecentCallID = "most recent";
+    private List<Boolean> boolData;
+
+    @GetMapping("/viewcall")
+    public String displayBoolGrid() {
+        return generateHtmlContent(boolData);
     }
 
-    public byte[] getTranscriptionBytes(List<Boolean> accepted, List<byte[]> speechFromVAD, int seqNum) {
-        List<Integer> boundary = getTranscriptionBoundaries(accepted, seqNum);
-        if (boundary != null) {
-            return getByteRange(speechFromVAD, boundary);
-        }
-        return null;
+    public String generateHtmlContent(List<Boolean> boolData) {
+        double totalDurationSeconds = boolData.size() * CallViewConfig.SECONDS_PER_SAMPLE;
+        return new StringBuilder().append(generateHtmlHeader()).append("<body>")
+                .append("<h2>Summary for call: ").append(mostRecentCallID + "</h2>").append(generateSummaryTable(boolData))
+                .append("<br/><br/>").append(generateRulerTable(boolData, totalDurationSeconds))
+                .append("<br/><br/>").append("<h2>Detail</h2>").append(generateDetailTable(boolData))
+                .append("</body></html>").toString();
     }
 
-    public byte[] getByteRange(List<byte[]> bytes, List<Integer> range) {
-        int byteArrayLength = bytes.get(0).length;
-        int span = range.get(1) - range.get(0) + 1;
-        int totalLength = byteArrayLength * span;
-        byte[] resultArray = new byte[totalLength];
-        int resultPos = 0;
-
-        for (int i = range.get(0); i <= range.get(1); i++) {
-            System.arraycopy(bytes.get(i), 0, resultArray, resultPos, byteArrayLength);
-            resultPos += byteArrayLength;
-        }
-        return resultArray;
+    private String generateHtmlHeader() {
+        return new StringBuilder("<html><head>").append("<style>")
+                .append("table { border-collapse: collapse; width: 100%; table-layout: fixed;}")
+                .append("td { width: ").append(CallViewConfig.CELL_WIDTH).append("px; height: ").append(CallViewConfig.CELL_HEIGHT).append("px; border: 1px solid gray; }")
+                .append(".summary-cell { width: ").append(CallViewConfig.SUMMARY_CELL_WIDTH).append("px; height: ").append(CallViewConfig.SUMMARY_CELL_HEIGHT).append("px; border: none; }")
+                .append(".green { background-color: green; }").append(".red { background-color: red; }")
+                .append(".white { background-color: white; }").append("h2 { font-family: Arial; font-weight: bold; font-size: 14px; }")
+                .append(".ruler-cell { font-family: Arial; font-size: 10px; text-align: center; border-top: 1px solid gray; border-bottom: 1px solid gray; border-left: none; border-right: none; }")
+                .append(".ruler-transition { border-left: 1px solid black; }").append(".ruler-time { font-family: Arial; font-size: 10px; text-align: center; border-top: 1px solid gray; border-bottom: 1px solid gray; border-left: 1px solid lightgray; border-right: none; }")
+                .append("</style></head>").toString();
     }
-    
----------------------------------------------------------------------
+
+    private String generateMouseOver(String value) {
+        return "title='" + value + "'";
+    }
+
+    private String generateSummaryTable(List<Boolean> boolData) {
+        return new StringBuilder("<table><tr>").append(generateSummaryRow(boolData)).append("</tr></table>").toString();
+    }
+
+    private String generateSummaryRow(List<Boolean> boolData) {
+        StringBuilder summaryRow = new StringBuilder();
+        List<Integer> blockSizes = new ArrayList<>();
+        List<Boolean> blockTypes = new ArrayList<>();
+        boolean currentType = boolData.get(0);
+        int currentBlockSize = 0;
+
+        for (Boolean cell : boolData) {
+            if (cell == currentType) currentBlockSize++;
+            else {
+                blockSizes.add(currentBlockSize);
+                blockTypes.add(currentType);
+                currentType = cell;
+                currentBlockSize = 1;
+            }
+        }
+
+        blockSizes.add(currentBlockSize);
+        blockTypes.add(currentType);
+        int totalCells = boolData.size();
+        double accumulatedTime = 0.0;
+        double timePerColumn = CallViewConfig.SECONDS_PER_SAMPLE * totalCells / CallViewConfig.SUMMARY_COLUMNS;
+
+        for (int i = 0; i < blockSizes.size(); i++) {
+            int scaledSize = (int) Math.round((double) blockSizes.get(i) / totalCells * CallViewConfig.SUMMARY_COLUMNS);
+
+            for (int j = 0; j < scaledSize; j++) {
+                String timeInfo = "Time: " + String.format("%.2f", accumulatedTime) + " seconds";
+
+                if (blockTypes.get(i)) {
+                    summaryRow.append("<td class='summary-cell green' ")
+                            .append(generateMouseOver(timeInfo))
+                            .append(">");
+                } else {
+                    summaryRow.append("<td class='summary-cell red' ")
+                            .append(generateMouseOver(timeInfo))
+                            .append(">");
+                }
+
+                accumulatedTime += timePerColumn;
+            }
+        }
+
+        return summaryRow.toString();
+    }
+
+    private String generateRulerTable(List<Boolean> boolData, double totalDurationSeconds) {
+        return new StringBuilder("<table><tr>").append(generateRulerRow(boolData, totalDurationSeconds)).append("</tr></table>").toString();
+    }
+
+    private String generateRulerRow(List<Boolean> boolData, double totalDurationSeconds) {
+        StringBuilder rulerRow = new StringBuilder();
+        List<Integer> blockSizes = new ArrayList<>();
+        List<Boolean> blockTypes = new ArrayList<>();
+        boolean currentType = boolData.get(0);
+        int currentBlockSize = 0;
+
+        for (Boolean cell : boolData) {
+            if (cell == currentType) currentBlockSize++;
+            else {
+                blockSizes.add(currentBlockSize);
+                blockTypes.add(currentType);
+                currentType = cell;
+                currentBlockSize = 1;
+            }
+        }
+
+        blockSizes.add(currentBlockSize);
+        blockTypes.add(currentType);
+        double timePerColumn = totalDurationSeconds / CallViewConfig.SUMMARY_COLUMNS;
+        double accumulatedTime = 0.0;
+        double nextTickMark = CallViewConfig.TICK_INTERVAL_SECONDS;
+
+        for (int i = 0; i < blockSizes.size(); i++) {
+            int scaledSize = (int) Math.round((double) blockSizes.get(i) / boolData.size() * CallViewConfig.SUMMARY_COLUMNS);
+            for (int j = 0; j < scaledSize; j++) {
+                boolean isTransition = (j == 0 && i > 0);
+                if (accumulatedTime >= nextTickMark) {
+                    rulerRow.append("<td class='ruler-time'>").append((int) nextTickMark).append("</td>");
+                    nextTickMark += CallViewConfig.TICK_INTERVAL_SECONDS;
+                } else {
+                    rulerRow.append("<td class='ruler-cell ").append(isTransition ? "ruler-transition" : "").append("'></td>");
+                }
+                accumulatedTime += timePerColumn;
+            }
+        }
+
+        return rulerRow.toString();
+    }
+
+    private String generateDetailTable(List<Boolean> boolData) {
+        StringBuilder detailTable = new StringBuilder("<table>");
+        int cellCounter = 0, blockCounter = 0, blocksInCurrentRow = 0;
+
+        for (int i = 0; i < boolData.size(); i++) {
+            if (cellCounter == 0) detailTable.append("<tr>");
+
+            String cellInfo = "Packet: " + (i + 1) + ", Time: " + String.format("%.2f", (i + 1) * CallViewConfig.SECONDS_PER_SAMPLE) + " seconds";
+
+            if (boolData.get(i)) {
+                detailTable.append("<td class='green' ")
+                        .append(generateMouseOver(cellInfo))
+                        .append(">");
+            } else {
+                detailTable.append("<td class='red' ")
+                        .append(generateMouseOver(cellInfo))
+                        .append(">");
+            }
+
+            cellCounter++;
+            blockCounter++;
+
+            if (blockCounter == CallViewConfig.CELLS_PER_BLOCK) {
+                blocksInCurrentRow++;
+                if (blocksInCurrentRow < CallViewConfig.BLOCKS_PER_ROW) {
+                    detailTable.append("<td class='white'></td>");
+                    cellCounter++;
+                }
+                blockCounter = 0;
+            }
+
+            if (cellCounter == CallViewConfig.CELLS_PER_ROW) {
+                detailTable.append("</tr>");
+                cellCounter = 0;
+                blocksInCurrentRow = 0;
+            }
+        }
+
+        if (cellCounter > 0) detailTable.append("</tr>");
+        detailTable.append("</table>");
+        return detailTable.toString();
+    }
+
+    public String getMostRecentCallID() {
+        return mostRecentCallID;
+    }
+
+    public void setMostRecentCallID(String mostRecentCallID) {
+        this.mostRecentCallID = mostRecentCallID;
+    }
+
+    public List<Boolean> getBoolData() {
+        return boolData;
+    }
+
+    public void setBoolData(List<Boolean> boolData) {
+        this.boolData = boolData;
+    }
+}
+
+---------------------------------------------------------------------------
 
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import java.util.Arrays;
-import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import transcription.TranscriptionEngine;
+public class CallViewControllerTest {
 
-public class TranscriptionEngineTest {
+    public static final String docRoot = "j:/tmp/transcript-viewer/";
 
     @Test
-    public void testNoTranscriptionPairs_FalseOnly() {
-        List<Boolean> accept = Arrays.asList(false, false, false, false, false);
-        assertNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 1));
+    public void testGenerateHtmlTable() throws IOException {
+        List<Boolean> testData = BoolListGenerator.generateTestBoolsFromSeconds(2.5, 4.1, 1.6, 8.5, 10.04, 5.33, 15.7, 6.5, 12);
+
+        CallViewController controller = new CallViewController();
+        controller.setBoolData(testData);
+        controller.setMostRecentCallID("1234-5678-0987-4321");
+        String htmlContent = controller.displayBoolGrid();
+
+        Path filePath = saveHtmlToFile(docRoot, "table-bool.html", htmlContent);
+
+        assertTrue(Files.exists(filePath));
+        assertTrue(Files.size(filePath) > 0);
+
+        int expectedGreenCount = (int) testData.stream().filter(b -> b).count();
+        int expectedRedCount = (int) testData.stream().filter(b -> !b).count();
+
+        // Use regex to count occurrences of 'green' and 'red' classes
+        int actualGreenCount = countOccurrencesWithRegex(htmlContent, "class='green'");
+        int actualRedCount = countOccurrencesWithRegex(htmlContent, "class='red'");
+
+        assertEquals(expectedGreenCount, actualGreenCount);
+        assertEquals(expectedRedCount, actualRedCount);
     }
 
     @Test
-    public void testTranscriptionBoundaries_SingleBlock() {
-        List<Boolean> accept = Arrays.asList(false, false, true, true, true, false);
-        List<Integer> expected = Arrays.asList(2, 4);
-        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 6));
+    public void testGenerateTestBoolsFromSeconds() {
+        List<Boolean> result = BoolListGenerator.generateTestBoolsFromSeconds(2, 3, 1, 4);
+        List<Boolean> expected = BoolListGenerator.generateTestBools(100, 150, 50, 200);
+        assertEquals(expected, result);
     }
 
-    @Test
-    public void testTranscriptionBoundaries_MultipleBlocks() {
-        List<Boolean> accept = Arrays.asList(false, false, true, true, true, false, true, true, false);
-        List<Integer> expected = Arrays.asList(6, 7);
-        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 9));
+    private Path saveHtmlToFile(String directory, String fileName, String content) throws IOException {
+        Path directoryPath = Paths.get(directory);
+        Path filePath = directoryPath.resolve(fileName);
+
+        Files.createDirectories(directoryPath);
+        Files.write(filePath, content.getBytes());
+
+        return filePath;
     }
 
-    @Test
-    public void testTranscriptionBoundaries_MultipleBlocks2() {
-        List<Boolean> accept = Arrays.asList(false, false, true, true, true, false, true, true, false);
-        List<Integer> expected = Arrays.asList(2, 4);
-        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 6));
-    }
-
-    @Test
-    public void testTranscriptionBoundaries_LastTrueBlockSingleElement() {
-        List<Boolean> accept = Arrays.asList(false, false, true, true, false, false, true, false);
-        List<Integer> expected = Arrays.asList(6, 6);
-        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 8));
-    }
-
-    @Test
-    public void testTranscriptionBoundaries_MultipleBlocks_LastSingleElement() {
-        List<Boolean> accept = Arrays.asList(false, false, true, true, false, true, true, true, false);
-        List<Integer> expected = Arrays.asList(5, 7);
-        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 9));
-        expected = Arrays.asList(2, 3);
-        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 5));
-    }
-
-    @Test
-    public void testTranscriptionBoundaries_SingleTrueElement() {
-        List<Boolean> accept = Arrays.asList(false, true, false);
-        List<Integer> expected = Arrays.asList(1, 1);
-        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 3));
-    }
-
-    @Test
-    public void testTranscriptionBoundaries_FirstPosition() {
-        List<Boolean> accept = Arrays.asList(true, false);
-        List<Integer> expected = Arrays.asList(0, 0);
-        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 2));
-    }
-
-    @Test
-    public void testTranscriptionBoundaries_InvalidSeqNum() {
-        List<Boolean> accept = Arrays.asList(false, true, true, false);
-        assertNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 1));
-        assertNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 3));
-        assertNotNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 4));
-    }
-
-    @Test
-    public void testNoTranscriptionPairs_TrueOnly() {
-        List<Boolean> accept = Arrays.asList(true, true, true, true);
-        assertNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 1));
-    }
-
-    @Test
-    public void testGetByteRange_SinglePosition() {
-        List<byte[]> bytes = Arrays.asList(
-                new byte[]{1, 2, 3},
-                new byte[]{4, 5, 6},
-                new byte[]{7, 8, 9}
-        );
-
-        List<Integer> range = Arrays.asList(1, 1);  // Single position range (index 1)
-        byte[] expected = new byte[]{4, 5, 6};
-        byte[] result = TranscriptionEngine.getByteRange(bytes, range);
-        assertArrayEquals(expected, result);
-    }
-
-    @Test
-    public void testGetByteRange_ContiguousRange() {
-        List<byte[]> bytes = Arrays.asList(
-                new byte[]{1, 2, 3},
-                new byte[]{4, 5, 6},
-                new byte[]{7, 8, 9}
-        );
-
-        List<Integer> range = Arrays.asList(1, 2);  // Contiguous range from index 1 to 2
-        byte[] expected = new byte[]{4, 5, 6, 7, 8, 9};
-        byte[] result = TranscriptionEngine.getByteRange(bytes, range);
-        assertArrayEquals(expected, result);
-    }
-
-    @Test
-    public void testGetByteRange_FullRange() {
-        List<byte[]> bytes = Arrays.asList(
-                new byte[]{1, 2, 3},
-                new byte[]{4, 5, 6},
-                new byte[]{7, 8, 9}
-        );
-
-        List<Integer> range = Arrays.asList(0, 2);  // Full range from index 0 to 2
-        byte[] expected = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
-        byte[] result = TranscriptionEngine.getByteRange(bytes, range);
-        assertArrayEquals(expected, result);
-    }
-
-    @Test
-    public void testGetTranscriptionBytes_SingleBlock() {
-        List<Boolean> accepted = Arrays.asList(false, true, true, true, false);
-        List<byte[]> speech = Arrays.asList(
-                new byte[]{1, 2, 3},  // false block
-                new byte[]{4, 5, 6},  // true block
-                new byte[]{7, 8, 9},  // true block
-                new byte[]{10, 11, 12},  // true block
-                new byte[]{13, 14, 15}   // false block
-        );
-
-        byte[] expected = new byte[]{4, 5, 6, 7, 8, 9, 10, 11, 12};
-        byte[] result = TranscriptionEngine.getTranscriptionBytes(accepted, speech, 5);
-        assertArrayEquals(expected, result);
-    }
-
-    @Test
-    public void testGetTranscriptionBytes_EmptyResult() {
-        List<Boolean> accepted = Arrays.asList(false, false, false, false, false);
-        List<byte[]> speech = Arrays.asList(
-                new byte[]{11, 12, 13},  // false block
-                new byte[]{14, 15, 16},  // false block
-                new byte[]{17, 18, 19},  // false block
-                new byte[]{20, 21, 22},  // false block
-                new byte[]{23, 24, 25}   // false block
-        );
-
-        byte[] result = TranscriptionEngine.getTranscriptionBytes(accepted, speech, 3);
-        assertNull(result);
-    }
-
-    @Test
-    public void testGetTranscriptionBytes_MultipleBlocks() {
-        List<Boolean> accepted = Arrays.asList(
-                false, false, true, true, false,
-                false, true, true, true, false
-        );
-        List<byte[]> speech = Arrays.asList(
-                new byte[]{11, 12, 13},  // false block
-                new byte[]{14, 15, 16},  // false block
-                new byte[]{1, 2, 3},     // true block
-                new byte[]{4, 5, 6},     // true block
-                new byte[]{17, 18, 19},  // false block
-                new byte[]{20, 21, 22},  // false block
-                new byte[]{7, 8, 9},     // true block
-                new byte[]{10, 11, 12},  // true block
-                new byte[]{13, 14, 15},  // true block
-                new byte[]{23, 24, 25}   // false block
-        );
-
-        byte[] expected = new byte[]{7, 8, 9, 10, 11, 12, 13, 14, 15};
-        byte[] result = TranscriptionEngine.getTranscriptionBytes(accepted, speech, 10);
-        assertArrayEquals(expected, result);
+    private int countOccurrencesWithRegex(String content, String pattern) {
+        Matcher matcher = Pattern.compile(pattern).matcher(content);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        return count;
     }
 }
-
-========
-
-import java.util.Arrays;
-import java.util.List;
-
-public class CombineListsTest {
-    public static void main(String[] args) {
-        CombineLists combineLists = new CombineLists();
-
-        List<Integer> intList = Arrays.asList(1, 2, 3, 4, 5, 6);
-        List<String> strList = Arrays.asList("a", "b", "c");
-
-        List<String> result = combineLists.CombineIndicesWithTranscription(intList, strList);
-
-        result.forEach(System.out::println);
-    }
-}
-
-=================================================================
-
