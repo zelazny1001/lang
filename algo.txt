@@ -1,5 +1,39 @@
-package transcriptionviewer;
+import java.util.ArrayList;
+import java.util.List;
 
+public class BoolListGenerator {
+
+    private static final int CELLS_PER_SECOND = 50;
+
+    public static List<Boolean> generateTestBools(int... boolCounts) {
+        List<Boolean> boolList = new ArrayList<>();
+        boolean currentValue = false;
+
+        for (int count : boolCounts) {
+            for (int i = 0; i < count; i++) {
+                boolList.add(currentValue);
+            }
+            currentValue = !currentValue;
+        }
+
+        return boolList;
+    }
+
+    public static List<Boolean> generateTestBoolsFromSeconds(double... durationsInSeconds) {
+        int[] cellCounts = new int[durationsInSeconds.length];
+        for (int i = 0; i < durationsInSeconds.length; i++) {
+            cellCounts[i] = (int) Math.round(durationsInSeconds[i] * CELLS_PER_SECOND);
+        }
+        return generateTestBools(cellCounts);
+    }
+
+    public static void main(String[] args) {
+        List<Boolean> boolListFromSeconds = generateTestBoolsFromSeconds(2.54, 3.33, 1.12, 4.5);
+        System.out.println(boolListFromSeconds);
+    }
+}
+
+--------------------------------------------------------------
 public class CallViewConfig {
     public static final int SECONDS_PER_BLOCK = 1;
     public static final int CELLS_PER_BLOCK = SECONDS_PER_BLOCK * 1000 / 20;
