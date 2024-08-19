@@ -1,3 +1,21 @@
+package transcriptionviewer;
+
+public class CallViewConfig {
+    public static final int SECONDS_PER_BLOCK = 1;
+    public static final int CELLS_PER_BLOCK = SECONDS_PER_BLOCK * 1000 / 20;
+    public static final int BLOCKS_PER_ROW = 3;
+    public static final int CELLS_PER_ROW = (BLOCKS_PER_ROW * CELLS_PER_BLOCK) + (BLOCKS_PER_ROW - 1);
+    public static final int CELL_WIDTH = 1;
+    public static final int CELL_HEIGHT = 10;
+    public static final int SUMMARY_CELL_WIDTH = 2;
+    public static final int SUMMARY_CELL_HEIGHT = 15;
+    public static final int SUMMARY_COLUMNS = 250;
+    public static final int TICK_INTERVAL_SECONDS = 3;
+    public static final double SECONDS_PER_SAMPLE = 0.02;
+}
+
+-----------------------------------------------------------------------------
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
