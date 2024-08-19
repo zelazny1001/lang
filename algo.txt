@@ -41,7 +41,6 @@
     
 ---------------------------------------------------------------------
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -54,82 +53,75 @@ import transcription.TranscriptionEngine;
 
 public class TranscriptionEngineTest {
 
-    private TranscriptionEngine engine;
-
-    @BeforeEach
-    public void initialize() {
-        engine = new TranscriptionEngine();
-    }
-
     @Test
     public void testNoTranscriptionPairs_FalseOnly() {
         List<Boolean> accept = Arrays.asList(false, false, false, false, false);
-        assertNull(engine.getTranscriptionBoundaries(accept, 1));
+        assertNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 1));
     }
 
     @Test
     public void testTranscriptionBoundaries_SingleBlock() {
         List<Boolean> accept = Arrays.asList(false, false, true, true, true, false);
         List<Integer> expected = Arrays.asList(2, 4);
-        assertEquals(expected, engine.getTranscriptionBoundaries(accept, 6));
+        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 6));
     }
 
     @Test
     public void testTranscriptionBoundaries_MultipleBlocks() {
         List<Boolean> accept = Arrays.asList(false, false, true, true, true, false, true, true, false);
         List<Integer> expected = Arrays.asList(6, 7);
-        assertEquals(expected, engine.getTranscriptionBoundaries(accept, 9));
+        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 9));
     }
 
     @Test
     public void testTranscriptionBoundaries_MultipleBlocks2() {
         List<Boolean> accept = Arrays.asList(false, false, true, true, true, false, true, true, false);
         List<Integer> expected = Arrays.asList(2, 4);
-        assertEquals(expected, engine.getTranscriptionBoundaries(accept, 6));
+        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 6));
     }
 
     @Test
     public void testTranscriptionBoundaries_LastTrueBlockSingleElement() {
         List<Boolean> accept = Arrays.asList(false, false, true, true, false, false, true, false);
         List<Integer> expected = Arrays.asList(6, 6);
-        assertEquals(expected, engine.getTranscriptionBoundaries(accept, 8));
+        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 8));
     }
 
     @Test
     public void testTranscriptionBoundaries_MultipleBlocks_LastSingleElement() {
         List<Boolean> accept = Arrays.asList(false, false, true, true, false, true, true, true, false);
         List<Integer> expected = Arrays.asList(5, 7);
-        assertEquals(expected, engine.getTranscriptionBoundaries(accept, 9));
+        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 9));
         expected = Arrays.asList(2, 3);
-        assertEquals(expected, engine.getTranscriptionBoundaries(accept, 5));
+        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 5));
     }
 
     @Test
     public void testTranscriptionBoundaries_SingleTrueElement() {
         List<Boolean> accept = Arrays.asList(false, true, false);
         List<Integer> expected = Arrays.asList(1, 1);
-        assertEquals(expected, engine.getTranscriptionBoundaries(accept, 3));
+        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 3));
     }
 
     @Test
     public void testTranscriptionBoundaries_FirstPosition() {
         List<Boolean> accept = Arrays.asList(true, false);
         List<Integer> expected = Arrays.asList(0, 0);
-        assertEquals(expected, engine.getTranscriptionBoundaries(accept, 2));
+        assertEquals(expected, TranscriptionEngine.getTranscriptionBoundaries(accept, 2));
     }
 
     @Test
     public void testTranscriptionBoundaries_InvalidSeqNum() {
         List<Boolean> accept = Arrays.asList(false, true, true, false);
-        assertNull(engine.getTranscriptionBoundaries(accept, 1));
-        assertNull(engine.getTranscriptionBoundaries(accept, 3));
-        assertNotNull(engine.getTranscriptionBoundaries(accept, 4));
+        assertNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 1));
+        assertNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 3));
+        assertNotNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 4));
     }
 
     @Test
     public void testNoTranscriptionPairs_TrueOnly() {
         List<Boolean> accept = Arrays.asList(true, true, true, true);
-        assertNull(engine.getTranscriptionBoundaries(accept, 1));
+        assertNull(TranscriptionEngine.getTranscriptionBoundaries(accept, 1));
     }
 
     @Test
@@ -142,7 +134,7 @@ public class TranscriptionEngineTest {
 
         List<Integer> range = Arrays.asList(1, 1);  // Single position range (index 1)
         byte[] expected = new byte[]{4, 5, 6};
-        byte[] result = engine.getByteRange(bytes, range);
+        byte[] result = TranscriptionEngine.getByteRange(bytes, range);
         assertArrayEquals(expected, result);
     }
 
@@ -156,7 +148,7 @@ public class TranscriptionEngineTest {
 
         List<Integer> range = Arrays.asList(1, 2);  // Contiguous range from index 1 to 2
         byte[] expected = new byte[]{4, 5, 6, 7, 8, 9};
-        byte[] result = engine.getByteRange(bytes, range);
+        byte[] result = TranscriptionEngine.getByteRange(bytes, range);
         assertArrayEquals(expected, result);
     }
 
@@ -170,7 +162,7 @@ public class TranscriptionEngineTest {
 
         List<Integer> range = Arrays.asList(0, 2);  // Full range from index 0 to 2
         byte[] expected = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
-        byte[] result = engine.getByteRange(bytes, range);
+        byte[] result = TranscriptionEngine.getByteRange(bytes, range);
         assertArrayEquals(expected, result);
     }
 
@@ -186,7 +178,7 @@ public class TranscriptionEngineTest {
         );
 
         byte[] expected = new byte[]{4, 5, 6, 7, 8, 9, 10, 11, 12};
-        byte[] result = engine.getTranscriptionBytes(accepted, speech, 5);
+        byte[] result = TranscriptionEngine.getTranscriptionBytes(accepted, speech, 5);
         assertArrayEquals(expected, result);
     }
 
@@ -201,7 +193,7 @@ public class TranscriptionEngineTest {
                 new byte[]{23, 24, 25}   // false block
         );
 
-        byte[] result = engine.getTranscriptionBytes(accepted, speech, 3);
+        byte[] result = TranscriptionEngine.getTranscriptionBytes(accepted, speech, 3);
         assertNull(result);
     }
 
@@ -225,23 +217,8 @@ public class TranscriptionEngineTest {
         );
 
         byte[] expected = new byte[]{7, 8, 9, 10, 11, 12, 13, 14, 15};
-        byte[] result = engine.getTranscriptionBytes(accepted, speech, 10);
+        byte[] result = TranscriptionEngine.getTranscriptionBytes(accepted, speech, 10);
         assertArrayEquals(expected, result);
-    }
-}
-
-
-
-=================================================================================
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-public class CombineLists {
-    public List<String> CombineIndicesWithTranscription(List<Integer> intList, List<String> strList) {
-        return IntStream.range(0, strList.size())
-            .mapToObj(i -> intList.get(2 * i) + "," + intList.get(2 * i + 1) + "," + strList.get(i))
-            .collect(Collectors.toList());
     }
 }
 
