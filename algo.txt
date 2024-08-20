@@ -67,7 +67,11 @@ public class CallViewController {
     }
 
     private String generateMouseOver(String packetInfo, String timeInfo, String transcription) {
-        return "title='Pkt " + packetInfo + ", " + timeInfo + " - " + transcription + "'";
+        if (transcription != null) {
+            return "title='Pkt " + packetInfo + ", " + timeInfo + " - " + transcription + "'";
+        } else {
+            return "title='Pkt " + packetInfo + ", " + timeInfo + "'";
+        }
     }
 
     private String generateSummaryTable(List<Boolean> boolData) {
@@ -154,7 +158,13 @@ public class CallViewController {
             for (int j = 0; j < scaledSize; j++) {
                 String timeInfo = String.format("%.2f seconds", accumulatedTime);
                 String packetInfo = String.valueOf((i + 1));
-                String tooltip = generateMouseOver(packetInfo, timeInfo, transcription.get(transcriptionIndex));
+                String tooltip;
+
+                if (transcriptionIndex < transcription.size()) {
+                    tooltip = generateMouseOver(packetInfo, timeInfo, transcription.get(transcriptionIndex));
+                } else {
+                    tooltip = generateMouseOver(packetInfo, timeInfo, null);
+                }
 
                 if (blockTypes.get(i)) {
                     summaryRow.append("<td class='summary-cell green' ").append(tooltip).append("></td>");
@@ -263,13 +273,18 @@ public class CallViewController {
         boolean currentType = boolData.get(0);
 
         while (boolDataIndex < boolData.size()) {
-            // Find contiguous block
             while (boolDataIndex < boolData.size() && boolData.get(boolDataIndex) == currentType) {
                 if (cellCounter == 0) detailTable.append("<tr>");
 
                 String packetInfo = String.valueOf(boolDataIndex + 1);
                 String timeInfo = String.format("%.2f seconds", (boolDataIndex + 1) * CallViewConfig.SECONDS_PER_SAMPLE);
-                String tooltip = generateMouseOver(packetInfo, timeInfo, transcription.get(transcriptionIndex));
+                String tooltip;
+
+                if (transcriptionIndex < transcription.size()) {
+                    tooltip = generateMouseOver(packetInfo, timeInfo, transcription.get(transcriptionIndex));
+                } else {
+                    tooltip = generateMouseOver(packetInfo, timeInfo, null);
+                }
 
                 if (currentType) {
                     detailTable.append("<td class='green' ").append(tooltip).append("></td>");
@@ -296,14 +311,11 @@ public class CallViewController {
                     blocksInCurrentRow = 0;
                 }
             }
-
-            // Move to next transcription and block
             transcriptionIndex++;
             if (boolDataIndex < boolData.size()) {
                 currentType = boolData.get(boolDataIndex);
             }
         }
-
         if (cellCounter > 0) detailTable.append("</tr>");
         detailTable.append("</table>");
         return detailTable.toString();
