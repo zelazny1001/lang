@@ -1,8 +1,4 @@
-from pydantic import BaseModel
 from fastapi import FastAPI
-
-app = FastAPI()
-
 from fastapi import Body
 
 @app.post("/postpredict")
@@ -10,3 +6,450 @@ async def postpredict(conversation: str = Body(...)):
     conversation = unquote(conversation)
     ...
     return result
+
+---------------------------------------------------------------------
+
+package transcriptionviewer;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+public class CallViewController {
+    private String mostRecentCallID = "most recent";
+    private List<Boolean> boolData;
+    private String viewLocation;
+
+    @GetMapping("/viewcall")
+    public String displayBoolGrid() {
+        return generateHtmlContent(boolData);
+    }
+
+    public String generateHtmlContent(List<Boolean> boolData) {
+        double totalDurationSeconds = boolData.size() * CallViewConfig.SECONDS_PER_SAMPLE;
+        return new StringBuilder().append(generateHtmlHeader()).append("<body>")
+                .append("<h2>Summary for call: ").append(mostRecentCallID + "</h2>").append(generateSummaryTable(boolData))
+                .append("<br/><br/>").append(generateRulerTable(boolData, totalDurationSeconds))
+                .append("<br/><br/>").append("<h2>Detail</h2>").append(generateDetailTable(boolData))
+                .append("</body></html>").toString();
+    }
+
+    public String generateHtmlContent(List<Boolean> boolData, List<String> transcription) {
+        double totalDurationSeconds = boolData.size() * CallViewConfig.SECONDS_PER_SAMPLE;
+        return new StringBuilder().append(generateHtmlHeader()).append("<body>")
+                .append("<h2>Summary for call: ").append(mostRecentCallID + "</h2>").append(generateSummaryTable(boolData, transcription))
+                .append("<br/><br/>").append(generateRulerTable(boolData, totalDurationSeconds))
+                .append("<br/><br/>").append("<h2>Detail</h2>").append(generateDetailTable(boolData, transcription))
+                .append("</body></html>").toString();
+    }
+
+    private String generateHtmlHeader() {
+        return new StringBuilder("<html><head>").append("<style>")
+                .append("table { border-collapse: collapse; width: 100%; table-layout: fixed;}")
+                .append("td { width: ").append(CallViewConfig.CELL_WIDTH).append("px; height: ").append(CallViewConfig.CELL_HEIGHT).append("px; border: 1px solid gray; }")
+                .append(".summary-cell { width: ").append(CallViewConfig.SUMMARY_CELL_WIDTH).append("px; height: ").append(CallViewConfig.SUMMARY_CELL_HEIGHT).append("px; border: none; }")
+                .append(".green { background-color: green; }").append(".red { background-color: red; }")
+                .append(".white { background-color: white; }").append("h2 { font-family: Arial; font-weight: bold; font-size: 14px; }")
+                .append(".ruler-cell { font-family: Arial; font-size: 10px; text-align: center; border-top: 1px solid gray; border-bottom: 1px solid gray; border-left: none; border-right: none; }")
+                .append(".ruler-transition { border-left: 1px solid black; }").append(".ruler-time { font-family: Arial; font-size: 10px; text-align: center; border-top: 1px solid gray; border-bottom: 1px solid gray; border-left: 1px solid lightgray; border-right: none; }")
+                .append("</style></head>").toString();
+    }
+
+    private String generateMouseOver(String packetInfo, String timeInfo) {
+        return "title='Pkt " + packetInfo + ", " + timeInfo + "'";
+    }
+
+    private String generateMouseOver(String packetInfo, String timeInfo, String transcription) {
+        return "title='Pkt " + packetInfo + ", " + timeInfo + " - " + transcription + "'";
+    }
+
+    private String generateSummaryTable(List<Boolean> boolData) {
+        return new StringBuilder("<table><tr>").append(generateSummaryRow(boolData)).append("</tr></table>").toString();
+    }
+
+    private String generateSummaryTable(List<Boolean> boolData, List<String> transcription) {
+        return new StringBuilder("<table><tr>").append(generateSummaryRow(boolData, transcription)).append("</tr></table>").toString();
+    }
+
+    private String generateSummaryRow(List<Boolean> boolData) {
+        StringBuilder summaryRow = new StringBuilder();
+        List<Integer> blockSizes = new ArrayList<>();
+        List<Boolean> blockTypes = new ArrayList<>();
+        boolean currentType = boolData.get(0);
+        int currentBlockSize = 0;
+
+        for (Boolean cell : boolData) {
+            if (cell == currentType) currentBlockSize++;
+            else {
+                blockSizes.add(currentBlockSize);
+                blockTypes.add(currentType);
+                currentType = cell;
+                currentBlockSize = 1;
+            }
+        }
+
+        blockSizes.add(currentBlockSize);
+        blockTypes.add(currentType);
+        int totalCells = boolData.size();
+        double accumulatedTime = 0.0;
+        double timePerColumn = CallViewConfig.SECONDS_PER_SAMPLE * totalCells / CallViewConfig.SUMMARY_COLUMNS;
+
+        for (int i = 0; i < blockSizes.size(); i++) {
+            int scaledSize = (int) Math.round((double) blockSizes.get(i) / totalCells * CallViewConfig.SUMMARY_COLUMNS);
+
+            for (int j = 0; j < scaledSize; j++) {
+                String timeInfo = String.format("%.2f seconds", accumulatedTime);
+                String packetInfo = String.valueOf((i + 1));
+
+                if (blockTypes.get(i)) {
+                    summaryRow.append("<td class='summary-cell green' ")
+                            .append(generateMouseOver(packetInfo, timeInfo))
+                            .append("></td>");
+                } else {
+                    summaryRow.append("<td class='summary-cell red' ")
+                            .append(generateMouseOver(packetInfo, timeInfo))
+                            .append("></td>");
+                }
+
+                accumulatedTime += timePerColumn;
+            }
+        }
+        return summaryRow.toString();
+    }
+
+    private String generateSummaryRow(List<Boolean> boolData, List<String> transcription) {
+        StringBuilder summaryRow = new StringBuilder();
+        List<Integer> blockSizes = new ArrayList<>();
+        List<Boolean> blockTypes = new ArrayList<>();
+        boolean currentType = boolData.get(0);
+        int currentBlockSize = 0;
+        int transcriptionIndex = 0;
+
+        for (Boolean cell : boolData) {
+            if (cell == currentType) currentBlockSize++;
+            else {
+                blockSizes.add(currentBlockSize);
+                blockTypes.add(currentType);
+                currentType = cell;
+                currentBlockSize = 1;
+            }
+        }
+
+        blockSizes.add(currentBlockSize);
+        blockTypes.add(currentType);
+        int totalCells = boolData.size();
+        double accumulatedTime = 0.0;
+        double timePerColumn = CallViewConfig.SECONDS_PER_SAMPLE * totalCells / CallViewConfig.SUMMARY_COLUMNS;
+
+        for (int i = 0; i < blockSizes.size(); i++) {
+            int scaledSize = (int) Math.round((double) blockSizes.get(i) / totalCells * CallViewConfig.SUMMARY_COLUMNS);
+
+            for (int j = 0; j < scaledSize; j++) {
+                String timeInfo = String.format("%.2f seconds", accumulatedTime);
+                String packetInfo = String.valueOf((i + 1));
+                String tooltip = generateMouseOver(packetInfo, timeInfo, transcription.get(transcriptionIndex));
+
+                if (blockTypes.get(i)) {
+                    summaryRow.append("<td class='summary-cell green' ").append(tooltip).append("></td>");
+                } else {
+                    summaryRow.append("<td class='summary-cell red' ").append(tooltip).append("></td>");
+                }
+                accumulatedTime += timePerColumn;
+            }
+            transcriptionIndex++;
+        }
+        return summaryRow.toString();
+    }
+
+    private String generateRulerTable(List<Boolean> boolData, double totalDurationSeconds) {
+        return new StringBuilder("<table><tr>").append(generateRulerRow(boolData, totalDurationSeconds)).append("</tr></table>").toString();
+    }
+
+    private String generateRulerRow(List<Boolean> boolData, double totalDurationSeconds) {
+        StringBuilder rulerRow = new StringBuilder();
+        List<Integer> blockSizes = new ArrayList<>();
+        List<Boolean> blockTypes = new ArrayList<>();
+        boolean currentType = boolData.get(0);
+        int currentBlockSize = 0;
+
+        for (Boolean cell : boolData) {
+            if (cell == currentType) currentBlockSize++;
+            else {
+                blockSizes.add(currentBlockSize);
+                blockTypes.add(currentType);
+                currentType = cell;
+                currentBlockSize = 1;
+            }
+        }
+
+        blockSizes.add(currentBlockSize);
+        blockTypes.add(currentType);
+        double timePerColumn = totalDurationSeconds / CallViewConfig.SUMMARY_COLUMNS;
+        double accumulatedTime = 0.0;
+        double nextTickMark = CallViewConfig.TICK_INTERVAL_SECONDS;
+
+        for (int i = 0; i < blockSizes.size(); i++) {
+            int scaledSize = (int) Math.round((double) blockSizes.get(i) / boolData.size() * CallViewConfig.SUMMARY_COLUMNS);
+            for (int j = 0; j < scaledSize; j++) {
+                boolean isTransition = (j == 0 && i > 0);
+                if (accumulatedTime >= nextTickMark) {
+                    rulerRow.append("<td class='ruler-time'>").append((int) nextTickMark).append("</td>");
+                    nextTickMark += CallViewConfig.TICK_INTERVAL_SECONDS;
+                } else {
+                    rulerRow.append("<td class='ruler-cell ").append(isTransition ? "ruler-transition" : "").append("'></td>");
+                }
+                accumulatedTime += timePerColumn;
+            }
+        }
+        return rulerRow.toString();
+    }
+
+    private String generateDetailTable(List<Boolean> boolData) {
+        StringBuilder detailTable = new StringBuilder("<table>");
+        int cellCounter = 0, blockCounter = 0, blocksInCurrentRow = 0;
+
+        for (int i = 0; boolData.size() > i; i++) {
+            if (cellCounter == 0) detailTable.append("<tr>");
+
+            String packetInfo = String.valueOf(i + 1);
+            String timeInfo = String.format("%.2f seconds", (i + 1) * CallViewConfig.SECONDS_PER_SAMPLE);
+
+            if (boolData.get(i)) {
+                detailTable.append("<td class='green' ")
+                        .append(generateMouseOver(packetInfo, timeInfo))
+                        .append("></td>");
+            } else {
+                detailTable.append("<td class='red' ")
+                        .append(generateMouseOver(packetInfo, timeInfo))
+                        .append("></td>");
+            }
+
+            cellCounter++;
+            blockCounter++;
+
+            if (blockCounter == CallViewConfig.CELLS_PER_BLOCK) {
+                blocksInCurrentRow++;
+                if (blocksInCurrentRow < CallViewConfig.BLOCKS_PER_ROW) {
+                    detailTable.append("<td class='white'></td>");
+                    cellCounter++;
+                }
+                blockCounter = 0;
+            }
+
+            if (cellCounter == CallViewConfig.CELLS_PER_ROW) {
+                detailTable.append("</tr>");
+                cellCounter = 0;
+                blocksInCurrentRow = 0;
+            }
+        }
+
+        if (cellCounter > 0) detailTable.append("</tr>");
+        detailTable.append("</table>");
+        return detailTable.toString();
+    }
+
+    private String generateDetailTable(List<Boolean> boolData, List<String> transcription) {
+        StringBuilder detailTable = new StringBuilder("<table>");
+        int cellCounter = 0, blockCounter = 0, blocksInCurrentRow = 0;
+        int transcriptionIndex = 0;
+        int boolDataIndex = 0;
+        boolean currentType = boolData.get(0);
+
+        while (boolDataIndex < boolData.size()) {
+            // Find contiguous block
+            while (boolDataIndex < boolData.size() && boolData.get(boolDataIndex) == currentType) {
+                if (cellCounter == 0) detailTable.append("<tr>");
+
+                String packetInfo = String.valueOf(boolDataIndex + 1);
+                String timeInfo = String.format("%.2f seconds", (boolDataIndex + 1) * CallViewConfig.SECONDS_PER_SAMPLE);
+                String tooltip = generateMouseOver(packetInfo, timeInfo, transcription.get(transcriptionIndex));
+
+                if (currentType) {
+                    detailTable.append("<td class='green' ").append(tooltip).append("></td>");
+                } else {
+                    detailTable.append("<td class='red' ").append(tooltip).append("></td>");
+                }
+
+                cellCounter++;
+                blockCounter++;
+                boolDataIndex++;
+
+                if (blockCounter == CallViewConfig.CELLS_PER_BLOCK) {
+                    blocksInCurrentRow++;
+                    if (blocksInCurrentRow < CallViewConfig.BLOCKS_PER_ROW) {
+                        detailTable.append("<td class='white'></td>");
+                        cellCounter++;
+                    }
+                    blockCounter = 0;
+                }
+
+                if (cellCounter == CallViewConfig.CELLS_PER_ROW) {
+                    detailTable.append("</tr>");
+                    cellCounter = 0;
+                    blocksInCurrentRow = 0;
+                }
+            }
+
+            // Move to next transcription and block
+            transcriptionIndex++;
+            if (boolDataIndex < boolData.size()) {
+                currentType = boolData.get(boolDataIndex);
+            }
+        }
+
+        if (cellCounter > 0) detailTable.append("</tr>");
+        detailTable.append("</table>");
+        return detailTable.toString();
+    }
+
+    public String getMostRecentCallID() {
+        return mostRecentCallID;
+    }
+
+    public void setMostRecentCallID(String mostRecentCallID) {
+        this.mostRecentCallID = mostRecentCallID;
+    }
+
+    public List<Boolean> getBoolData() {
+        return boolData;
+    }
+
+    public void setBoolData(List<Boolean> boolData) {
+        this.boolData = boolData;
+    }
+
+    public String getViewLocation() {
+        return viewLocation;
+    }
+
+    public void setViewLocation(String viewLocation) {
+        this.viewLocation = viewLocation;
+    }
+
+    public static Path saveToFile(String directory, String fileName, String content) {
+        Path filePath = null;
+        try {
+            Path directoryPath = Paths.get(directory);
+            filePath = directoryPath.resolve(fileName);
+
+            Files.createDirectories(directoryPath);
+            Files.write(filePath, content.getBytes());
+        } catch (Exception e) {
+            System.out.println("Exception: " + e.getMessage());
+        }
+        return filePath;
+    }
+
+    public List<String> getTextFromTranscript(String filename) {
+        try {
+            return Files.lines(Paths.get(filename))
+                    .map(line -> line.split("\\|")[3])
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
+
+-----------------------------------------------------------------
+
+package transcriptionviewer;
+
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class CallViewControllerTest {
+
+    public static final String docRoot = "j:/tmp/transcript-viewer/";
+
+    @Test
+    public void testGenerateHtmlTable() throws IOException {
+        List<Boolean> testData = BoolListGenerator.generateTestBoolsFromSeconds(2.5, 4.1, 1.6, 8.5, 10.04, 5.33, 15.7, 6.5, 12);
+
+        CallViewController controller = new CallViewController();
+        controller.setBoolData(testData);
+        controller.setMostRecentCallID("1234-5678-0987-4321");
+        controller.setViewLocation("table-bool.html");
+        String htmlContent = controller.displayBoolGrid();
+
+        Path filePath = CallViewController.saveToFile(docRoot, controller.getViewLocation(), htmlContent);
+
+        assertTrue(Files.exists(filePath));
+        assertTrue(Files.size(filePath) > 0);
+
+        int expectedGreenCount = (int) testData.stream().filter(b -> b).count();
+        int expectedRedCount = (int) testData.stream().filter(b -> !b).count();
+
+        // Use regex to count occurrences of 'green' and 'red' classes
+        int actualGreenCount = countOccurrencesWithRegex(htmlContent, "class='green'");
+        int actualRedCount = countOccurrencesWithRegex(htmlContent, "class='red'");
+
+        assertEquals(expectedGreenCount, actualGreenCount);
+        assertEquals(expectedRedCount, actualRedCount);
+    }
+
+    @Test
+    public void testGenerateHtmlTableWithTranscription() throws IOException {
+        List<Boolean> testData = BoolListGenerator.generateTestBoolsFromSeconds(2.5, 4.1, 1.6, 8.5, 10.04, 5.33, 15.7, 6.5, 12);
+        List<String> transcriptionData = Arrays.asList("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth");
+
+        CallViewController controller = new CallViewController();
+        controller.setBoolData(testData);
+        controller.setMostRecentCallID("1234-5678-0987-4321");
+        controller.setViewLocation("table-bool-transcription.html");
+        String htmlContent = controller.generateHtmlContent(testData, transcriptionData);
+
+        Path filePath = CallViewController.saveToFile(docRoot, controller.getViewLocation(), htmlContent);
+
+        assertTrue(Files.exists(filePath));
+        assertTrue(Files.size(filePath) > 0);
+
+        int expectedGreenCount = (int) testData.stream().filter(b -> b).count();
+        int expectedRedCount = (int) testData.stream().filter(b -> !b).count();
+
+        // Use regex to count occurrences of 'green' and 'red' classes
+        int actualGreenCount = countOccurrencesWithRegex(htmlContent, "class='green'");
+        int actualRedCount = countOccurrencesWithRegex(htmlContent, "class='red'");
+
+        assertEquals(expectedGreenCount, actualGreenCount);
+        assertEquals(expectedRedCount, actualRedCount);
+
+        // Verify that transcription data appears in tooltips
+        for (String transcription : transcriptionData) {
+            assertTrue(htmlContent.contains(transcription));
+        }
+    }
+
+    @Test
+    public void testGenerateTestBoolsFromSeconds() {
+        List<Boolean> result = BoolListGenerator.generateTestBoolsFromSeconds(2, 3, 1, 4);
+        List<Boolean> expected = BoolListGenerator.generateTestBools(100, 150, 50, 200);
+        assertEquals(expected, result);
+    }
+
+    private int countOccurrencesWithRegex(String content, String pattern) {
+        Matcher matcher = Pattern.compile(pattern).matcher(content);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        return count;
+    }
+}
