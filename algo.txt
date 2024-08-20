@@ -3,11 +3,10 @@ from fastapi import FastAPI
 
 app = FastAPI()
 
-class ConversationRequest(BaseModel):
-    conversation: str
+from fastapi import Body
 
 @app.post("/postpredict")
-async def postpredict(request: ConversationRequest):
-    conversation = request.conversation
+async def postpredict(conversation: str = Body(...)):
+    conversation = unquote(conversation)
     ...
-    return {"result": "the result"}
+    return result
