@@ -1,0 +1,13 @@
+from pydantic import BaseModel
+from fastapi import FastAPI
+
+app = FastAPI()
+
+class ConversationRequest(BaseModel):
+    conversation: str
+
+@app.post("/postpredict")
+async def postpredict(request: ConversationRequest):
+    conversation = request.conversation
+    ...
+    return {"result": "the result"}
