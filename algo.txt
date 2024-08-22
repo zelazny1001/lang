@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
 :: Set the paths to the two directories
 set "dir1=C:\Path\To\Directory1"
@@ -9,13 +9,17 @@ set "dir2=C:\Path\To\Directory2"
 for %%f in ("%dir1%\*") do (
     if exist "%dir2%\%%~nxf" (
         :: Get the size of the file in the first directory
-        for %%A in ("%%f") do set "size1=%%~zA"
+        for %%A in ("%%f") do (
+            set "size1=%%~zA"
+        )
 
         :: Get the size of the corresponding file in the second directory
-        for %%B in ("%dir2%\%%~nxf") do set "size2=%%~zB"
+        for %%B in ("%dir2%\%%~nxf") do (
+            set "size2=%%~zB"
+        )
 
-        :: Compare file sizes
-        if %size1% equ %size2% (
+        :: Compare file sizes using delayed expansion
+        if !size1! equ !size2! (
             echo %%~nxf : SAME
         ) else (
             echo %%~nxf : DIFFERENT
