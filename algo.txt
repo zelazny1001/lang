@@ -6,6 +6,13 @@ $dir2 = "C:\Path\To\Directory2"
 $files1 = Get-ChildItem -Path $dir1 -File
 $files2 = Get-ChildItem -Path $dir2 -File
 
+# Check if files are being retrieved from both directories
+Write-Output "Files in $dir1:"
+$files1 | ForEach-Object { Write-Output $_.Name }
+
+Write-Output "Files in $dir2:"
+$files2 | ForEach-Object { Write-Output $_.Name }
+
 # Create a hashtable for quick lookup of files by name in Directory2
 $fileSizes2 = @{}
 foreach ($file in $files2) {
@@ -20,5 +27,7 @@ foreach ($file in $files1) {
         } else {
             Write-Output "$($file.Name) : DIFFERENT"
         }
+    } else {
+        Write-Output "$($file.Name) : Not found in $dir2"
     }
 }
