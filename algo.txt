@@ -1,0 +1,20 @@
+import os
+
+def compareDirs(dir1, dir2):
+    files1 = {f: os.path.getsize(os.path.join(dir1, f)) for f in os.listdir(dir1) if os.path.isfile(os.path.join(dir1, f))}
+    files2 = {f: os.path.getsize(os.path.join(dir2, f)) for f in os.listdir(dir2) if os.path.isfile(os.path.join(dir2, f))}
+
+    # Iterate over files in the first directory
+    for file_name, size1 in files1.items():
+        if file_name in files2:
+            size2 = files2[file_name]
+            if size1 == size2:
+                print(f"{file_name} : SAME")
+            else:
+                print(f"{file_name} : DIFFERENT")
+        else:
+            print(f"{file_name} : Not found in {dir2}")
+
+dir1 = "C:/Path/To/Directory1"
+dir2 = "C:/Path/To/Directory2"
+compareDirs(dir1, dir2)
