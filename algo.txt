@@ -1,33 +1,29 @@
-# Define the paths to the two directories
-$dir1 = "C:\Path\To\Directory1"
-$dir2 = "C:\Path\To\Directory2"
+@echo off
+setlocal
 
-# Get the files in both directories
-$files1 = Get-ChildItem -Path $dir1 -File
-$files2 = Get-ChildItem -Path $dir2 -File
+:: Set the paths to the two directories
+set "dir1=C:\Path\To\Directory1"
+set "dir2=C:\Path\To\Directory2"
 
-# Check if files are being retrieved from both directories
-Write-Output "Files in $dir1:"
-$files1 | ForEach-Object { Write-Output $_.Name }
+:: Loop through files in the first directory
+for %%f in ("%dir1%\*") do (
+    if exist "%dir2%\%%~nxf" (
+        :: Get the size of the file in the first directory
+        for %%A in ("%%f") do set "size1=%%~zA"
 
-Write-Output "Files in $dir2:"
-$files2 | ForEach-Object { Write-Output $_.Name }
+        :: Get the size of the corresponding file in the second directory
+        for %%B in ("%dir2%\%%~nxf") do set "size2=%%~zB"
 
-# Create a hashtable for quick lookup of files by name in Directory2
-$fileSizes2 = @{}
-foreach ($file in $files2) {
-    $fileSizes2[$file.Name] = $file.Length
-}
+        :: Compare file sizes
+        if %size1% equ %size2% (
+            echo %%~nxf : SAME
+        ) else (
+            echo %%~nxf : DIFFERENT
+        )
+    ) else (
+        echo %%~nxf : Not found in %dir2%
+    )
+)
 
-# Compare files by name and size
-foreach ($file in $files1) {
-    if ($fileSizes2.ContainsKey($file.Name)) {
-        if ($file.Length -eq $fileSizes2[$file.Name]) {
-            Write-Output "$($file.Name) : SAME"
-        } else {
-            Write-Output "$($file.Name) : DIFFERENT"
-        }
-    } else {
-        Write-Output "$($file.Name) : Not found in $dir2"
-    }
-}
+endlocal
+pause
