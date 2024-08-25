@@ -1,0 +1,23 @@
+from collections import defaultdict
+
+home_dir = "c:/models-dir/main-intent-models/"
+input_file_path = home_dir + "features.txt"
+output_file_path = home_dir + "feature_summary.txt"
+
+feature_counts = defaultdict(int)
+
+with open(input_file_path, 'r') as file:
+    for line in file:
+        parts = line.strip().split('|')
+        if len(parts) == 3:
+            features_field = parts[1]
+            features = features_field.split('%')
+            for feature in features:
+                feature_name = feature.split('=')[0]
+                feature_counts[feature_name] += 1
+
+sorted_features = sorted(feature_counts.items())
+
+with open(output_file_path, 'w') as file:
+    for feature, count in sorted_features:
+        file.write(f"{feature}|{count}\n")
