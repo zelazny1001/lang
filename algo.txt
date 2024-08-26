@@ -1,7 +1,14 @@
-import it.sauronsoftware.jave.AudioAttributes;
-import it.sauronsoftware.jave.Encoder;
-import it.sauronsoftware.jave.EncoderException;
-import it.sauronsoftware.jave.EncodingAttributes;
+<dependency>
+    <groupId>ws.schild</groupId>
+    <artifactId>jave-core</artifactId>
+    <version>3.0.1</version>
+</dependency>
+
+import ws.schild.jave.AudioAttributes;
+import ws.schild.jave.Encoder;
+import ws.schild.jave.EncoderException;
+import ws.schild.jave.EncodingAttributes;
+import ws.schild.jave.MultimediaObject;
 
 import java.io.File;
 
@@ -20,16 +27,10 @@ public class AudioConverter {
 
         Encoder encoder = new Encoder();
         try {
-            encoder.encode(source, target, attrs);
+            encoder.encode(new MultimediaObject(source), target, attrs);
             System.out.println("Conversion completed.");
         } catch (EncoderException e) {
             e.printStackTrace();
         }
     }
 }
-
-<dependency>
-    <groupId>com.github.haifengl</groupId>
-    <artifactId>jave</artifactId>
-    <version>2.6.0</version>
-</dependency>
