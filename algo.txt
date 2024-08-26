@@ -27,3 +27,9 @@ public class AudioConverter {
         }
     }
 }
+
+<dependency>
+    <groupId>com.github.haifengl</groupId>
+    <artifactId>jave</artifactId>
+    <version>2.6.0</version>
+</dependency>
