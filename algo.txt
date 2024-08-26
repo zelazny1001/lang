@@ -1,0 +1,29 @@
+import it.sauronsoftware.jave.AudioAttributes;
+import it.sauronsoftware.jave.Encoder;
+import it.sauronsoftware.jave.EncoderException;
+import it.sauronsoftware.jave.EncodingAttributes;
+
+import java.io.File;
+
+public class AudioConverter {
+    public static void main(String[] args) {
+        String root = "root/";
+        File source = new File(root + "input.mp3");
+        File target = new File(root + "output.g711");
+
+        AudioAttributes audio = new AudioAttributes();
+        audio.setCodec("pcm_mulaw");
+
+        EncodingAttributes attrs = new EncodingAttributes();
+        attrs.setFormat("wav");
+        attrs.setAudioAttributes(audio);
+
+        Encoder encoder = new Encoder();
+        try {
+            encoder.encode(source, target, attrs);
+            System.out.println("Conversion completed.");
+        } catch (EncoderException e) {
+            e.printStackTrace();
+        }
+    }
+}
