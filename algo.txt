@@ -1,31 +1,45 @@
-public String generateHtmlContent(List<Boolean> boolData, List<TranscriptionData> transcription) {
-    double totalDurationSeconds = boolData.size() * CallViewConfig.SECONDS_PER_SAMPLE;
-    return new StringBuilder().append(generateHtmlHeader()).append("<body>")
-            .append("<h2>Summary for call: ").append(mostRecentCallID).append("</h2>")
-            .append(generateSummaryTable(boolData, transcription))
-            .append("<br/><br/>").append(generateRulerTable(boolData, totalDurationSeconds))
-            .append("<br/><br/>").append("<h2>Transcription</h2>")
-            .append(generateTranscriptionTable(transcription))
-            .append("<br/><br/>").append("<h2>Detail</h2>")
-            .append(generateDetailTable(boolData, transcription))
-            .append("</body></html>").toString();
+==========================
+
+private String escapeHtml(String text) {
+    if (text == null) {
+        return "";
+    }
+    return text.replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace("\"", "&quot;")
+               .replace("'", "&#39;");
+}
+private String generateTranscriptionTable(List<TranscriptionData> transcriptionDataList) {
+    StringBuilder table = new StringBuilder("<table style='font-family: Arial; font-size: 8pt;'>");
+    table.append("<tr><th style='width: 50px;'>RowNum</th><th style='width: 60px;'>Start</th><th style='width: 60px;'>Stop</th><th style='width: 60px;'>Duration</th><th>Transcript</th></tr>");
+
+    int rowNum = 1;
+    for (TranscriptionData data : transcriptionDataList) {
+        double startTime = data.getStartCell() * CallViewConfig.SECONDS_PER_SAMPLE;
+        double stopTime = data.getEndCell() * CallViewConfig.SECONDS_PER_SAMPLE;
+        double duration = stopTime - startTime;
+
+        table.append("<tr>")
+            .append("<td style='text-align: right;'>").append(rowNum).append("</td>")
+            .append("<td style='text-align: right;'>").append(String.format("%.2f", startTime)).append("</td>")
+            .append("<td style='text-align: right;'>").append(String.format("%.2f", stopTime)).append("</td>")
+            .append("<td style='text-align: right;'>").append(String.format("%.2f", duration)).append("</td>")
+            .append("<td>").append(escapeHtml(data.getText())).append("</td>")
+            .append("</tr>");
+        rowNum++;
+    }
+
+    table.append("</table>");
+    return table.toString();
 }
 
+====================================
 
-===========================
-
-private String generateHtmlHeader() {
-    return new StringBuilder("<html><head>").append("<style>")
-            .append("table { border-collapse: collapse; width: 100%; table-layout: fixed;}")
-            .append("td { width: ").append(CallViewConfig.CELL_WIDTH).append("px; height: ").append(CallViewConfig.CELL_HEIGHT).append("px; border: 1px solid gray; }")
-            .append(".summary-cell { width: ").append(CallViewConfig.SUMMARY_CELL_WIDTH).append("px; height: ").append(CallViewConfig.SUMMARY_CELL_HEIGHT).append("px; border: none; }")
-            .append(".green { background-color: green; }").append(".red { background-color: red; }")
-            .append(".white { background-color: white; }").append("h2 { font-family: Arial; font-weight: bold; font-size: 14px; }")
-            .append(".ruler-cell { font-family: Arial; font-size: 10px; text-align: center; border-top: 1px solid gray; border-bottom: 1px solid gray; border-left: none; border-right: none; }")
-            .append(".ruler-transition { border-left: 1px solid black; }").append(".ruler-time { font-family: Arial; font-size: 10px; text-align: center; border-top: 1px solid gray; border-bottom: 1px solid gray; border-left: 1px solid lightgray; border-right: none; }")
-
-            .append("</style><script>")
-            .append("setTimeout(function(){ window.location.reload(); }, 1000);")
-            .append("</script>")
-            .append("</head>").toString();
+private String generateMouseOver(String packetInfo, String timeInfo, String transcription) {
+    if (transcription != null) {
+        return "title='Pkt " + escapeHtml(packetInfo) + ", " + escapeHtml(timeInfo) + " - " + escapeHtml(transcription) + "'";
+    } else {
+        return "title='Pkt " + escapeHtml(packetInfo) + ", " + escapeHtml(timeInfo) + "'";
+    }
 }
