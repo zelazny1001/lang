@@ -1,0 +1,64 @@
+private String generateTranscriptionTable(List<TranscriptionData> transcriptionDataList) {
+    StringBuilder table = new StringBuilder("<table style='font-family: Arial; font-size: 8pt;'>");
+    table.append("<tr><th style='width: 50px;'>RowNum</th><th style='width: 60px;'>Start</th><th style='width: 60px;'>Stop</th><th style='width: 60px;'>Duration</th><th>Transcript</th></tr>");
+
+    int rowNum = 1;
+    for (TranscriptionData data : transcriptionDataList) {
+        double startTime = data.getStartCell() * CallViewConfig.SECONDS_PER_SAMPLE;
+        double stopTime = data.getEndCell() * CallViewConfig.SECONDS_PER_SAMPLE;
+        double duration = stopTime - startTime;
+
+        table.append("<tr onclick='playSound(").append(data.getStartCell()).append(", ").append(data.getEndCell()).append(")'>")
+             .append("<td style='text-align: right;'>").append(rowNum).append("</td>")
+             .append("<td style='text-align: right;'>").append(String.format("%.2f", startTime)).append("</td>")
+             .append("<td style='text-align: right;'>").append(String.format("%.2f", stopTime)).append("</td>")
+             .append("<td style='text-align: right;'>").append(String.format("%.2f", duration)).append("</td>")
+             .append("<td>").append(escapeHtml(data.getText())).append("</td>")
+             .append("</tr>");
+        rowNum++;
+    }
+
+    table.append("</table>");
+    table.append("<script>")
+         .append("function playSound(start, end) {")
+         .append("    fetch('/playsound?start=' + start + '&end=' + end);")
+         .append("}")
+         .append("</script>");
+    return table.toString();
+}
+
+------------------
+
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+
+    @GetMapping("/playsound")
+    public void playSound(@RequestParam int start, @RequestParam int end) {
+        try {
+            byte[] g711Data = getByteArray(start, end);
+            AudioInputStream audioStream = convertG711ToAudioStream(g711Data);
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioStream);
+            clip.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+------------------
+
+    public static AudioInputStream convertG711ToAudioStream(byte[] g711) {
+        AudioInputStream result = null;
+        float sampleRate = 8000.0f;
+        int sampleSizeInBits = 8;
+        int channels = 1;
+        boolean signed = true;
+        boolean bigEndian = false;
+        byte[] pcmData = g711ByteArrayToPCMByteArray(g711);
+        AudioFormat format = new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
+        result = new javax.sound.sampled.AudioInputStream(new java.io.ByteArrayInputStream(pcmData),
+                format, pcmData.length / format.getFrameSize());
+        return result;
+    }
