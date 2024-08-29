@@ -21,44 +21,16 @@ private String generateTranscriptionTable(List<TranscriptionData> transcriptionD
     table.append("</table>");
     table.append("<script>")
          .append("function playSound(start, end) {")
-         .append("    fetch('/playsound?start=' + start + '&end=' + end);")
+         .append("    fetch('/playsound?start=' + start + '&end=' + end)")
+         .append("        .then(response => {")
+         .append("            if (!response.ok) {")
+         .append("                console.error('Failed to play sound');")
+         .append("            }")
+         .append("        })")
+         .append("        .catch(error => {")
+         .append("            console.error('Error:', error);")
+         .append("        });")
          .append("}")
          .append("</script>");
     return table.toString();
 }
-
-------------------
-
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-
-    @GetMapping("/playsound")
-    public void playSound(@RequestParam int start, @RequestParam int end) {
-        try {
-            byte[] g711Data = getByteArray(start, end);
-            AudioInputStream audioStream = convertG711ToAudioStream(g711Data);
-            Clip clip = AudioSystem.getClip();
-            clip.open(audioStream);
-            clip.start();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-
-------------------
-
-    public static AudioInputStream convertG711ToAudioStream(byte[] g711) {
-        AudioInputStream result = null;
-        float sampleRate = 8000.0f;
-        int sampleSizeInBits = 8;
-        int channels = 1;
-        boolean signed = true;
-        boolean bigEndian = false;
-        byte[] pcmData = g711ByteArrayToPCMByteArray(g711);
-        AudioFormat format = new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
-        result = new javax.sound.sampled.AudioInputStream(new java.io.ByteArrayInputStream(pcmData),
-                format, pcmData.length / format.getFrameSize());
-        return result;
-    }
