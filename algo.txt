@@ -1,27 +1,3 @@
-private String generateTranscriptionTable(List<TranscriptionData> transcriptionDataList) {
-    StringBuilder table = new StringBuilder("<table style='font-family: Arial; font-size: 8pt;'>");
-    table.append("<tr><th style='width: 50px;'>RowNum</th><th style='width: 60px;'>Start</th><th style='width: 60px;'>Stop</th><th style='width: 60px;'>Duration</th><th>Transcript</th></tr>");
-
-    int rowNum = 1;
-    for (TranscriptionData data : transcriptionDataList) {
-        double startTime = data.getStartCell() * CallViewConfig.SECONDS_PER_SAMPLE;
-        double stopTime = data.getEndCell() * CallViewConfig.SECONDS_PER_SAMPLE;
-        double duration = stopTime - startTime;
-
-        table.append("<tr data-start='").append(data.getStartCell()).append("' data-end='").append(data.getEndCell()).append("'>")
-                .append("<td style='text-align: right;'>").append(rowNum).append("</td>")
-                .append("<td style='text-align: right;'>").append(String.format("%.2f", startTime)).append("</td>")
-                .append("<td style='text-align: right;'>").append(String.format("%.2f", stopTime)).append("</td>")
-                .append("<td style='text-align: right;'>").append(String.format("%.2f", duration)).append("</td>")
-                .append("<td>").append(data.getText().replace("'", "\\'")).append("</td>")  // Handle apostrophes
-                .append("</tr>");
-        rowNum++;
-    }
-
-    table.append("</table>");
-    return table.toString();
-}
-
 public String generateHtmlContent(List<Boolean> boolData, List<TranscriptionData> transcription) {
     double totalDurationSeconds = boolData.size() * CallViewConfig.SECONDS_PER_SAMPLE;
     return new StringBuilder().append(generateHtmlHeader()).append("<body>")
@@ -37,12 +13,35 @@ public String generateHtmlContent(List<Boolean> boolData, List<TranscriptionData
             .append("var rows = document.querySelectorAll('table tr');")
             .append("rows.forEach(function(row) {")
             .append("row.addEventListener('click', function() {")
-            .append("var start = row.getAttribute('data-start');")
-            .append("var end = row.getAttribute('data-end');")
-            .append("fetch('/playsound?start=' + start + '&end=' + end);")
+            .append("var rownum = row.getAttribute('data-rownum');")
+            .append("fetch('/rest/playsound?rownum=' + rownum);")
             .append("});")
             .append("});")
             .append("});")
             .append("</script>")
             .append("</body></html>").toString();
+}
+
+private String generateTranscriptionTable(List<TranscriptionData> transcriptionDataList) {
+    StringBuilder table = new StringBuilder("<table style='font-family: Arial; font-size: 8pt;'>");
+    table.append("<tr><th style='width: 50px;'>RowNum</th><th style='width: 60px;'>Start</th><th style='width: 60px;'>Stop</th><th style='width: 60px;'>Duration</th><th>Transcript</th></tr>");
+
+    int rowNum = 1;
+    for (TranscriptionData data : transcriptionDataList) {
+        double startTime = data.getStartCell() * CallViewConfig.SECONDS_PER_SAMPLE;
+        double stopTime = data.getEndCell() * CallViewConfig.SECONDS_PER_SAMPLE;
+        double duration = stopTime - startTime;
+
+        table.append("<tr data-rownum='").append(rowNum).append("'>")
+                .append("<td style='text-align: right;'>").append(rowNum).append("</td>")
+                .append("<td style='text-align: right;'>").append(String.format("%.2f", startTime)).append("</td>")
+                .append("<td style='text-align: right;'>").append(String.format("%.2f", stopTime)).append("</td>")
+                .append("<td style='text-align: right;'>").append(String.format("%.2f", duration)).append("</td>")
+                .append("<td>").append(data.getText().replace("'", "\\'")).append("</td>")
+                .append("</tr>");
+        rowNum++;
+    }
+
+    table.append("</table>");
+    return table.toString();
 }
