@@ -1,28 +1,48 @@
-import java.util.ArrayList;
-import java.util.List;
+private String generateTranscriptionTable(List<TranscriptionData> transcriptionDataList) {
+    StringBuilder table = new StringBuilder("<table style='font-family: Arial; font-size: 8pt;'>");
+    table.append("<tr><th style='width: 50px;'>RowNum</th><th style='width: 60px;'>Start</th><th style='width: 60px;'>Stop</th><th style='width: 60px;'>Duration</th><th>Transcript</th></tr>");
 
-public class Main {
-    public static void main(String[] args) {
-        List<byte[]> list = new ArrayList<>();
-        list.add(new byte[]{1, 2, 3});
-        list.add(new byte[]{4, 5, 6});
-        list.add(new byte[]{7, 8, 9});
+    int rowNum = 1;
+    for (TranscriptionData data : transcriptionDataList) {
+        double startTime = data.getStartCell() * CallViewConfig.SECONDS_PER_SAMPLE;
+        double stopTime = data.getEndCell() * CallViewConfig.SECONDS_PER_SAMPLE;
+        double duration = stopTime - startTime;
 
-        byte[] flattenedArray = flatten(list);
-
-        System.out.println(java.util.Arrays.toString(flattenedArray));
+        table.append("<tr data-start='").append(data.getStartCell()).append("' data-end='").append(data.getEndCell()).append("'>")
+                .append("<td style='text-align: right;'>").append(rowNum).append("</td>")
+                .append("<td style='text-align: right;'>").append(String.format("%.2f", startTime)).append("</td>")
+                .append("<td style='text-align: right;'>").append(String.format("%.2f", stopTime)).append("</td>")
+                .append("<td style='text-align: right;'>").append(String.format("%.2f", duration)).append("</td>")
+                .append("<td>").append(data.getText().replace("'", "\\'")).append("</td>")  // Handle apostrophes
+                .append("</tr>");
+        rowNum++;
     }
 
-    public static byte[] flatten(List<byte[]> list) {
-        int totalLength = list.size() * list.get(0).length;
-        byte[] result = new byte[totalLength];
-        int currentIndex = 0;
+    table.append("</table>");
+    return table.toString();
+}
 
-        for (byte[] array : list) {
-            System.arraycopy(array, 0, result, currentIndex, array.length);
-            currentIndex += array.length;
-        }
-
-        return result;
-    }
+public String generateHtmlContent(List<Boolean> boolData, List<TranscriptionData> transcription) {
+    double totalDurationSeconds = boolData.size() * CallViewConfig.SECONDS_PER_SAMPLE;
+    return new StringBuilder().append(generateHtmlHeader()).append("<body>")
+            .append("<h2>Summary for call: ").append(mostRecentCallID).append("</h2>")
+            .append(generateSummaryTable(boolData, transcription))
+            .append("<br/><br/>").append(generateRulerTable(boolData, totalDurationSeconds))
+            .append("<br/><br/>").append("<h2>Transcription</h2>")
+            .append(generateTranscriptionTable(transcription))
+            .append("<br/><br/>").append("<h2>Detail</h2>")
+            .append(generateDetailTable(boolData, transcription))
+            .append("<script>")
+            .append("document.addEventListener('DOMContentLoaded', function() {")
+            .append("var rows = document.querySelectorAll('table tr');")
+            .append("rows.forEach(function(row) {")
+            .append("row.addEventListener('click', function() {")
+            .append("var start = row.getAttribute('data-start');")
+            .append("var end = row.getAttribute('data-end');")
+            .append("fetch('/playsound?start=' + start + '&end=' + end);")
+            .append("});")
+            .append("});")
+            .append("});")
+            .append("</script>")
+            .append("</body></html>").toString();
 }
