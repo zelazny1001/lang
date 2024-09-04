@@ -1,0 +1,9 @@
+    @GetMapping("/viewcall")
+    public ResponseEntity<String> displayBoolGrid() {
+        String htmlContent = generateHtmlContent(boolData, transcriptionDataList);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setCacheControl(CacheControl.noCache().cachePrivate());  // Disable caching
+
+        return ResponseEntity.ok().headers(headers).body(htmlContent);
+    }
