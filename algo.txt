@@ -1,9 +1,9 @@
-    @GetMapping("/viewcall")
-    public ResponseEntity<String> displayBoolGrid() {
-        String htmlContent = generateHtmlContent(boolData, transcriptionDataList);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setCacheControl(CacheControl.noCache().cachePrivate());  // Disable caching
-
-        return ResponseEntity.ok().headers(headers).body(htmlContent);
+public class RangeToBoundaries {
+    public static List<Integer> toPair(String input) {
+        return Arrays.stream(input.split("-"))
+                .map(Integer::parseInt)
+                .collect(Collectors.toList());
     }
+}
+===========================================================
+
