@@ -1,0 +1,6 @@
+mvn clean
+mvn dependency:purge-local-repository
+mvn clean install
+
+mvn dependency:tree -Dverbose -Dincludes=groupB:artB
+
