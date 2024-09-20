@@ -1,3 +1,21 @@
-mvn clean
-mvn dependency:purge-local-repository
-mvn clean install
+import java.net.URL;
+import java.util.Enumeration;
+
+public class ClasspathChecker {
+    public static void main(String[] args) throws Exception {
+        boolean isSolrPresent = isSolrPresent();
+        System.out.println("Solr is present on the classpath: " + isSolrPresent);
+    }
+
+    public static boolean isSolrPresent() throws Exception {
+        Enumeration<URL> urls = Thread.currentThread().getContextClassLoader().getResources("");
+        while (urls.hasMoreElements()) {
+            URL url = urls.nextElement();
+            System.out.println(">> " + url.toString());
+            if (url.toString().contains("spring")) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
