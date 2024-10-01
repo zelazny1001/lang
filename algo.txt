@@ -1,0 +1,18 @@
+@PostMapping("/start")
+public ResponseEntity<String> copy(HttpServletRequest request) {
+    Map<String, String> headers = Collections.list(request.getHeaderNames().asIterator()).stream()
+        .filter(headerName -> isValidHeader(headerName, request.getHeader(headerName)) && !request.getHeader(headerName).isEmpty()) // Apply validation and check for empty values
+        .collect(Collectors.toMap(StringUtils::lowerCase, request::getHeader));
+
+    int totalHeadersCount = Collections.list(request.getHeaderNames().asIterator()).size();
+    int validHeadersCount = headers.size();
+
+    if (validHeadersCount < totalHeadersCount) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("One or more invalid headers were found.");
+    }
+
+}
+
+private boolean isValidHeader(String headerName, String headerValue) {
+}
+
