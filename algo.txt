@@ -16,3 +16,38 @@ public ResponseEntity<String> copy(HttpServletRequest request) {
 private boolean isValidHeader(String headerName, String headerValue) {
 }
 
+-----------------------
+
+What could be a potential SSRF vulnerability in this Java 8 / REST code fragment:
+@GetMapping(...)
+public ResponseEntity(..., @RequestParam String filePath) {
+ ...
+ byte[] fileContent = Files.readAllBytes(new File(filepath).toPath());
+ call another method passing on fileContent to that method
+ ...
+}
+
+-----------------------
+Mode of operation:
+While Sonar is focused on code quality (GIGO), Checkmarx focuses on code security.
+
+Checkmarx examines all POST and GET inputs (REST Controller entry point inputs) under the direct control of an external user:
+(Malice IN, Malice OUT)
+- headers
+- GET or POST params
+
+and tries to determine the risk of vulnerabilities from these touch points.
+
+
+Checkmarx identified the following vulnerabilities in ASRController and UtilityController:
+
+"Reflected_XSS_All_Clients" - Reflected Cross-Site Scripting (XSS) vulnerability
+the application reflects (or incorporates) untrusted input back to the client without proper output encoding
+
+"SSRF" - Server-Side Request Forgery
+application does not check whether a URL or file specified as a parameter or request header should be used before proceeding with further processing
+
+"Input_Path_Not_Canonicalized" - paths should be normalized to their absolute form
+Canonicalization is the process of converting a file path to its standard, absolute form, resolving any symbolic links, relative paths (e.g., ../), or other ambiguities.
+
+"Absolute_Path_Traversal" - Do not accept and use a user input path without first checking it
