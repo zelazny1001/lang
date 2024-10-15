@@ -298,3 +298,25 @@ currentBooleanPosition,currentBooleanValue,mostRecentStart,currentSpeechBlockLen
 46,T,45,2,null,rule.4,F
 47,T,45,3,null,rule.4,F
 48,T,45,4,45-48,rule.2,T
+
+====================== excel - config
+
+MICRO_PAUSE_SAMPLES	2
+MINIMUM_SPEECH_SAMPLES	7
+MAXIMUM_SPEECH_SAMPLES	11
+
+====================== excel - definitions
+
+rule.0	If voiceActivity is empty, return null.
+rule.1	If mostRecentStart == -1 and either the current boolean value is false or endOfSpeech is true, return null.
+rule.2	If endOfSpeech == true and mostRecentStart > -1, create a new TranscriptionBoundary with start = mostRecentStart and end = currentBooleanPosition. Return the transcription boundary and reset mostRecentStart to -1.
+rule.3	If mostRecentStart == -1 and the current boolean value is true, set mostRecentStart = currentBooleanPosition and return null.
+rule.4	Calculate currentSpeechBlockLength. If > 0 && < minimumSpeechSamples, return null.
+rule.5	"If currentSpeechBlockLength is >= minimumSpeechSamples && < maximumSpeechSamples:
+If the speaker is silent (consecutiveFalseCount > microPauseSamples), create a new TranscriptionBoundary with start = mostRecentStart and end = currentBooleanPosition. Return the transcription boundary and reset mostRecentStart to -1.
+Otherwise, return null."
+rule.6	If currentSpeechBlockLength >= maximumSpeechSamples, create a new TranscriptionBoundary with start = mostRecentStart and end = currentBooleanPosition. Return the transcription boundary and reset mostRecentStart to -1.
+default	If none of the above rules apply, return null
+processing loop	Whenever a new 20ms voice packet arrives, the outcome of the VAD (the spanDetector) will be used to add a boolean value to the voiceActivityboolean list. Thiswill trigger a call to TranscriptionRulesEngine.getTranscriptionReleaseBoundaries(...)
+definition.1	mostRecentStart = -1 means that no speech has currently been detected.
+definition.2	int currentSpeechBlockLength = (mostRecentStart > -1) ? currentBooleanPosition - mostRecentStart + 1 : 0;
