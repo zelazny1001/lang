@@ -246,6 +246,8 @@ public class TranscriptionRulesEngineTest {
     }
 }
 
+---------- sequence diagram
+
 ---------- src/test/java/resources/transcription-scenarios/scenario-1.txt
 
 currentBooleanPosition,currentBooleanValue,mostRecentStart,currentSpeechBlockLength,transcriptionBoundary,rule applied,endOfSpeech
@@ -320,3 +322,82 @@ default	If none of the above rules apply, return null
 processing loop	Whenever a new 20ms voice packet arrives, the outcome of the VAD (the spanDetector) will be used to add a boolean value to the voiceActivityboolean list. Thiswill trigger a call to TranscriptionRulesEngine.getTranscriptionReleaseBoundaries(...)
 definition.1	mostRecentStart = -1 means that no speech has currently been detected.
 definition.2	int currentSpeechBlockLength = (mostRecentStart > -1) ? currentBooleanPosition - mostRecentStart + 1 : 0;
+
+====================== sequence diag
+
+@startuml
+
+actor Conversation
+participant TranscriptionRulesEngine
+participant VoiceActivityList
+participant TranscriptionBoundary
+participant TranscriptionBoundaryList
+
+Conversation -> TranscriptionRulesEngine: getTranscriptionReleaseBoundaries(endOfSpeech)
+
+== Rule 0: voiceActivity.isEmpty() ==
+if voiceActivity.isEmpty? 
+    TranscriptionRulesEngine -> Conversation: return null
+    ... End of Rule 0 ...
+end
+
+TranscriptionRulesEngine -> VoiceActivityList: get currentBooleanPosition and currentBooleanValue
+
+== Rule 1: mostRecentStart == -1 and (!currentBooleanValue || endOfSpeech) ==
+if mostRecentStart == -1 and (!currentBooleanValue || endOfSpeech) 
+    TranscriptionRulesEngine -> Conversation: return null
+    ... End of Rule 1 ...
+end
+
+== Rule 2: endOfSpeech == true and mostRecentStart > -1 ==
+if endOfSpeech == true and mostRecentStart > -1 
+    TranscriptionRulesEngine -> TranscriptionBoundary: create TranscriptionBoundary(start = mostRecentStart, end = currentBooleanPosition)
+    TranscriptionRulesEngine -> TranscriptionBoundaryList: add TranscriptionBoundary
+    TranscriptionRulesEngine -> TranscriptionRulesEngine: set mostRecentStart = -1
+    TranscriptionRulesEngine -> Conversation: return TranscriptionBoundary
+    ... End of Rule 2 ...
+end
+
+== Rule 3: mostRecentStart == -1 and currentBooleanValue == true ==
+if mostRecentStart == -1 and currentBooleanValue == true 
+    TranscriptionRulesEngine -> TranscriptionRulesEngine: set mostRecentStart = currentBooleanPosition
+    TranscriptionRulesEngine -> Conversation: return null
+    ... End of Rule 3 ...
+end
+
+TranscriptionRulesEngine -> TranscriptionRulesEngine: calculate currentSpeechBlockLength
+
+== Rule 4: currentSpeechBlockLength > 0 and < minimumSpeechSamples ==
+if currentSpeechBlockLength > 0 and < minimumSpeechSamples 
+    TranscriptionRulesEngine -> Conversation: return null
+    ... End of Rule 4 ...
+end
+
+== Rule 5: currentSpeechBlockLength >= minimumSpeechSamples and < maximumSpeechSamples ==
+if currentSpeechBlockLength >= minimumSpeechSamples and < maximumSpeechSamples 
+    if speakerIsSilent == true
+        TranscriptionRulesEngine -> TranscriptionBoundary: create TranscriptionBoundary(start = mostRecentStart, end = currentBooleanPosition)
+        TranscriptionRulesEngine -> TranscriptionBoundaryList: add TranscriptionBoundary
+        TranscriptionRulesEngine -> TranscriptionRulesEngine: set mostRecentStart = -1
+        TranscriptionRulesEngine -> Conversation: return TranscriptionBoundary
+        ... End of Rule 5 ...
+    else
+        TranscriptionRulesEngine -> Conversation: return null
+    end
+end
+
+== Rule 6: currentSpeechBlockLength >= maximumSpeechSamples ==
+if currentSpeechBlockLength >= maximumSpeechSamples 
+    TranscriptionRulesEngine -> TranscriptionBoundary: create TranscriptionBoundary(start = mostRecentStart, end = currentBooleanPosition)
+    TranscriptionRulesEngine -> TranscriptionBoundaryList: add TranscriptionBoundary
+    TranscriptionRulesEngine -> TranscriptionRulesEngine: set mostRecentStart = -1
+    TranscriptionRulesEngine -> Conversation: return TranscriptionBoundary
+    ... End of Rule 6 ...
+end
+
+== Default Return ==
+box "Default"
+    TranscriptionRulesEngine -> Conversation: return null
+end box
+
+@enduml
