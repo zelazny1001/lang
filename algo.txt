@@ -1,0 +1,300 @@
+public class RuleConstants {
+    public static final int MICRO_PAUSE_SAMPLES = 20; // 400 milliseconds
+    public static final int MINIMUM_SPEECH_SAMPLES = 150;  // 1 second
+    public static final int MAXIMUM_SPEECH_SAMPLES = 750;  // 5 seconds
+}
+
+---------------
+
+package rules;
+
+public class TranscriptionBoundary {
+    private final int start;
+    private final int end;
+
+    public TranscriptionBoundary(int start, int end) {
+        this.start = start;
+        this.end = end;
+    }
+
+    public int getStart() { return start; }
+    public int getEnd() { return end; }
+}
+
+--------------
+
+package rules;
+
+import java.util.ArrayList;
+import java.util.List;
+import rules.RuleConstants;
+
+public class TranscriptionRulesEngine {
+
+    private int microPauseSamples;
+    private int minimumSpeechSamples;
+    private int maximumSpeechSamples;
+
+    private int mostRecentStart;
+    private List<TranscriptionBoundary> transcriptionBoundaries;
+    private List<Boolean> voiceActivity;
+    private int consecutiveFalseCount;
+    //private String currentRule;
+
+    public TranscriptionRulesEngine(List<Boolean> voiceActivity) {
+        this.voiceActivity = voiceActivity;
+        this.microPauseSamples = RuleConstants.MICRO_PAUSE_SAMPLES;
+        this.minimumSpeechSamples = RuleConstants.MINIMUM_SPEECH_SAMPLES;
+        this.maximumSpeechSamples = RuleConstants.MAXIMUM_SPEECH_SAMPLES;
+        this.mostRecentStart = -1;
+        this.transcriptionBoundaries = new ArrayList<>();
+        this.consecutiveFalseCount = 0;
+        //this.currentRule = "rule.0";
+    }
+
+    public TranscriptionBoundary getTranscriptionReleaseBoundaries(boolean endOfSpeech) {
+
+        // Rule 0
+        if (voiceActivity.isEmpty()) {
+            return null;
+        }
+
+        int currentBooleanPosition = voiceActivity.size() - 1;
+        boolean currentBooleanValue = voiceActivity.get(currentBooleanPosition);
+
+        // consecutiveFalseCount++ on insert false into voiceActivity booleans; otherwise reset
+        if (currentBooleanValue) {
+            consecutiveFalseCount = 0;
+        } else {
+            consecutiveFalseCount++;
+        }
+
+        boolean speakerIsSilent = consecutiveFalseCount > microPauseSamples;
+
+        // Rule.1
+        if (mostRecentStart == -1 && (!currentBooleanValue || endOfSpeech)) {
+            return null;
+        }
+
+        // Rule.2
+        if (endOfSpeech && mostRecentStart > -1) {
+            TranscriptionBoundary boundary = new TranscriptionBoundary(mostRecentStart, currentBooleanPosition);
+            transcriptionBoundaries.add(boundary);
+            mostRecentStart = -1;
+            return boundary;
+        }
+
+        // Rule.3
+        if (mostRecentStart == -1 && currentBooleanValue) {
+            mostRecentStart = currentBooleanPosition;
+            return null;
+        }
+
+        int currentSpeechBlockLength = (mostRecentStart > -1) ? currentBooleanPosition - mostRecentStart + 1 : 0;
+
+        // Rule.4
+        if (currentSpeechBlockLength > 0 && currentSpeechBlockLength < minimumSpeechSamples) {
+            return null;
+        }
+
+        // Rule.5
+        if (currentSpeechBlockLength >= minimumSpeechSamples && currentSpeechBlockLength < maximumSpeechSamples) {
+            if (speakerIsSilent) {
+                TranscriptionBoundary boundary = new TranscriptionBoundary(mostRecentStart, currentBooleanPosition);
+                transcriptionBoundaries.add(boundary);
+                mostRecentStart = -1;
+                return boundary;
+            }
+            return null;
+        }
+
+        // Rule.6
+        if (currentSpeechBlockLength >= maximumSpeechSamples) {
+            TranscriptionBoundary boundary = new TranscriptionBoundary(mostRecentStart, currentBooleanPosition);
+            transcriptionBoundaries.add(boundary);
+            mostRecentStart = -1;
+            return boundary;
+        }
+        return null;
+    }
+
+    public int getMicroPauseSamples() {
+        return microPauseSamples;
+    }
+
+    public void setMicroPauseSamples(int microPauseSamples) {
+        this.microPauseSamples = microPauseSamples;
+    }
+
+    public int getMinimumSpeechSamples() {
+        return minimumSpeechSamples;
+    }
+
+    public void setMinimumSpeechSamples(int minimumSpeechSamples) {
+        this.minimumSpeechSamples = minimumSpeechSamples;
+    }
+
+    public int getMaximumSpeechSamples() {
+        return maximumSpeechSamples;
+    }
+
+    public void setMaximumSpeechSamples(int maximumSpeechSamples) {
+        this.maximumSpeechSamples = maximumSpeechSamples;
+    }
+
+    public int getMostRecentStart() {
+        return mostRecentStart;
+    }
+
+    public java.util.List<TranscriptionBoundary> getTranscriptionBoundaries() {
+        return transcriptionBoundaries;
+    }
+
+    public java.util.List<Boolean> getVoiceActivity() {
+        return voiceActivity;
+    }
+
+    public int getConsecutiveFalseCount() {
+        return consecutiveFalseCount;
+    }
+
+    private void dumpRule(int position) {
+        //System.out.println(currentRule);
+    }
+}
+
+-------------
+
+package rules;
+import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import rules.RuleConstants;
+
+public class TranscriptionRulesEngineTest {
+
+    private List<String[]> rows;
+
+    private static final int CURRENT_BOOLEAN_POSITION = 0;
+    private static final int CURRENT_BOOLEAN_VALUE = 1;
+    private static final int EXPECTED_TRANSCRIPTION_BOUNDARY = 4;
+    private static final int END_OF_SPEECH = 6;
+
+    @BeforeEach
+    public void setup() throws Exception {
+        ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(classLoader.getResource("transcription-scenarios/scenario-1.txt").getFile());
+
+        List<String> lines = FileUtils.readLines(file, StandardCharsets.UTF_8);
+        rows = new ArrayList<>();
+        for (int i = 1; i < lines.size(); i++) {
+            rows.add(lines.get(i).split(","));
+        }
+    }
+
+    @Test
+    public void testIntegrationScenario() {
+        TranscriptionRulesEngine engine = new TranscriptionRulesEngine(new ArrayList<>());
+        engine.setMicroPauseSamples(2);
+        engine.setMinimumSpeechSamples(7);
+        engine.setMaximumSpeechSamples(11);
+
+        List<TranscriptionBoundary> expectedBoundaries = new ArrayList<>();
+
+        for (String[] row : rows) {
+            int currentBooleanPosition = Integer.parseInt(row[CURRENT_BOOLEAN_POSITION]);
+            boolean currentBooleanValue = "T".equals(row[CURRENT_BOOLEAN_VALUE]);
+            String expectedBoundaryStr = row[EXPECTED_TRANSCRIPTION_BOUNDARY];
+            boolean endOfSpeech = "T".equals(row[END_OF_SPEECH]);
+
+            engine.getVoiceActivity().add(currentBooleanValue);
+
+            TranscriptionBoundary boundary = engine.getTranscriptionReleaseBoundaries(endOfSpeech);
+
+            if ("null".equals(expectedBoundaryStr)) {
+                assertNull(boundary, "Expected boundary to be null at position " + currentBooleanPosition);
+            } else {
+                assertNotNull(boundary, "Expected non-null boundary at position " + currentBooleanPosition);
+                String[] expectedBoundaryParts = expectedBoundaryStr.split("-");
+                int expectedStart = Integer.parseInt(expectedBoundaryParts[0].trim());
+                int expectedEnd = Integer.parseInt(expectedBoundaryParts[1].trim());
+                assertEquals(expectedStart, boundary.getStart(), "Start boundary mismatch at position " + currentBooleanPosition);
+                assertEquals(expectedEnd, boundary.getEnd(), "End boundary mismatch at position " + currentBooleanPosition);
+                expectedBoundaries.add(new TranscriptionBoundary(expectedStart, expectedEnd));
+            }
+        }
+
+        List<TranscriptionBoundary> actualBoundaries = engine.getTranscriptionBoundaries();
+        assertEquals(expectedBoundaries.size(), actualBoundaries.size(), "Mismatch in number of transcription boundaries");
+
+        for (int i = 0; i < expectedBoundaries.size(); i++) {
+            assertEquals(expectedBoundaries.get(i).getStart(), actualBoundaries.get(i).getStart(),
+                    "Mismatch in start boundary at index " + i);
+            assertEquals(expectedBoundaries.get(i).getEnd(), actualBoundaries.get(i).getEnd(),
+                    "Mismatch in end boundary at index " + i);
+        }
+    }
+}
+
+---------- src/test/java/resources/transcription-scenarios/scenario-1.txt
+
+currentBooleanPosition,currentBooleanValue,mostRecentStart,currentSpeechBlockLength,transcriptionBoundary,rule applied,endOfSpeech
+0,F,-1,0,null,rule.1,F
+1,F,-1,0,null,rule.1,F
+2,T,2,1,null,rule.3,F
+3,T,2,2,null,rule.4,F
+4,T,2,3,null,rule.4,F
+5,T,2,4,null,rule.4,F
+6,T,2,5,null,rule.4,F
+7,F,2,6,null,rule.4,F
+8,F,2,7,null,rule.5,F
+9,F,-1,0,2-9,rule.5,F
+10,F,-1,0,null,rule.1,F
+11,F,-1,0,null,rule.1,F
+12,T,12,1,null,rule.3,F
+13,T,12,2,null,rule.4,F
+14,T,12,3,null,rule.4,F
+15,T,12,4,null,rule.4,F
+16,F,12,5,null,rule.4,F
+17,F,12,6,null,rule.4,F
+18,T,12,7,null,rule.5,F
+19,T,12,8,null,rule.5,F
+20,T,12,9,null,rule.5,F
+21,F,12,10,null,rule.5,F
+22,T,12,11,12-22,rule.6,F
+23,T,23,1,null,rule.3,F
+24,T,23,2,null,rule.4,F
+25,F,23,3,null,rule.4,F
+26,F,23,4,null,rule.4,F
+27,T,23,5,null,rule.4,F
+28,F,23,6,null,rule.4,F
+29,T,23,7,null,rule.5,F
+30,F,23,8,null,rule.5,F
+31,T,23,9,null,rule.5,F
+32,T,23,10,null,rule.5,F
+33,T,23,11,23-33,rule.6,F
+34,F,-1,0,null,rule.1,F
+35,F,-1,0,null,rule.1,F
+36,F,-1,0,null,rule.1,F
+37,F,-1,0,null,rule.1,F
+38,T,38,1,null,rule.3,F
+39,T,38,2,null,rule.4,F
+40,F,38,3,null,rule.4,F
+41,F,38,4,null,rule.4,F
+42,F,38,5,null,rule.4,F
+43,F,38,6,null,rule.4,F
+44,F,38,7,38-44,rule.4,F
+45,T,45,1,null,rule.2,F
+46,T,45,2,null,rule.4,F
+47,T,45,3,null,rule.4,F
+48,T,45,4,45-48,rule.2,T
