@@ -1,0 +1,47 @@
+last k
+
+import org.springframework.integration.store.MessageGroup;
+import org.springframework.messaging.Message;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class MessageGroupUtil {
+    public static List<Message<?>> getLastKMessages(MessageGroup messageGroup, int k) {
+        List<Message<?>> messages = messageGroup.getMessages()
+                                                .stream()
+                                                .collect(Collectors.toList());
+        int size = messages.size();
+        return messages.stream()
+                       .skip(Math.max(0, size - k))
+                       .collect(Collectors.toList());
+    }
+}
+
+last k in order
+---------------
+import org.springframework.integration.store.MessageGroup;
+import org.springframework.messaging.Message;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+public class MessageGroupUtil {
+    public static List<Message<?>> getLastKMessages(MessageGroup messageGroup, int k) {
+        // sort msgs by seq num
+        List<Message<?>> messages = messageGroup.getMessages()
+                .stream()
+                .sorted((m1, m2) -> {
+                    Integer seq1 = (Integer) m1.getHeaders().get("sequenceNumber");
+                    Integer seq2 = (Integer) m2.getHeaders().get("sequenceNumber");
+                    return Integer.compare(seq1, seq2);
+                })
+                .collect(Collectors.toList());
+
+        int size = messages.size();
+        return messages.stream()
+                .skip(Math.max(0, size - k)) // get last k
+                .collect(Collectors.toList());
+    }
+}
