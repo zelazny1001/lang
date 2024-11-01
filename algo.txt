@@ -25,7 +25,7 @@ public class G711Codec {
     }
 
     public static float toNormalizedPCM(byte b) {
-        return muLawDecode(b) / 32768.0f;
+        return muLawDecodeMap.get(b) / 32768.0f;
     }
 
     public static float[] g711ByteArrayToNormalizedPCM(byte[] g711Data) {
@@ -39,22 +39,9 @@ public class G711Codec {
     public static float[] muLawToFloat(byte[] muLawData) {
         float[] pcmData = new float[muLawData.length];
         for (int i = 0; i < muLawData.length; i++) {
-            pcmData[i] = muLawDecode(muLawData[i]) / 32768.0f;
+            pcmData[i] = decodeAlgorithm(muLawData[i]) / 32768.0f;
         }
         return pcmData;
-    }
-
-    private static int muLawDecode(byte muLawByte) {
-        muLawByte = (byte) ~muLawByte;
-
-        int sign = muLawByte & 0x80;
-        int exponent = (muLawByte & 0x70) >> 4;
-        int mantissa = muLawByte & 0x0F;
-        int sample = ((mantissa << 3) + BIAS) << (exponent + 2);
-        if (sign != 0) {
-            sample = -sample;
-        }
-        return sample;
     }
 
     private static int decodeAlgorithm(byte g711Byte) { // decode 8-bit G711 mulaw byte into a 16-bit signed PCM value
@@ -110,157 +97,11 @@ public class G711Codec {
             return new byte[0];
         }
     }
-}
-
-=======================
-
-package analyzer;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-
-public class VADAnalyzer {
-    private static final Map<String, byte[]> fileDataMap = new HashMap<>();
-    private static byte[] activeFileData;
-    private static String activeFileName;
 
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("VADAnalyzer started. Enter commands:");
-        String input;
-        while (true) {
-            input = scanner.nextLine();
-            if (input.trim().isEmpty()) continue;
-            String[] commands = input.split("\\s+");
-            String command = commands[0].toLowerCase();
-            switch (command) {
-                case "quit":
-                case "exit":
-                case "q":
-                    System.out.println("Exiting VADAnalyzer.");
-                    scanner.close();
-                    return;
-                case "load":
-                    if (commands.length > 1) {
-                        load(commands[1]);
-                    } else {
-                        System.out.println("Error: 'load' command requires the name of the G711 raw file to be loaded.");
-                    }
-                    break;
-                case "play":
-                    if (commands.length > 2) {
-                        play(Integer.parseInt(commands[1]), Integer.parseInt(commands[2]));
-                    } else {
-                        System.out.println("Error: 'play' command requires the start and end integer indices.");
-                    }
-                    break;
-                case "append":
-                    if (commands.length > 2) {
-                        append(Integer.parseInt(commands[1]), Integer.parseInt(commands[2]));
-                    } else {
-                        System.out.println("Error: 'append' command requires the start and end integer indices.");
-                    }
-                    break;
-                default:
-                    System.out.println("Invalid command. Try again.");
-            }
-        }
-    }
-
-    private static void load(String fileName) {
-        File directory = new File("/path/to/search/directory");
-        File[] files = directory.listFiles();
-        List<File> matchedFiles = new ArrayList<>();
-        if (files != null) {
-            for (File file : files) {
-                if (file.getName().contains(fileName)) {
-                    matchedFiles.add(file);
-                }
-            }
-        }
-        if (matchedFiles.isEmpty()) {
-            System.out.println("No file matches found. Please enter the full path to the file.");
-        } else if (matchedFiles.size() == 1) {
-            loadFileIntoMemory(matchedFiles.get(0));
-        } else {
-            System.out.println("Multiple files match the description:");
-            for (int i = 0; i < matchedFiles.size(); i++) {
-                System.out.println((i + 1) + ": " + matchedFiles.get(i).getName());
-            }
-            System.out.println("Enter the number of the file you want to load:");
-            Scanner scanner = new Scanner(System.in);
-            int choice = scanner.nextInt();
-            loadFileIntoMemory(matchedFiles.get(choice - 1));
-        }
-    }
-
-    private static void loadFileIntoMemory(File file) {
-        try {
-            InputStream inputStream = new FileInputStream(file);
-            byte[] data = G711Codec.readAllBytes(inputStream);
-            String fileName = file.getName();
-            fileDataMap.put(fileName, data);
-            activeFileData = data;
-            activeFileName = fileName;
-            System.out.println("Loaded file: " + fileName);
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found: " + file.getPath());
-        } catch (IOException e) {
-            System.out.println("Error reading file: " + file.getPath());
-        }
-    }
-
-    private static void play(int start, int end) {
-        if (activeFileData == null) {
-            System.out.println("No file loaded.");
-            return;
-        }
-        try {
-            byte[] slice = Arrays.copyOfRange(activeFileData, start, end + 1);
-            AudioInputStream audioStream = G711Codec.convertG711ToAudioStream(slice);
-            Clip clip = AudioSystem.getClip();
-            clip.open(audioStream);
-            clip.start();
-            while (!clip.isRunning())
-                Thread.sleep(10);
-            while (clip.isRunning())
-                Thread.sleep(10);
-            clip.close();
-        } catch (Exception e) {
-            System.out.println("Error playing audio: " + e.getMessage());
-        }
-    }
-
-    private static void append(int start, int end) {
-        if (activeFileData == null) {
-            System.out.println("No file loaded.");
-            return;
-        }
-        try {
-            File output = new File("/tmp/VAD-Analysis.txt");
-            try (PrintWriter writer = new PrintWriter(new FileOutputStream(output, true))) {
-                for (int i = start; i <= end; i++) {
-                    float normalized = G711Codec.toNormalizedPCM(activeFileData[i]);
-                    writer.println(activeFileName + "," + i + "," + normalized);
-                }
-            }
-            System.out.println("Data appended to /tmp/VAD-Analysis.txt");
-        } catch (IOException e) {
-            System.out.println("Error writing to file: " + e.getMessage());
+        for (int i=0; i<=255; i++) {
+            byte b = (byte) i;
+            System.out.println(String.format("byte: %d, pcm: %d, normalized: %f", b, muLawDecodeMap.get(b), toNormalizedPCM(b)));
         }
     }
 }
