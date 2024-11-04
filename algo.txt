@@ -40,26 +40,32 @@ public class RulesEngineAnalysisFormatter {
                 // Skip blank lines
                 continue;
             } else if (line.startsWith("=")) {
-                // Start of a new section. Prepare for the next two batches.
+                // New section marker
+                System.out.println("New section marker detected.");
                 if (!batchLines.isEmpty()) {
+                    System.out.println("Processing batch before moving to new section. Enforced: " + currentEnforced);
                     processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                     batchLines.clear();
                 }
-                // Prepare for new section: filename and two batches
+                // Reset for new section, but keep the currentFilename for upcoming lines
                 currentFilename = null;
                 currentEnforced = null;
             } else if (line.startsWith("/")) {
                 // Set the filename for the current section
                 currentFilename = line;
+                System.out.println("Filename set for current section: " + currentFilename);
             } else if (line.equals("with rules / no enforcement")) {
                 // Set enforcement to false for the upcoming batch
                 currentEnforced = false;
+                System.out.println("Enforcement set to FALSE for the upcoming batch.");
             } else if (line.equals("with rules / with enforcement")) {
                 // Set enforcement to true for the upcoming batch
                 currentEnforced = true;
+                System.out.println("Enforcement set to TRUE for the upcoming batch.");
             } else if (line.startsWith("-")) {
-                // Batch separator: Process the existing batch
+                // Batch separator: Process the existing batch and then clear it
                 if (!batchLines.isEmpty()) {
+                    System.out.println("Processing batch. Current enforcement: " + currentEnforced);
                     processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                     batchLines.clear();
                 }
@@ -71,6 +77,7 @@ public class RulesEngineAnalysisFormatter {
 
         // Process any remaining batch at the end of the file
         if (!batchLines.isEmpty()) {
+            System.out.println("Processing final batch. Current enforcement: " + currentEnforced);
             processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
         }
 
@@ -81,6 +88,8 @@ public class RulesEngineAnalysisFormatter {
         if (currentEnforced == null || filePath == null) {
             throw new IllegalArgumentException("Filename and enforcement value must be set before processing a batch");
         }
+
+        System.out.println("Processing batch with filename: " + filePath + " and enforcement: " + currentEnforced);
 
         for (String batchLine : batchLines) {
             String[] parts = batchLine.split(",");
