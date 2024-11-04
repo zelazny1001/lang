@@ -37,13 +37,12 @@ public class RulesEngineAnalysisFormatter {
 
         for (String line : inputLines) {
             if (line.startsWith("=")) {
-                // Handle new section with two batches (no enforcement and enforcement)
+                // Handle new section and process any existing batch
                 if (!batchLines.isEmpty()) {
                     processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                 }
                 batchLines.clear();
                 currentFilename = null;
-                currentEnforced = null;
             } else if (line.startsWith("/")) {
                 currentFilename = line;
             } else if (line.equals("with rules / no enforcement")) {
@@ -55,6 +54,7 @@ public class RulesEngineAnalysisFormatter {
             }
         }
 
+        // Process any remaining batch
         if (!batchLines.isEmpty()) {
             processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
         }
@@ -62,7 +62,7 @@ public class RulesEngineAnalysisFormatter {
         return outputLines;
     }
 
-    private static void processBatch(List<String> batchLines, Path filePath, Boolean enforced, List<String> outputLines) throws IOException {
+    private static void processBatch(List<String> batchLines, Path filePath, Boolean currentEnforced, List<String> outputLines) throws IOException {
         for (String batchLine : batchLines) {
             String[] parts = batchLine.split(",");
             int start = extractInteger(parts[0], "Sequence Number Range: ", "-");
@@ -78,7 +78,7 @@ public class RulesEngineAnalysisFormatter {
 
             String outputLine = String.join(" | ",
                     filePath.getFileName().toString().replaceFirst("\\.raw", ""),
-                    enforced.toString(),
+                    currentEnforced != null ? currentEnforced.toString() : "false",
                     String.valueOf(seqNum),
                     String.valueOf(start),
                     String.valueOf(end),
