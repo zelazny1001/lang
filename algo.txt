@@ -37,11 +37,7 @@ public class RulesEngineAnalysisFormatter {
 
         for (String line : inputLines) {
             if (line.startsWith("=")) {
-                // Handle new section marker and process any existing batch
-                if (!batchLines.isEmpty()) {
-                    processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
-                }
-                batchLines.clear();
+                // Handle new section marker
                 currentFilename = null;
             } else if (line.startsWith("/")) {
                 currentFilename = line;
