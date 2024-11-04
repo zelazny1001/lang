@@ -36,7 +36,10 @@ public class RulesEngineAnalysisFormatter {
         List<String> batchLines = new ArrayList<>();
 
         for (String line : inputLines) {
-            if (line.startsWith("=")) {
+            if (line.trim().isEmpty()) {
+                // Skip blank lines
+                continue;
+            } else if (line.startsWith("=")) {
                 // Handle new section marker
                 currentFilename = null;
             } else if (line.startsWith("/")) {
@@ -84,7 +87,7 @@ public class RulesEngineAnalysisFormatter {
 
             String outputLine = String.join(" | ",
                     filePath.getFileName().toString().replaceFirst("\\.raw", ""),
-                    currentEnforced.toString(),
+                    currentEnforced ? "true" : "false",
                     String.valueOf(seqNum),
                     String.valueOf(start),
                     String.valueOf(end),
