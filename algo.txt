@@ -37,52 +37,36 @@ public class RulesEngineAnalysisFormatter {
 
         for (String line : inputLines) {
             if (line.trim().isEmpty()) {
-                // Skip blank lines
                 continue;
             } else if (line.startsWith("=")) {
-                // New section marker
-                System.out.println("New section marker detected.");
                 if (!batchLines.isEmpty()) {
-                    System.out.println("Processing batch before moving to new section. Enforced: " + currentEnforced);
                     processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                     batchLines.clear();
                 }
                 currentFilename = null;
                 currentEnforced = null;
             } else if (line.startsWith("/")) {
-                // Set the filename for the current section
                 currentFilename = line;
-                System.out.println("Filename set for current section: " + currentFilename);
             } else if (line.equals("with rules / no enforcement")) {
-                // Set enforcement to false, and prepare to collect data for this batch
                 if (!batchLines.isEmpty()) {
                     processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                     batchLines.clear();
                 }
                 currentEnforced = false;
-                System.out.println("Enforcement set to FALSE for the upcoming batch.");
             } else if (line.equals("with rules / with enforcement")) {
-                // Set enforcement to true, and prepare to collect data for this batch
                 if (!batchLines.isEmpty()) {
                     processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                     batchLines.clear();
                 }
                 currentEnforced = true;
-                System.out.println("Enforcement set to TRUE for the upcoming batch.");
             } else if (line.startsWith("-")) {
-                // Batch separator: Begin collecting sequence data for the batch
-                // No need to process anything yet, as the "-" marks start of data for current enforcement
-                System.out.println("Batch marker '-' detected. Preparing to collect sequence data for enforcement: " + currentEnforced);
+                continue;
             } else if (line.contains("Sequence Number Range:")) {
-                // Add lines containing sequence information to the current batch
                 batchLines.add(line);
-                System.out.println("Adding line to batch: " + line);
             }
         }
 
-        // Process any remaining batch at the end of the file
         if (!batchLines.isEmpty()) {
-            System.out.println("Processing final batch. Current enforcement: " + currentEnforced);
             processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
         }
 
@@ -93,8 +77,6 @@ public class RulesEngineAnalysisFormatter {
         if (currentEnforced == null || filePath == null) {
             throw new IllegalArgumentException("Filename and enforcement value must be set before processing a batch");
         }
-
-        System.out.println("Processing batch with filename: " + filePath + " and enforcement: " + currentEnforced);
 
         for (String batchLine : batchLines) {
             String[] parts = batchLine.split(",");
