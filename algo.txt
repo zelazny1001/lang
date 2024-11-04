@@ -81,11 +81,22 @@ public class RulesEngineAnalysisFormatter {
         byte[] fileBytes = G711Codec.readAllBytes(new FileInputStream(filePath.toFile()));
 
         for (String batchLine : batchLines) {
-            String[] parts = batchLine.split(",");
-            int start = extractInteger(parts[0], "Sequence Number Range: ", "-") - 1;
-            int end = extractInteger(parts[0], "-", null) - 1;
-            int seqNum = extractInteger(parts[1], "New Sequence Number: ", null);
-            String transcript = extractText(parts[2], "Transcription: ");
+            int startIndex = batchLine.indexOf("Sequence Number Range: ") + "Sequence Number Range: ".length();
+        int endIndex = batchLine.indexOf("-", startIndex);
+        int seqNumIndex = batchLine.indexOf("New Sequence Number: ");
+        int transcriptIndex = batchLine.indexOf("Transcription: ");
+
+        String rangePart = batchLine.substring(startIndex, endIndex).trim();
+        String seqNumPart = batchLine.substring(seqNumIndex, batchLine.indexOf(",", seqNumIndex)).trim();
+        String transcript = batchLine.substring(transcriptIndex + "Transcription: ".length()).trim();
+
+        int start = Integer.parseInt(rangePart.split("-")[0].trim()) - 1;
+        int end = Integer.parseInt(rangePart.split("-")[1].trim()) - 1;
+        int seqNum = Integer.parseInt(seqNumPart.replace("New Sequence Number: ", "").trim());
+            // Start and end are calculated in the updated code above
+            // Start and end are calculated in the updated code above
+            // SeqNum is calculated in the updated code above
+            // Transcript is calculated in the updated code above
 
             int preZeros = countContiguousBytesBefore(fileBytes, start);
             int postZeros = countContiguousBytesAfter(fileBytes, end);
