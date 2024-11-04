@@ -37,18 +37,25 @@ public class RulesEngineAnalysisFormatter {
 
         for (String line : inputLines) {
             if (line.startsWith("=")) {
-                // Handle new section and process any existing batch
+                // Handle new section marker and process any existing batch
                 if (!batchLines.isEmpty()) {
                     processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                 }
                 batchLines.clear();
                 currentFilename = null;
+                currentEnforced = null;
             } else if (line.startsWith("/")) {
                 currentFilename = line;
             } else if (line.equals("with rules / no enforcement")) {
                 currentEnforced = false;
             } else if (line.equals("with rules / with enforcement")) {
                 currentEnforced = true;
+            } else if (line.startsWith("-")) {
+                // Handle new batch marker and process any existing batch
+                if (!batchLines.isEmpty()) {
+                    processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
+                }
+                batchLines.clear();
             } else if (line.contains("Sequence Number Range:")) {
                 batchLines.add(line);
             }
