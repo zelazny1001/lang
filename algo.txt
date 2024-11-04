@@ -29,7 +29,7 @@ public class RulesEngineAnalysisFormatter {
 
     private static List<String> formatAnalysis(List<String> inputLines) throws IOException {
         List<String> outputLines = new ArrayList<>();
-        outputLines.add("filename | enforced | seqNum | start | end | transcript | preZeros | postZeros | length | hallucination");
+        outputLines.add("filename | enforced | seqNum | start | end | transcript | tokens | samples | samples.per.token");
 
         String currentFilename = null;
         Boolean currentEnforced = null;
@@ -78,8 +78,6 @@ public class RulesEngineAnalysisFormatter {
             throw new IllegalArgumentException("Filename and enforcement value must be set before processing a batch");
         }
 
-        byte[] fileBytes = G711Codec.readAllBytes(new FileInputStream(filePath.toFile()));
-
         for (String batchLine : batchLines) {
             int startIndex = batchLine.indexOf("Sequence Number Range: ") + "Sequence Number Range: ".length();
             int endIndex = batchLine.indexOf(",", startIndex);
@@ -90,14 +88,8 @@ public class RulesEngineAnalysisFormatter {
                 throw new IllegalArgumentException("Batch line is not formatted correctly: " + batchLine);
             }
 
-            if (endIndex == -1) {
-                throw new IllegalArgumentException("Sequence number range is not properly formatted: " + batchLine);
-            }
             String rangePart = batchLine.substring(startIndex, endIndex).trim();
             String[] rangeSplit = rangePart.split("-");
-            if (rangeSplit.length != 2) {
-                throw new IllegalArgumentException("Sequence number range is not formatted correctly: " + rangePart);
-            }
             if (rangeSplit.length != 2) {
                 throw new IllegalArgumentException("Sequence number range is not formatted correctly: " + rangePart);
             }
@@ -107,10 +99,9 @@ public class RulesEngineAnalysisFormatter {
             int seqNum = Integer.parseInt(batchLine.substring(seqNumIndex + "New Sequence Number: ".length(), batchLine.indexOf(",", seqNumIndex)).trim());
             String transcript = batchLine.substring(transcriptIndex + "Transcription: ".length()).trim();
 
-            int preZeros = countContiguousBytesBefore(fileBytes, start);
-            int postZeros = countContiguousBytesAfter(fileBytes, end);
-            int length = countSignificantBytes(fileBytes, start, end);
-            boolean hallucination = (preZeros <= 2 && postZeros <= 2);
+            int tokens = countTokens(transcript);
+            int samples = end - start;
+            double samplesPerToken = tokens > 0 ? (double) samples / tokens : 0;
 
             String outputLine = String.join(" | ",
                     filePath.getFileName().toString().replaceFirst("\\.raw", ""),
@@ -119,56 +110,16 @@ public class RulesEngineAnalysisFormatter {
                     String.valueOf(start + 1),
                     String.valueOf(end + 1),
                     transcript,
-                    String.valueOf(preZeros),
-                    String.valueOf(postZeros),
-                    String.valueOf(length),
-                    String.valueOf(hallucination)
+                    String.valueOf(tokens),
+                    String.valueOf(samples),
+                    String.format("%.2f", samplesPerToken)
             );
             outputLines.add(outputLine);
         }
     }
 
-    private static int extractInteger(String text, String startDelimiter, String endDelimiter) {
-        int startIndex = text.indexOf(startDelimiter) + startDelimiter.length();
-        int endIndex = (endDelimiter != null) ? text.indexOf(endDelimiter, startIndex) : text.length();
-        return Integer.parseInt(text.substring(startIndex, endIndex).trim());
-    }
-
-    private static String extractText(String text, String delimiter) {
-        return text.substring(text.indexOf(delimiter) + delimiter.length()).trim();
-    }
-
-    private static int countContiguousBytesBefore(byte[] bytes, int position) {
-        int count = 0;
-        for (int i = position - 1; i >= 0; i--) {
-            if (bytes[i] == -1 || bytes[i] == 127) {
-                count++;
-            } else {
-                break;
-            }
-        }
-        return count;
-    }
-
-    private static int countContiguousBytesAfter(byte[] bytes, int position) {
-        int count = 0;
-        for (int i = position + 1; i < bytes.length; i++) {
-            if (bytes[i] == -1 || bytes[i] == 127) {
-                count++;
-            } else {
-                break;
-            }
-        }
-        return count;
-    }
-
-    private static int countSignificantBytes(byte[] bytes, int start, int end) {
-        int count = 0;
-        for (int i = start; i <= end; i++) {
-            if (bytes[i] != -1 && bytes[i] != 127) {
-                count++;
-            }
-        }
-        return count;
+    private static int countTokens(String transcript) {
+        String[] tokens = transcript.split("[\\s-]+");
+        return tokens.length;
     }
 }
