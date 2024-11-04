@@ -11,17 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class RulesEngineAnalysisFormatter {
-    public static void main(String[] args) throws IOException {
-        String inputFilename = "/tmp/rules-engine-analysis.txt";
-        Path inputPath = Paths.get(inputFilename);
-        String outputFilename = createOutputFilename(inputPath);
-
-        List<String> inputLines = Files.readAllLines(inputPath);
-        List<String> outputLines = formatAnalysis(inputLines);
-
-        Files.write(Paths.get(outputFilename), outputLines, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-    }
-
     private static String createOutputFilename(Path inputPath) {
         String directory = inputPath.getParent().toString();
         return directory + File.separator + "formatted-analysis.txt";
@@ -123,6 +112,9 @@ public class RulesEngineAnalysisFormatter {
         int tokenCount = 0;
 
         for (String token : tokens) {
+            if (!token.matches("[a-zA-Z0-9!@#$%&\";]+")) {
+                return 0;
+            }
             if (token.matches("\\$\\d+\\.?")) {
                 tokenCount += token.replaceAll("[^\\d]", "").length() + 1;
             } else if (token.matches("\\d{3,}\\.?")) {
@@ -133,7 +125,19 @@ public class RulesEngineAnalysisFormatter {
                 tokenCount += 1;
             }
         }
+
         return tokenCount;
+    }
+
+    public static void main(String[] args) throws IOException {
+        String inputFilename = "/tmp/rules-engine-analysis.txt";
+        Path inputPath = Paths.get(inputFilename);
+        String outputFilename = createOutputFilename(inputPath);
+
+        List<String> inputLines = Files.readAllLines(inputPath);
+        List<String> outputLines = formatAnalysis(inputLines);
+
+        Files.write(Paths.get(outputFilename), outputLines, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
     public static void main2(String[] args) {
