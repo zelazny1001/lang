@@ -40,13 +40,10 @@ public class RulesEngineAnalysisFormatter {
                 // Skip blank lines
                 continue;
             } else if (line.startsWith("=")) {
-                // Handle new section marker but do not reset the filename
-                // New section marker indicates two batches will follow but filename should not be reset
-                if (!batchLines.isEmpty()) {
-                    processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
-                }
-                batchLines.clear();
+                // Handle new section marker: just prepare for the new section
+                batchLines.clear(); // Ensure no leftover data from the previous section
             } else if (line.startsWith("/")) {
+                // Set the filename for the current section
                 currentFilename = line;
             } else if (line.equals("with rules / no enforcement")) {
                 currentEnforced = false;
@@ -56,8 +53,8 @@ public class RulesEngineAnalysisFormatter {
                 // Handle new batch marker and process any existing batch
                 if (!batchLines.isEmpty()) {
                     processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
+                    batchLines.clear();
                 }
-                batchLines.clear();
             } else if (line.contains("Sequence Number Range:")) {
                 batchLines.add(line);
             }
@@ -72,8 +69,8 @@ public class RulesEngineAnalysisFormatter {
     }
 
     private static void processBatch(List<String> batchLines, Path filePath, Boolean currentEnforced, List<String> outputLines) throws IOException {
-        if (currentEnforced == null) {
-            throw new IllegalArgumentException("Enforcement value must be set before processing a batch");
+        if (currentEnforced == null || filePath == null) {
+            throw new IllegalArgumentException("Filename and enforcement value must be set before processing a batch");
         }
 
         for (String batchLine : batchLines) {
