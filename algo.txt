@@ -1,3 +1,5 @@
+package analyzer;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -10,7 +12,7 @@ import java.util.List;
 
 public class RulesEngineAnalysisFormatter {
     public static void main(String[] args) throws IOException {
-        String inputFilename = "rules-engine-analysis.txt";
+        String inputFilename = "/tmp/rules-engine-analysis.txt";
         Path inputPath = Paths.get(inputFilename);
         String outputFilename = createOutputFilename(inputPath);
 
@@ -48,11 +50,6 @@ public class RulesEngineAnalysisFormatter {
                 currentEnforced = false;
             } else if (line.equals("with rules / with enforcement")) {
                 currentEnforced = true;
-            } else if (line.startsWith("-")) {
-                if (!batchLines.isEmpty()) {
-                    processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
-                    batchLines.clear();
-                }
             } else if (line.contains("Sequence Number Range:")) {
                 batchLines.add(line);
             }
@@ -63,13 +60,6 @@ public class RulesEngineAnalysisFormatter {
         }
 
         return outputLines;
-    }
-
-    private static String extractFilename(String pathLine) {
-        Path path = Paths.get(pathLine);
-        String filenameWithExtension = path.getFileName().toString();
-        int extensionIndex = filenameWithExtension.lastIndexOf('.');
-        return extensionIndex > 0 ? filenameWithExtension.substring(0, extensionIndex) : filenameWithExtension;
     }
 
     private static void processBatch(List<String> batchLines, Path filePath, Boolean enforced, List<String> outputLines) throws IOException {
