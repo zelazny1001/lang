@@ -40,8 +40,12 @@ public class RulesEngineAnalysisFormatter {
                 // Skip blank lines
                 continue;
             } else if (line.startsWith("=")) {
-                // Handle new section marker
-                currentFilename = null;
+                // Handle new section marker but do not reset the filename
+                // New section marker indicates two batches will follow but filename should not be reset
+                if (!batchLines.isEmpty()) {
+                    processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
+                }
+                batchLines.clear();
             } else if (line.startsWith("/")) {
                 currentFilename = line;
             } else if (line.equals("with rules / no enforcement")) {
