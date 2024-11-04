@@ -1,0 +1,150 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class RulesEngineAnalysisFormatter {
+    public static void main(String[] args) throws IOException {
+        String inputFilename = "rules-engine-analysis.txt";
+        Path inputPath = Paths.get(inputFilename);
+        String outputFilename = createOutputFilename(inputPath);
+
+        List<String> inputLines = Files.readAllLines(inputPath);
+        List<String> outputLines = formatAnalysis(inputLines);
+
+        Files.write(Paths.get(outputFilename), outputLines, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    private static String createOutputFilename(Path inputPath) {
+        String directory = inputPath.getParent().toString();
+        return directory + File.separator + "formatted-analysis.txt";
+    }
+
+    private static List<String> formatAnalysis(List<String> inputLines) throws IOException {
+        List<String> outputLines = new ArrayList<>();
+        outputLines.add("filename | enforced | seqNum | start | end | transcript | preZeros | postZeros | length | hallucination");
+
+        String currentFilename = null;
+        Boolean currentEnforced = null;
+        List<String> batchLines = new ArrayList<>();
+
+        for (String line : inputLines) {
+            if (line.startsWith("=")) {
+                // Handle new section with two batches (no enforcement and enforcement)
+                if (!batchLines.isEmpty()) {
+                    processBatch(batchLines, currentFilename, currentEnforced, outputLines);
+                }
+                batchLines.clear();
+                currentFilename = null;
+                currentEnforced = null;
+            } else if (line.startsWith("/")) {
+                currentFilename = extractFilename(line);
+            } else if (line.equals("with rules / no enforcement")) {
+                currentEnforced = false;
+            } else if (line.equals("with rules / with enforcement")) {
+                currentEnforced = true;
+            } else if (line.startsWith("-")) {
+                if (!batchLines.isEmpty()) {
+                    processBatch(batchLines, currentFilename, currentEnforced, outputLines);
+                    batchLines.clear();
+                }
+            } else if (line.contains("Sequence Number Range:")) {
+                batchLines.add(line);
+            }
+        }
+
+        if (!batchLines.isEmpty()) {
+            processBatch(batchLines, currentFilename, currentEnforced, outputLines);
+        }
+
+        return outputLines;
+    }
+
+    private static String extractFilename(String pathLine) {
+        Path path = Paths.get(pathLine);
+        String filenameWithExtension = path.getFileName().toString();
+        int extensionIndex = filenameWithExtension.lastIndexOf('.');
+        return extensionIndex > 0 ? filenameWithExtension.substring(0, extensionIndex) : filenameWithExtension;
+    }
+
+    private static void processBatch(List<String> batchLines, String filename, Boolean enforced, List<String> outputLines) throws IOException {
+        for (String batchLine : batchLines) {
+            String[] parts = batchLine.split(",");
+            int start = extractInteger(parts[0], "Sequence Number Range: ", "-");
+            int end = extractInteger(parts[0], "-", null);
+            int seqNum = extractInteger(parts[1], "New Sequence Number: ", null);
+            String transcript = extractText(parts[2], "Transcription: ");
+
+            byte[] fileBytes = G711Codec.readAllBytes(new FileInputStream(new File(filename + ".raw")));
+            int preZeros = countContiguousBytesBefore(fileBytes, start);
+            int postZeros = countContiguousBytesAfter(fileBytes, end);
+            int length = countSignificantBytes(fileBytes, start, end);
+            boolean hallucination = (preZeros <= 2 && postZeros <= 2);
+
+            String outputLine = String.join(" | ",
+                    filename,
+                    enforced.toString(),
+                    String.valueOf(seqNum),
+                    String.valueOf(start),
+                    String.valueOf(end),
+                    transcript,
+                    String.valueOf(preZeros),
+                    String.valueOf(postZeros),
+                    String.valueOf(length),
+                    String.valueOf(hallucination)
+            );
+            outputLines.add(outputLine);
+        }
+    }
+
+    private static int extractInteger(String text, String startDelimiter, String endDelimiter) {
+        int startIndex = text.indexOf(startDelimiter) + startDelimiter.length();
+        int endIndex = (endDelimiter != null) ? text.indexOf(endDelimiter, startIndex) : text.length();
+        return Integer.parseInt(text.substring(startIndex, endIndex).trim());
+    }
+
+    private static String extractText(String text, String delimiter) {
+        return text.substring(text.indexOf(delimiter) + delimiter.length()).trim();
+    }
+
+    private static int countContiguousBytesBefore(byte[] bytes, int position) {
+        int count = 0;
+        for (int i = position - 1; i >= 0; i--) {
+            if (bytes[i] == -1 || bytes[i] == 127) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        return count;
+    }
+
+    private static int countContiguousBytesAfter(byte[] bytes, int position) {
+        int count = 0;
+        for (int i = position + 1; i < bytes.length; i++) {
+            if (bytes[i] == -1 || bytes[i] == 127) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        return count;
+    }
+
+    private static int countSignificantBytes(byte[] bytes, int start, int end) {
+        int count = 0;
+        for (int i = start; i <= end; i++) {
+            if (bytes[i] != -1 && bytes[i] != 127) {
+                count++;
+            }
+        }
+        return count;
+    }
+}
