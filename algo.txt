@@ -120,6 +120,17 @@ public class RulesEngineAnalysisFormatter {
 
     private static int countTokens(String transcript) {
         String[] tokens = transcript.split("[\\s-]+");
-        return tokens.length;
+        int tokenCount = 0;
+
+        for (String token : tokens) {
+            if (token.matches("\\$\\d+")) {
+                tokenCount += token.length() - 1;
+            } else if (token.matches("\\d{3,}")) {
+                tokenCount += token.length();
+            } else {
+                tokenCount += 1;
+            }
+        }
+        return tokenCount;
     }
 }
