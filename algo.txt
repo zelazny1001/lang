@@ -43,7 +43,6 @@ public class RulesEngineAnalysisFormatter {
                 }
                 batchLines.clear();
                 currentFilename = null;
-                currentEnforced = null;
             } else if (line.startsWith("/")) {
                 currentFilename = line;
             } else if (line.equals("with rules / no enforcement")) {
@@ -70,6 +69,10 @@ public class RulesEngineAnalysisFormatter {
     }
 
     private static void processBatch(List<String> batchLines, Path filePath, Boolean currentEnforced, List<String> outputLines) throws IOException {
+        if (currentEnforced == null) {
+            throw new IllegalArgumentException("Enforcement value must be set before processing a batch");
+        }
+
         for (String batchLine : batchLines) {
             String[] parts = batchLine.split(",");
             int start = extractInteger(parts[0], "Sequence Number Range: ", "-");
@@ -85,7 +88,7 @@ public class RulesEngineAnalysisFormatter {
 
             String outputLine = String.join(" | ",
                     filePath.getFileName().toString().replaceFirst("\\.raw", ""),
-                    currentEnforced != null ? currentEnforced.toString() : "false",
+                    currentEnforced.toString(),
                     String.valueOf(seqNum),
                     String.valueOf(start),
                     String.valueOf(end),
