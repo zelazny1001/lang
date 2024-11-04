@@ -78,6 +78,8 @@ public class RulesEngineAnalysisFormatter {
             throw new IllegalArgumentException("Filename and enforcement value must be set before processing a batch");
         }
 
+        byte[] fileBytes = G711Codec.readAllBytes(new FileInputStream(filePath.toFile()));
+
         for (String batchLine : batchLines) {
             String[] parts = batchLine.split(",");
             int start = extractInteger(parts[0], "Sequence Number Range: ", "-");
@@ -85,7 +87,6 @@ public class RulesEngineAnalysisFormatter {
             int seqNum = extractInteger(parts[1], "New Sequence Number: ", null);
             String transcript = extractText(parts[2], "Transcription: ");
 
-            byte[] fileBytes = G711Codec.readAllBytes(new FileInputStream(filePath.toFile()));
             int preZeros = countContiguousBytesBefore(fileBytes, start);
             int postZeros = countContiguousBytesAfter(fileBytes, end);
             int length = countSignificantBytes(fileBytes, start, end);
