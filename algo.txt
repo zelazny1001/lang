@@ -40,27 +40,36 @@ public class RulesEngineAnalysisFormatter {
                 // Skip blank lines
                 continue;
             } else if (line.startsWith("=")) {
-                // Handle new section marker: just prepare for the new section
-                batchLines.clear(); // Ensure no leftover data from the previous section
+                // Start of a new section. Prepare for the next two batches.
+                if (!batchLines.isEmpty()) {
+                    processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
+                    batchLines.clear();
+                }
+                // Prepare for new section: filename and two batches
+                currentFilename = null;
+                currentEnforced = null;
             } else if (line.startsWith("/")) {
                 // Set the filename for the current section
                 currentFilename = line;
             } else if (line.equals("with rules / no enforcement")) {
+                // Set enforcement to false for the upcoming batch
                 currentEnforced = false;
             } else if (line.equals("with rules / with enforcement")) {
+                // Set enforcement to true for the upcoming batch
                 currentEnforced = true;
             } else if (line.startsWith("-")) {
-                // Handle new batch marker and process any existing batch
+                // Batch separator: Process the existing batch
                 if (!batchLines.isEmpty()) {
                     processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                     batchLines.clear();
                 }
             } else if (line.contains("Sequence Number Range:")) {
+                // Add lines containing sequence information to the current batch
                 batchLines.add(line);
             }
         }
 
-        // Process any remaining batch
+        // Process any remaining batch at the end of the file
         if (!batchLines.isEmpty()) {
             processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
         }
