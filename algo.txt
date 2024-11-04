@@ -113,9 +113,9 @@ public class RulesEngineAnalysisFormatter {
 
         for (String token : tokens) {
             if (token.isEmpty()) {
-                continue;
+                continue; // Skip empty tokens resulting from multiple spaces or dashes
             }
-            if (!token.matches("[a-zA-Z0-9!@#$%&\";]+")) {
+            if (!token.matches("[a-zA-Z0-9!@#$%&\";\\. ]+")) {
                 return 0; // Invalid character found, set token count to zero
             }
             if (token.matches("\\$\\d+\\.?")) {
@@ -132,7 +132,7 @@ public class RulesEngineAnalysisFormatter {
         return tokenCount;
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main2(String[] args) throws IOException {
         String inputFilename = "/tmp/rules-engine-analysis.txt";
         Path inputPath = Paths.get(inputFilename);
         String outputFilename = createOutputFilename(inputPath);
@@ -143,8 +143,8 @@ public class RulesEngineAnalysisFormatter {
         Files.write(Paths.get(outputFilename), outputLines, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    public static void main2(String[] args) {
-        String t = " 407-927-8050";
+    public static void main(String[] args) {
+        String t = " Let me check this. ";
         int count = countTokens(t);
         System.out.println("count: " + count);
     }
