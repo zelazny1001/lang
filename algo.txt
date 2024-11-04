@@ -82,21 +82,24 @@ public class RulesEngineAnalysisFormatter {
 
         for (String batchLine : batchLines) {
             int startIndex = batchLine.indexOf("Sequence Number Range: ") + "Sequence Number Range: ".length();
-        int endIndex = batchLine.indexOf("-", startIndex);
-        int seqNumIndex = batchLine.indexOf("New Sequence Number: ");
-        int transcriptIndex = batchLine.indexOf("Transcription: ");
+            int endIndex = batchLine.indexOf("-", startIndex);
+            int seqNumIndex = batchLine.indexOf("New Sequence Number: ");
+            int transcriptIndex = batchLine.indexOf("Transcription: ");
 
-        String rangePart = batchLine.substring(startIndex, endIndex).trim();
-        String seqNumPart = batchLine.substring(seqNumIndex, batchLine.indexOf(",", seqNumIndex)).trim();
-        String transcript = batchLine.substring(transcriptIndex + "Transcription: ".length()).trim();
+            if (startIndex < 0 || endIndex < 0 || seqNumIndex < 0 || transcriptIndex < 0) {
+                throw new IllegalArgumentException("Batch line is not formatted correctly: " + batchLine);
+            }
 
-        int start = Integer.parseInt(rangePart.split("-")[0].trim()) - 1;
-        int end = Integer.parseInt(rangePart.split("-")[1].trim()) - 1;
-        int seqNum = Integer.parseInt(seqNumPart.replace("New Sequence Number: ", "").trim());
-            // Start and end are calculated in the updated code above
-            // Start and end are calculated in the updated code above
-            // SeqNum is calculated in the updated code above
-            // Transcript is calculated in the updated code above
+            String rangePart = batchLine.substring(startIndex, endIndex).trim();
+            String[] rangeSplit = rangePart.split("-");
+            if (rangeSplit.length != 2) {
+                throw new IllegalArgumentException("Sequence number range is not formatted correctly: " + rangePart);
+            }
+
+            int start = Integer.parseInt(rangeSplit[0].trim()) - 1;
+            int end = Integer.parseInt(rangeSplit[1].trim()) - 1;
+            int seqNum = Integer.parseInt(batchLine.substring(seqNumIndex + "New Sequence Number: ".length(), batchLine.indexOf(",", seqNumIndex)).trim());
+            String transcript = batchLine.substring(transcriptIndex + "Transcription: ".length()).trim();
 
             int preZeros = countContiguousBytesBefore(fileBytes, start);
             int postZeros = countContiguousBytesAfter(fileBytes, end);
