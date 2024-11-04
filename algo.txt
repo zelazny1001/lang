@@ -1,14 +1,12 @@
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class RulesEngineAnalysisFormatter {
     public static void main(String[] args) throws IOException {
@@ -39,20 +37,20 @@ public class RulesEngineAnalysisFormatter {
             if (line.startsWith("=")) {
                 // Handle new section with two batches (no enforcement and enforcement)
                 if (!batchLines.isEmpty()) {
-                    processBatch(batchLines, currentFilename, currentEnforced, outputLines);
+                    processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                 }
                 batchLines.clear();
                 currentFilename = null;
                 currentEnforced = null;
             } else if (line.startsWith("/")) {
-                currentFilename = extractFilename(line);
+                currentFilename = line;
             } else if (line.equals("with rules / no enforcement")) {
                 currentEnforced = false;
             } else if (line.equals("with rules / with enforcement")) {
                 currentEnforced = true;
             } else if (line.startsWith("-")) {
                 if (!batchLines.isEmpty()) {
-                    processBatch(batchLines, currentFilename, currentEnforced, outputLines);
+                    processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
                     batchLines.clear();
                 }
             } else if (line.contains("Sequence Number Range:")) {
@@ -61,7 +59,7 @@ public class RulesEngineAnalysisFormatter {
         }
 
         if (!batchLines.isEmpty()) {
-            processBatch(batchLines, currentFilename, currentEnforced, outputLines);
+            processBatch(batchLines, Paths.get(currentFilename), currentEnforced, outputLines);
         }
 
         return outputLines;
@@ -74,7 +72,7 @@ public class RulesEngineAnalysisFormatter {
         return extensionIndex > 0 ? filenameWithExtension.substring(0, extensionIndex) : filenameWithExtension;
     }
 
-    private static void processBatch(List<String> batchLines, String filename, Boolean enforced, List<String> outputLines) throws IOException {
+    private static void processBatch(List<String> batchLines, Path filePath, Boolean enforced, List<String> outputLines) throws IOException {
         for (String batchLine : batchLines) {
             String[] parts = batchLine.split(",");
             int start = extractInteger(parts[0], "Sequence Number Range: ", "-");
@@ -82,14 +80,14 @@ public class RulesEngineAnalysisFormatter {
             int seqNum = extractInteger(parts[1], "New Sequence Number: ", null);
             String transcript = extractText(parts[2], "Transcription: ");
 
-            byte[] fileBytes = G711Codec.readAllBytes(new FileInputStream(new File(filename + ".raw")));
+            byte[] fileBytes = G711Codec.readAllBytes(new FileInputStream(filePath.toFile()));
             int preZeros = countContiguousBytesBefore(fileBytes, start);
             int postZeros = countContiguousBytesAfter(fileBytes, end);
             int length = countSignificantBytes(fileBytes, start, end);
             boolean hallucination = (preZeros <= 2 && postZeros <= 2);
 
             String outputLine = String.join(" | ",
-                    filename,
+                    filePath.getFileName().toString().replaceFirst("\\.raw", ""),
                     enforced.toString(),
                     String.valueOf(seqNum),
                     String.valueOf(start),
