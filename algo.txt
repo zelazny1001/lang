@@ -82,8 +82,8 @@ public class RulesEngineAnalysisFormatter {
 
         for (String batchLine : batchLines) {
             String[] parts = batchLine.split(",");
-            int start = extractInteger(parts[0], "Sequence Number Range: ", "-");
-            int end = extractInteger(parts[0], "-", null);
+            int start = extractInteger(parts[0], "Sequence Number Range: ", "-") - 1;
+            int end = extractInteger(parts[0], "-", null) - 1;
             int seqNum = extractInteger(parts[1], "New Sequence Number: ", null);
             String transcript = extractText(parts[2], "Transcription: ");
 
