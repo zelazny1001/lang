@@ -123,14 +123,22 @@ public class RulesEngineAnalysisFormatter {
         int tokenCount = 0;
 
         for (String token : tokens) {
-            if (token.matches("\\$\\d+")) {
-                tokenCount += token.length() - 1;
-            } else if (token.matches("\\d{3,}")) {
-                tokenCount += token.length();
+            if (token.matches("\\$\\d+\\.?")) {
+                tokenCount += token.replaceAll("[^\\d]", "").length() + 1;
+            } else if (token.matches("\\d{3,}\\.?")) {
+                tokenCount += token.replaceAll("[^\\d]", "").length();
+            } else if (token.matches("\\d+\\.\\d+")) {
+                tokenCount += token.replaceAll("[^\\d]", "").length();
             } else {
                 tokenCount += 1;
             }
         }
         return tokenCount;
+    }
+
+    public static void main2(String[] args) {
+        String t = "407-927-8050";
+        int count = countTokens(t);
+        System.out.println("count: " + count);
     }
 }
