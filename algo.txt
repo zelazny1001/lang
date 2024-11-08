@@ -51,7 +51,11 @@ public class FFTAnalyzer {
                 System.arraycopy(allG711Bytes, startIdx, bytesBetweenStartAndEnd, 0, bytesBetweenStartAndEnd.length);
                 float[] floatsBetweenStartAndEnd = G711Codec.g711ByteArrayToNormalizedPCM(bytesBetweenStartAndEnd);
                 float[] fftResult = FFTProcessor.getFFT(floatsBetweenStartAndEnd);
-                writer.write(String.format("%s | %d | %d | %s%n", record.getFilename(), record.getStart(), record.getEnd(), record.getTranscript()));
+
+                writer.write(String.format("%s | %d | %d | [%.3f, %.3f] | %s%n", 
+                    record.getFilename(), record.getStart(), record.getEnd(), 
+                    record.getStart() / 50.0f, record.getEnd() / 50.0f, record.getTranscript()));
+                
                 for (float fftValue : fftResult) {
                     writer.write(fftValue + System.lineSeparator());
                 }
