@@ -11,38 +11,46 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import org.jtransforms.fft.FloatFFT_1D;
 
 public class FFTAnalyzer {
 
-    private final Map<String, float[]> audioCache = new HashMap<>();
+    private final Map<String, byte[]> g711Cache = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
+        String transcriptionWindowsInputFilename = "/tmp/formatted-analysis.txt";
+        String fftAnalysisOutputFilename = "/tmp/fft-analysis.txt";
+        String g711InputFileRootDirectory = "/asr-data/rod-calls/";
+        
         FFTAnalyzer analyzer = new FFTAnalyzer();
-        analyzer.processData();
+        analyzer.processData(transcriptionWindowsInputFilename, fftAnalysisOutputFilename, g711InputFileRootDirectory);
     }
 
-    public void processData() throws IOException {
-        List<TranscriptionWindow> records = readDataFromFile("/tmp/formatted-analysis.txt");
+    public void processData(String transcriptionWindowsInputFilename, String outputFilename, String g711InputFileRoot) throws IOException {
+        List<TranscriptionWindow> transcriptionWindowRecords = ingestTranscriptionWindowDataFromFile(transcriptionWindowsInputFilename);
+        writeFFTValuesToFile(outputFilename, g711InputFileRoot, transcriptionWindowRecords);
+    }
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("/tmp/fft-analysis.txt"))) {
-            for (TranscriptionWindow record : records) {
-                // Cache the data for each filename with ".raw" extension
-                String filePath = "/asr-data/rod-calls/" + record.getFilename() + ".raw";
-
-                float[] audioFloats = audioCache.computeIfAbsent(filePath, this::loadAndConvertAudioData);
-                if (audioFloats == null) {
-                    System.err.println("Failed to load audio data for file: " + filePath);
-                    continue; // Skip to the next record if file read failed
+    public void writeFFTValuesToFile(String outputFilename, String g711InputFileRoot, List<TranscriptionWindow> transcriptionWindowRecords) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename))) {
+            for (TranscriptionWindow record : transcriptionWindowRecords) {
+                String filePath = g711InputFileRoot + record.getFilename() + ".raw";
+                byte[] allG711Bytes = g711Cache.computeIfAbsent(filePath, this::readAllBytes);
+                if (allG711Bytes == null) {
+                    System.out.println("Failed to load G711 data for file: " + filePath);
+                    continue;
                 }
-
-                float[] fftResult = FFTProcessor.getFFT(audioFloats);
-
-                // Write record data (3a)
+                int startIdx = record.getStart() - 1;
+                int endIdx = record.getEnd() - 1;
+                if (startIdx < 0 || endIdx >= allG711Bytes.length || startIdx > endIdx) {
+                    System.out.println("Invalid start or end indices for file: " + filePath);
+                    continue;
+                }
+                byte[] bytesBetweenStartAndEnd = new byte[endIdx - startIdx + 1];
+                System.arraycopy(allG711Bytes, startIdx, bytesBetweenStartAndEnd, 0, bytesBetweenStartAndEnd.length);
+                float[] floatsBetweenStartAndEnd = G711Codec.g711ByteArrayToNormalizedPCM(bytesBetweenStartAndEnd);
+                float[] fftResult = FFTProcessor.getFFT(floatsBetweenStartAndEnd);
                 writer.write(String.format("%s | %d | %d | %s%n", record.getFilename(), record.getStart(), record.getEnd(), record.getTranscript()));
-
-                // Write FFT data (3b)
                 for (float fftValue : fftResult) {
                     writer.write(fftValue + System.lineSeparator());
                 }
@@ -50,90 +58,31 @@ public class FFTAnalyzer {
         }
     }
 
-    private float[] loadAndConvertAudioData(String filePath) {
+    private byte[] readAllBytes(String filePath) {
         try (InputStream inputStream = new FileInputStream(filePath)) {
-            byte[] audioBytes = G711Codec.readAllBytes(inputStream);
-            return G711Codec.g711ByteArrayToNormalizedPCM(audioBytes);
+            return G711Codec.readAllBytes(inputStream);
         } catch (IOException e) {
             e.printStackTrace();
-            return null; // Return null if there is an error reading the file
+            return null;
         }
     }
 
-    private List<TranscriptionWindow> readDataFromFile(String path) throws IOException {
+    private List<TranscriptionWindow> ingestTranscriptionWindowDataFromFile(String path) throws IOException {
         return Files.lines(Paths.get(path))
-                .skip(1) // Skip the header line
+                .skip(1)
                 .map(line -> {
                     String[] parts = line.split("\\|");
                     return new TranscriptionWindow(
-                            parts[0].trim(),
-                            Integer.parseInt(parts[1 + 1].trim()),       // seqNum
-                            Integer.parseInt(parts[2 + 1].trim()),       // start
-                            Integer.parseInt(parts[3 + 1].trim()),       // end
-                            parts[4 + 1].trim(),                         // transcript
-                            Integer.parseInt(parts[5 + 1].trim()),       // tokens
-                            Integer.parseInt(parts[6 + 1].trim()),       // samples
-                            Float.parseFloat(parts[7 + 1].trim())        // samplesPerToken (now Float)
+                            parts[0].trim(),                        // filename
+                            Integer.parseInt(parts[2].trim()),      // seqNum
+                            Integer.parseInt(parts[3].trim()),      // start
+                            Integer.parseInt(parts[4].trim()),      // end
+                            parts[5].trim(),                        // transcript
+                            Integer.parseInt(parts[6].trim()),      // tokens
+                            Integer.parseInt(parts[7].trim()),      // samples
+                            Float.parseFloat(parts[8].trim())       // samplesPerToken
                     );
                 })
                 .collect(Collectors.toList());
-    }
-}
-
-========================
-
-package analyzer;
-
-public class TranscriptionWindow {
-    private final String filename;
-    private final int seqNum;
-    private final int start;
-    private final int end;
-    private final String transcript;
-    private final int tokens;
-    private final int samples;
-    private final float samplesPerToken;  // Updated to float
-
-    public TranscriptionWindow(String filename, int seqNum, int start, int end, String transcript, int tokens, int samples, float samplesPerToken) {
-        this.filename = filename;
-        this.seqNum = seqNum;
-        this.start = start;
-        this.end = end;
-        this.transcript = transcript;
-        this.tokens = tokens;
-        this.samples = samples;
-        this.samplesPerToken = samplesPerToken;
-    }
-
-    public String getFilename() {
-        return filename;
-    }
-
-    public int getSeqNum() {
-        return seqNum;
-    }
-
-    public int getStart() {
-        return start;
-    }
-
-    public int getEnd() {
-        return end;
-    }
-
-    public String getTranscript() {
-        return transcript;
-    }
-
-    public int getTokens() {
-        return tokens;
-    }
-
-    public int getSamples() {
-        return samples;
-    }
-
-    public float getSamplesPerToken() {
-        return samplesPerToken;
     }
 }
