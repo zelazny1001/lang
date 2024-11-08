@@ -4,14 +4,19 @@ import java.io.BufferedWriter;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.jtransforms.fft.FloatFFT_1D;
 
 public class FFTAnalyzer {
+
+    private final Map<String, float[]> audioCache = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
         FFTAnalyzer analyzer = new FFTAnalyzer();
@@ -23,21 +28,35 @@ public class FFTAnalyzer {
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("/tmp/fft-analysis.txt"))) {
             for (TranscriptionWindow record : records) {
-                // Append ".raw" extension to find the input file
+                // Cache the data for each filename with ".raw" extension
                 String filePath = "/asr-data/rod-calls/" + record.getFilename() + ".raw";
-                
-                byte[] audioBytes = G711Codec.readAllBytes(new FileInputStream(filePath));
-                float[] audioFloats = G711Codec.g711ByteArrayToNormalizedPCM(audioBytes);
+
+                float[] audioFloats = audioCache.computeIfAbsent(filePath, this::loadAndConvertAudioData);
+                if (audioFloats == null) {
+                    System.err.println("Failed to load audio data for file: " + filePath);
+                    continue; // Skip to the next record if file read failed
+                }
+
                 float[] fftResult = FFTProcessor.getFFT(audioFloats);
 
                 // Write record data (3a)
                 writer.write(String.format("%s | %d | %d | %s%n", record.getFilename(), record.getStart(), record.getEnd(), record.getTranscript()));
-                
+
                 // Write FFT data (3b)
                 for (float fftValue : fftResult) {
                     writer.write(fftValue + System.lineSeparator());
                 }
             }
+        }
+    }
+
+    private float[] loadAndConvertAudioData(String filePath) {
+        try (InputStream inputStream = new FileInputStream(filePath)) {
+            byte[] audioBytes = G711Codec.readAllBytes(inputStream);
+            return G711Codec.g711ByteArrayToNormalizedPCM(audioBytes);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null; // Return null if there is an error reading the file
         }
     }
 
