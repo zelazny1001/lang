@@ -9,6 +9,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.jtransforms.fft.FloatFFT_1D;
+
 public class FFTAnalyzer {
 
     public static void main(String[] args) throws IOException {
@@ -22,15 +24,15 @@ public class FFTAnalyzer {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("/tmp/fft-analysis.txt"))) {
             for (TranscriptionWindow record : records) {
                 String filePath = "/asr-data/rod-calls/" + record.getFilename();
-
+                
                 byte[] audioBytes = G711Codec.readAllBytes(new FileInputStream(filePath));
                 float[] audioFloats = G711Codec.g711ByteArrayToNormalizedPCM(audioBytes);
                 float[] fftResult = FFTProcessor.getFFT(audioFloats);
 
-                // transcription window section
+                // Write record data (3a)
                 writer.write(String.format("%s | %d | %d | %s%n", record.getFilename(), record.getStart(), record.getEnd(), record.getTranscript()));
-
-                // Write FFT data values for window
+                
+                // Write FFT data (3b)
                 for (float fftValue : fftResult) {
                     writer.write(fftValue + System.lineSeparator());
                 }
@@ -40,77 +42,20 @@ public class FFTAnalyzer {
 
     private List<TranscriptionWindow> readDataFromFile(String path) throws IOException {
         return Files.lines(Paths.get(path))
+                .skip(1) // Skip the header line
                 .map(line -> {
                     String[] parts = line.split("\\|");
                     return new TranscriptionWindow(
                             parts[0].trim(),
-                            Integer.parseInt(parts[1].trim()),
-                            Integer.parseInt(parts[2].trim()),
-                            Integer.parseInt(parts[3].trim()),
-                            parts[4].trim(),
-                            Integer.parseInt(parts[5].trim()),
-                            Integer.parseInt(parts[6].trim()),
-                            Integer.parseInt(parts[7].trim())
+                            Integer.parseInt(parts[1 + 1].trim()),  // seqNum
+                            Integer.parseInt(parts[2 + 1].trim()),  // start
+                            Integer.parseInt(parts[3 + 1].trim()),  // end
+                            parts[4 + 1].trim(),                    // transcript
+                            Integer.parseInt(parts[5 + 1].trim()),  // tokens
+                            Integer.parseInt(parts[6 + 1].trim()),  // samples
+                            Integer.parseInt(parts[7 + 1].trim())   // samplesPerToken
                     );
                 })
                 .collect(Collectors.toList());
-    }
-}
-
-===========================
-
-package analyzer;
-
-public class TranscriptionWindow {
-    private final String filename;
-    private final int seqNum;
-    private final int start;
-    private final int end;
-    private final String transcript;
-    private final int tokens;
-    private final int samples;
-    private final int samplesPerToken;
-
-    public TranscriptionWindow(String filename, int seqNum, int start, int end, String transcript, int tokens, int samples, int samplesPerToken) {
-        this.filename = filename;
-        this.seqNum = seqNum;
-        this.start = start;
-        this.end = end;
-        this.transcript = transcript;
-        this.tokens = tokens;
-        this.samples = samples;
-        this.samplesPerToken = samplesPerToken;
-    }
-
-    public String getFilename() {
-        return filename;
-    }
-
-    public int getSeqNum() {
-        return seqNum;
-    }
-
-    public int getStart() {
-        return start;
-    }
-
-    public int getEnd() {
-        return end;
-    }
-
-    public String getTranscript() {
-        return transcript;
-    }
-
-    public int getTokens() {
-        return tokens;
-    }
-
-    public int getSamples() {
-        return samples;
-    }
-
-    public int getSamplesPerToken() {
-        return samplesPerToken;
     }
 }
