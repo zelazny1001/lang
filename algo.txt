@@ -21,7 +21,6 @@ public class FFTAnalyzer {
         String transcriptionWindowsInputFilename = "/tmp/formatted-analysis.txt";
         String fftAnalysisOutputFilename = "/tmp/fft-analysis.txt";
         String g711InputFileRootDirectory = "/asr-data/rod-calls/";
-        
         FFTAnalyzer analyzer = new FFTAnalyzer();
         analyzer.processData(transcriptionWindowsInputFilename, fftAnalysisOutputFilename, g711InputFileRootDirectory);
     }
@@ -32,8 +31,10 @@ public class FFTAnalyzer {
     }
 
     public void writeFFTValuesToFile(String outputFilename, String g711InputFileRoot, List<TranscriptionWindow> transcriptionWindowRecords) throws IOException {
+        int totalRecords = transcriptionWindowRecords.size();
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename))) {
-            for (TranscriptionWindow record : transcriptionWindowRecords) {
+            for (int i = 0; i < totalRecords; i++) {
+                TranscriptionWindow record = transcriptionWindowRecords.get(i);
                 String filePath = g711InputFileRoot + record.getFilename() + ".raw";
                 byte[] allG711Bytes = g711Cache.computeIfAbsent(filePath, this::readAllBytes);
                 if (allG711Bytes == null) {
@@ -54,6 +55,8 @@ public class FFTAnalyzer {
                 for (float fftValue : fftResult) {
                     writer.write(fftValue + System.lineSeparator());
                 }
+                System.out.printf("Processing %d/%d - File: %s | Input Floats: %d | FFT Values: %d%n",
+                        i + 1, totalRecords, record.getFilename(), floatsBetweenStartAndEnd.length, fftResult.length);
             }
         }
     }
