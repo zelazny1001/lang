@@ -1,68 +1,39 @@
 package analyzer;
 
 import java.io.BufferedWriter;
-import java.io.FileInputStream;
 import java.io.FileWriter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.jtransforms.fft.FloatFFT_1D;
 
 public class FFTAnalyzer {
 
     private final Map<String, byte[]> g711Cache = new HashMap<>();
+    private final List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT = new ArrayList<>();
 
     public static void main(String[] args) throws IOException {
-        String transcriptionWindowsInputFilename = "/tmp/formatted-analysis.txt";
-        String fftAnalysisOutputFilename = "/tmp/fft-analysis.txt";
+        String transcriptionWindowsInputFilename = "/tmp/vad/formatted-analysis2.txt";
+        String fftAnalysisOutputFilename = "/tmp/vad/fft-analysis.txt";
         String g711InputFileRootDirectory = "/asr-data/rod-calls/";
+        String cosineDistanceOutputFilename = "/tmp/vad/cosine-distances.txt";
+
+        int samplingRate = 8000;             // Defined sampling rate in Hz
+        int binSizeHz = 100;                 // Defined bin size in Hz for frequency binning
+        float SAMPLES_PER_SECOND = 50.0f;    // Defined samples per second for time conversion
+
         FFTAnalyzer analyzer = new FFTAnalyzer();
-        analyzer.processData(transcriptionWindowsInputFilename, fftAnalysisOutputFilename, g711InputFileRootDirectory);
-    }
+        analyzer.createTranscriptionWindowWithFFT(transcriptionWindowsInputFilename, g711InputFileRootDirectory);
+        analyzer.writeTranscriptionWindowToOutputFile(fftAnalysisOutputFilename, analyzer.getTranscriptionWindowsWithFFT(), SAMPLES_PER_SECOND);
 
-    public void processData(String transcriptionWindowsInputFilename, String outputFilename, String g711InputFileRoot) throws IOException {
-        List<TranscriptionWindow> transcriptionWindowRecords = ingestTranscriptionWindowDataFromFile(transcriptionWindowsInputFilename);
-        writeFFTValuesToFile(outputFilename, g711InputFileRoot, transcriptionWindowRecords);
-    }
-
-    public void writeFFTValuesToFile(String outputFilename, String g711InputFileRoot, List<TranscriptionWindow> transcriptionWindowRecords) throws IOException {
-        int totalRecords = transcriptionWindowRecords.size();
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename))) {
-            for (int i = 0; i < totalRecords; i++) {
-                TranscriptionWindow record = transcriptionWindowRecords.get(i);
-                String filePath = g711InputFileRoot + record.getFilename() + ".raw";
-                byte[] allG711Bytes = g711Cache.computeIfAbsent(filePath, this::readAllBytes);
-                if (allG711Bytes == null) {
-                    System.out.println("Failed to load G711 data for file: " + filePath);
-                    continue;
-                }
-                int startIdx = record.getStart() - 1;
-                int endIdx = record.getEnd() - 1;
-                if (startIdx < 0 || endIdx >= allG711Bytes.length || startIdx > endIdx) {
-                    System.out.println("Invalid start or end indices for file: " + filePath);
-                    continue;
-                }
-                byte[] bytesBetweenStartAndEnd = new byte[endIdx - startIdx + 1];
-                System.arraycopy(allG711Bytes, startIdx, bytesBetweenStartAndEnd, 0, bytesBetweenStartAndEnd.length);
-                float[] floatsBetweenStartAndEnd = G711Codec.g711ByteArrayToNormalizedPCM(bytesBetweenStartAndEnd);
-                float[] fftResult = FFTProcessor.getFFT(floatsBetweenStartAndEnd);
-
-                writer.write(String.format("%s | %d | %d | [%.3f, %.3f] | %s%n", 
-                    record.getFilename(), record.getStart(), record.getEnd(), 
-                    record.getStart() / 50.0f, record.getEnd() / 50.0f, record.getTranscript()));
-                
-                for (float fftValue : fftResult) {
-                    writer.write(fftValue + System.lineSeparator());
-                }
-                System.out.printf("Processing %d/%d - File: %s | Input Floats: %d | FFT Values: %d%n",
-                        i + 1, totalRecords, record.getFilename(), floatsBetweenStartAndEnd.length, fftResult.length);
-            }
-        }
+        List<CosineDistanceProcessor> cosineDistanceTable = analyzer.createCosineDistanceTable(analyzer.getTranscriptionWindowsWithFFT(), samplingRate, binSizeHz);
+        analyzer.writeCosineDistanceTableToFile(cosineDistanceTable, cosineDistanceOutputFilename);
     }
 
     private byte[] readAllBytes(String filePath) {
@@ -74,7 +45,30 @@ public class FFTAnalyzer {
         }
     }
 
-    private List<TranscriptionWindow> ingestTranscriptionWindowDataFromFile(String path) throws IOException {
+    public void createTranscriptionWindowWithFFT(String transcriptionWindowsInputFilename, String g711InputFileRoot) throws IOException {
+        List<TranscriptionWindow> transcriptionWindowRecords = ingestTranscriptionWindowDataFromInputFile(transcriptionWindowsInputFilename);
+        for (TranscriptionWindow record : transcriptionWindowRecords) {
+            String filePath = g711InputFileRoot + record.getFilename() + ".raw";
+            byte[] allG711Bytes = g711Cache.computeIfAbsent(filePath, this::readAllBytes);
+            if (allG711Bytes == null) {
+                System.out.println("Failed to load G711 data for file: " + filePath);
+                continue;
+            }
+            int startIdx = record.getStart() - 1;
+            int endIdx = record.getEnd() - 1;
+            if (startIdx < 0 || endIdx >= allG711Bytes.length || startIdx > endIdx) {
+                System.out.println("Invalid start or end indices for file: " + filePath);
+                continue;
+            }
+            byte[] bytesBetweenStartAndEnd = new byte[endIdx - startIdx + 1];
+            System.arraycopy(allG711Bytes, startIdx, bytesBetweenStartAndEnd, 0, bytesBetweenStartAndEnd.length);
+            float[] floatsBetweenStartAndEnd = G711Codec.g711ByteArrayToNormalizedPCM(bytesBetweenStartAndEnd);
+            float[] fftResult = FFTProcessor.getFFT(floatsBetweenStartAndEnd);
+            transcriptionWindowsWithFFT.add(new TranscriptionWindowWithFFT(record, fftResult));
+        }
+    }
+
+    private List<TranscriptionWindow> ingestTranscriptionWindowDataFromInputFile(String path) throws IOException {
         return Files.lines(Paths.get(path))
                 .skip(1)
                 .map(line -> {
@@ -92,4 +86,71 @@ public class FFTAnalyzer {
                 })
                 .collect(Collectors.toList());
     }
-}
+
+    public void writeTranscriptionWindowToOutputFile(String outputFilename, List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT, float samplesPerSecond) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename))) {
+            for (TranscriptionWindowWithFFT twWithFFT : transcriptionWindowsWithFFT) {
+                TranscriptionWindow record = twWithFFT.getTranscriptionWindow();
+                float[] fft = twWithFFT.getFft();
+
+                writer.write(String.format("%s | %d | %d | [%.3f, %.3f] | %s%n",
+                        record.getFilename(), record.getStart(), record.getEnd(),
+                        record.getStart() / samplesPerSecond, record.getEnd() / samplesPerSecond, record.getTranscript()));
+
+                for (float fftValue : fft) {
+                    writer.write(fftValue + System.lineSeparator());
+                }
+            }
+        }
+    }
+
+    public List<TranscriptionWindowWithFFT> getTranscriptionWindowsWithFFT() {
+        return transcriptionWindowsWithFFT;
+    }
+
+    public List<CosineDistanceProcessor> createCosineDistanceTable(List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT, int samplingRate, int binSizeHz) {
+        List<CosineDistanceProcessor> cosineDistanceTable = new ArrayList<>();
+        for (int i = 0; i < transcriptionWindowsWithFFT.size(); i++) {
+            TranscriptionWindowWithFFT tw1 = transcriptionWindowsWithFFT.get(i);
+            String id1 = tw1.getTranscriptionWindow().getFFTIdentifier();
+            float[] fft1 = binFrequenciesVersusCount(tw1.getFft(), samplingRate, binSizeHz);
+
+            for (int j = i + 1; j < transcriptionWindowsWithFFT.size(); j++) {
+                TranscriptionWindowWithFFT tw2 = transcriptionWindowsWithFFT.get(j);
+                String id2 = tw2.getTranscriptionWindow().getFFTIdentifier();
+                float[] fft2 = binFrequenciesVersusCount(tw2.getFft(), samplingRate, binSizeHz);
+
+                CosineDistanceProcessor record = CosineDistanceProcessor.fromFFT(id1, fft1, id2, fft2);
+                cosineDistanceTable.add(record);
+            }
+        }
+        return cosineDistanceTable;
+    }
+
+    public float[] binFrequenciesVersusCount(float[] fft, int samplingRate, int binSizeHz) {
+        int numBins = (samplingRate/2) / binSizeHz;
+        float[] binnedFFT = new float[numBins];
+        int fftLength = fft.length * 2;
+        float frequencyPerBin = samplingRate / (float) fftLength;
+        for (int i = 0; i < fft.length; i++) {
+            float frequency = i * frequencyPerBin;
+            int binIndex = (int) (frequency / binSizeHz);
+            if (binIndex < numBins) {
+                binnedFFT[binIndex] += fft[i];
+            }
+        }
+        for (int i = 0; i < binnedFFT.length; i++) {
+            int count = Math.max(1, Math.round(binSizeHz / frequencyPerBin));
+            binnedFFT[i] /= count;
+        }
+        return binnedFFT;
+    }
+
+    public void writeCosineDistanceTableToFile(List<CosineDistanceProcessor> cosineDistanceTable, String outputFilename) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename))) {
+            for (CosineDistanceProcessor record : cosineDistanceTable) {
+                writer.write(String.format("%s, %s, %.3f%n", record.getId1(), record.getId2(), record.getCosineDistance()));
+            }
+        }
+    }
+ }
