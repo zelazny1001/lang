@@ -154,3 +154,145 @@ public class FFTAnalyzer {
         }
     }
  }
+ 
+ ==========================================
+ 
+ package analyzer;
+
+public class TranscriptionWindowWithFFT {
+    private final TranscriptionWindow transcriptionWindow;
+    private final float[] fft;
+
+    public TranscriptionWindowWithFFT(TranscriptionWindow transcriptionWindow, float[] fft) {
+        this.transcriptionWindow = transcriptionWindow;
+        this.fft = fft;
+    }
+
+    public TranscriptionWindow getTranscriptionWindow() {
+        return transcriptionWindow;
+    }
+
+    public float[] getFft() {
+        return fft;
+    }
+}
+
+============================================
+
+package analyzer;
+
+public class TranscriptionWindow {
+    private final String filename;
+    private final int seqNum;
+    private final int start;
+    private final int end;
+    private final String transcript;
+    private final int tokens;
+    private final int samples;
+    private final float samplesPerToken;  // Updated to float
+
+    public TranscriptionWindow(String filename, int seqNum, int start, int end, String transcript, int tokens, int samples, float samplesPerToken) {
+        this.filename = filename;
+        this.seqNum = seqNum;
+        this.start = start;
+        this.end = end;
+        this.transcript = transcript;
+        this.tokens = tokens;
+        this.samples = samples;
+        this.samplesPerToken = samplesPerToken;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public int getSeqNum() {
+        return seqNum;
+    }
+
+    public int getStart() {
+        return start;
+    }
+
+    public int getEnd() {
+        return end;
+    }
+
+    public String getTranscript() {
+        return transcript;
+    }
+
+    public int getTokens() {
+        return tokens;
+    }
+
+    public int getSamples() {
+        return samples;
+    }
+
+    public float getSamplesPerToken() {
+        return samplesPerToken;
+    }
+
+    public String getFFTIdentifier() {
+        String[] sections = filename.split("_");
+        if (sections.length < 2) {
+            throw new IllegalArgumentException("Incorrect filename format: " + filename);
+        }
+        String digitsSection2 = sections[1].replaceAll("[^0-9]", "");
+        return digitsSection2 + "_" + seqNum;
+    }
+}
+
+==================================
+
+package analyzer;
+
+public class CosineDistanceProcessor {
+    private final String id1;
+    private final String id2;
+    private final double cosineDistance;
+
+    private CosineDistanceProcessor(String id1, String id2, double cosineDistance) {
+        this.id1 = id1;
+        this.id2 = id2;
+        this.cosineDistance = cosineDistance;
+    }
+
+    public static CosineDistanceProcessor fromFFT(String id1, float[] fft1, String id2, float[] fft2) {
+        double cosineDistance = calculateCosineDistance(fft1, fft2);
+        return new CosineDistanceProcessor(id1, id2, cosineDistance);
+    }
+
+    private static double calculateCosineDistance(float[] fft1, float[] fft2) {
+        double dotProduct = 0.0;
+        double magnitude1 = 0.0;
+        double magnitude2 = 0.0;
+        int length = Math.min(fft1.length, fft2.length);
+        for (int i = 0; i < length; i++) {
+            dotProduct += fft1[i] * fft2[i];
+            magnitude1 += fft1[i] * fft1[i];
+            magnitude2 += fft2[i] * fft2[i];
+        }
+        magnitude1 = Math.sqrt(magnitude1);
+        magnitude2 = Math.sqrt(magnitude2);
+        if (magnitude1 == 0 || magnitude2 == 0) {
+            return 0;
+        }
+        return dotProduct / (magnitude1 * magnitude2);
+    }
+
+    public String getId1() {
+        return id1;
+    }
+
+    public String getId2() {
+        return id2;
+    }
+
+    public double getCosineDistance() {
+        return cosineDistance;
+    }
+}
+
+===================================
