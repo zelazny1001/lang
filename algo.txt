@@ -1,9 +1,0 @@
-public String createBinningFilename(String theFilename, int binSize) {
-    int dotIndex = theFilename.lastIndexOf('.');
-    if (dotIndex == -1) {
-        return theFilename + "_" + binSize;
-    }
-    String baseName = theFilename.substring(0, dotIndex);
-    String extension = theFilename.substring(dotIndex);
-    return baseName + "_" + binSize + extension;
-}
