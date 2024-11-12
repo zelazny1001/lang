@@ -143,23 +143,30 @@ public class FFTAnalyzer {
 
         for (int i = 0; i < transcriptionWindowsWithFFT.size(); i++) {
             TranscriptionWindowWithFFT tw1 = transcriptionWindowsWithFFT.get(i);
-            String baseId1 = tw1.getTranscriptionWindow().getFFTIdentifier() + "_" + (i + 1);
+            String id1 = tw1.getTranscriptionWindow().getFFTIdentifier();
             float[] fft1 = binFrequenciesVersusCount(tw1.getFft(), samplingRate, binSizeHz);
 
-            // Loop through remaining elements in the list for unique pair comparisons
             for (int j = i + 1; j < transcriptionWindowsWithFFT.size(); j++) {
                 TranscriptionWindowWithFFT tw2 = transcriptionWindowsWithFFT.get(j);
-                String baseId2 = tw2.getTranscriptionWindow().getFFTIdentifier() + "_" + (j + 1);
+                String id2 = tw2.getTranscriptionWindow().getFFTIdentifier();
                 float[] fft2 = binFrequenciesVersusCount(tw2.getFft(), samplingRate, binSizeHz);
-                System.out.println(String.format("id1: %s, id2: %s", baseId1, baseId2));
-                CosineSimilarityProcessor record = CosineSimilarityProcessor.fromFFT(baseId1, fft1, baseId2, fft2);
-                cosineSimilarityTable.add(record);
+
+                if (getPrefix(id1).equals(getPrefix(id2))) {
+                    CosineSimilarityProcessor record = CosineSimilarityProcessor.fromFFT(id1, fft1, id2, fft2);
+                    cosineSimilarityTable.add(record);
+                }
             }
         }
-
         return cosineSimilarityTable;
     }
 
+    private String getPrefix(String id) {
+        int underscoreIndex = id.indexOf('_');
+        if (underscoreIndex != -1) {
+            return id.substring(0, underscoreIndex);
+        }
+        return id;
+    }
 
     public float[] binFrequenciesVersusCount(float[] fft, int samplingRate, int binSizeHz) {
         int numBins = (samplingRate/2) / binSizeHz;
