@@ -23,7 +23,7 @@ public class FFTAnalyzer {
         String g711InputFileRootDirectory = "/asr-data/rod-calls/";
         String outputRoot = "/tmp/vad/";
         String fftAnalysisOutputFilename = outputRoot + "fft-analysis.txt";
-        String cosineSimilarityOutputFilename = outputRoot + "cosine-similarities.txt";
+        String cosineSimilarityOutputFilename = outputRoot + "cosine-similarities-focused.txt";
 
         int binSizeHz = 1;                  // bin size in Hz for frequency binning
         boolean decodeIsLinear = true;      // false for non-linear (mu-Law default) byte decoding
@@ -141,23 +141,26 @@ public class FFTAnalyzer {
     public List<CosineSimilarityProcessor> createFocusedCosineSimilarityTable(List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT, int samplingRate, int binSizeHz) {
         List<CosineSimilarityProcessor> cosineSimilarityTable = new ArrayList<>();
 
-        for (TranscriptionWindowWithFFT transcriptionWindow : transcriptionWindowsWithFFT) {
-            String baseId = transcriptionWindow.getTranscriptionWindow().getFFTIdentifier();
-            float[] fftBase = binFrequenciesVersusCount(transcriptionWindow.getFft(), samplingRate, binSizeHz);
+        for (int i = 0; i < transcriptionWindowsWithFFT.size(); i++) {
+            TranscriptionWindowWithFFT tw1 = transcriptionWindowsWithFFT.get(i);
+            String baseId = tw1.getTranscriptionWindow().getFFTIdentifier();
+            float[] fftBase = binFrequenciesVersusCount(tw1.getFft(), samplingRate, binSizeHz);
 
-            for (int i = 0; i < fftBase.length - 1; i++) {
-                String id1 = baseId + "_" + (i + 1);
-                float[] fft1 = binFrequenciesVersusCount(transcriptionWindow.getFft(), samplingRate, binSizeHz);
+            // Generate pairs of identifiers and calculate similarities within the element
+            for (int j = 0; j < fftBase.length - 1; j++) {
+                String id1 = baseId + "_" + (j + 1);
+                float[] fft1 = binFrequenciesVersusCount(tw1.getFft(), samplingRate, binSizeHz);
 
-                for (int j = i + 1; j < fftBase.length; j++) {
-                    String id2 = baseId + "_" + (j + 1);
-                    float[] fft2 = binFrequenciesVersusCount(transcriptionWindow.getFft(), samplingRate, binSizeHz);
+                for (int k = j + 1; k < fftBase.length; k++) {
+                    String id2 = baseId + "_" + (k + 1);
+                    float[] fft2 = binFrequenciesVersusCount(tw1.getFft(), samplingRate, binSizeHz);
 
                     CosineSimilarityProcessor record = CosineSimilarityProcessor.fromFFT(id1, fft1, id2, fft2);
                     cosineSimilarityTable.add(record);
                 }
             }
         }
+
         return cosineSimilarityTable;
     }
 
