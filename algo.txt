@@ -1,142 +1,232 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Cosine Similarity Heatmap Table</title>
-  <style>
-    table {
-      border-collapse: collapse;
-      margin: 2px;
-      font-family: Arial, sans-serif;
-      font-size: 6px;
+package analyzer;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+public class FFTAnalyzer {
+    private static final int SAMPLING_RATE = 8000;             // sampling rate in Hz
+    private static final float SAMPLES_PER_SECOND = 50.0f;    // conversion factor from samples to time in seconds
+    private final Map<String, byte[]> g711Cache = new HashMap<>();
+    private final List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT = new ArrayList<>();
+
+    public static void main(String[] args) throws IOException {
+        String transcriptionWindowsInputFilename = "/tmp/vad/formatted-analysis2.txt";
+        String g711InputFileRootDirectory = "/asr-data/rod-calls/";
+        String outputRoot = "/tmp/vad/";
+        String cosineSimilarityRoot = outputRoot + "/cosine-similarity/";
+        String fftAnalysisOutputFilename = outputRoot + "fft-analysis.txt";
+        String cosineSimilarityOutputFilename = outputRoot + "cosine-similarities-focused.txt";
+
+        int binSizeHz = 1;                  // bin size in Hz for frequency binning
+        boolean decodeIsLinear = true;      // false for non-linear (mu-Law default) byte decoding
+        cosineSimilarityOutputFilename = createBinningFilename(cosineSimilarityOutputFilename, binSizeHz, decodeIsLinear);
+        performFFTAnalysis(transcriptionWindowsInputFilename, g711InputFileRootDirectory, fftAnalysisOutputFilename, cosineSimilarityOutputFilename, binSizeHz, decodeIsLinear, cosineSimilarityRoot);
     }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 1px;
-      text-align: center;
-      width: 5px;
-      height: 5px;
+
+    private static void performFFTAnalysis(String transcriptionWindowsInputFilename, String g711InputFileRootDirectory,
+                                           String fftAnalysisOutputFilename, String cosineSimilarityOutputFilename,
+                                           int binSizeHz, boolean decodeIsLinear, String cosineSimilarityRoot) throws IOException {
+        FFTAnalyzer analyzer = new FFTAnalyzer();
+        analyzer.createTranscriptionWindowWithFFT(transcriptionWindowsInputFilename, g711InputFileRootDirectory, decodeIsLinear);
+        analyzer.writeTranscriptionWindowToOutputFile(fftAnalysisOutputFilename, analyzer.getTranscriptionWindowsWithFFT(), SAMPLES_PER_SECOND);
+
+        //List<CosineSimilarityProcessor> cosineSimilarityTable = analyzer.createCosineSimilarityTable(analyzer.getTranscriptionWindowsWithFFT(), SAMPLING_RATE, binSizeHz);
+        List<CosineSimilarityProcessor> cosineSimilarityTable = analyzer.createFocusedCosineSimilarityTable(analyzer.getTranscriptionWindowsWithFFT(), SAMPLING_RATE, binSizeHz);
+        analyzer.writeCosineSimilarityTableToFile(cosineSimilarityTable, cosineSimilarityOutputFilename);
+        analyzer.writeFocusedSimilaritiesToFile(cosineSimilarityTable, cosineSimilarityRoot, decodeIsLinear);
     }
-    th {
-      background-color: #f0f0f0;
-      position: sticky;
-      top: 0;
-      z-index: 2; /* Ensure headers stay above table cells */
+
+    private byte[] readAllBytes(String filePath) {
+        try (InputStream inputStream = Files.newInputStream(Paths.get(filePath))) {
+            return G711Codec.readAllBytes(inputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
-    /* Make the leftmost column sticky */
-    th:first-child {
-      position: sticky;
-      left: 0;
-      z-index: 1; /* Lower z-index than top headers for better overlap management */
-      background-color: #f0f0f0; /* Background color to match table headers */
+
+    public void createTranscriptionWindowWithFFT(String transcriptionWindowsInputFilename, String g711InputFileRoot, boolean decodeIsLinear) throws IOException {
+        List<TranscriptionWindow> transcriptionWindowRecords = ingestTranscriptionWindowDataFromInputFile(transcriptionWindowsInputFilename);
+        for (TranscriptionWindow record : transcriptionWindowRecords) {
+            String filePath = g711InputFileRoot + record.getFilename() + ".raw";
+            byte[] allG711Bytes = g711Cache.computeIfAbsent(filePath, this::readAllBytes);
+            if (allG711Bytes == null) {
+                System.out.println("Failed to load G711 data for file: " + filePath);
+                continue;
+            }
+            int startIdx = record.getStart() - 1;
+            int endIdx = record.getEnd() - 1;
+            if (startIdx < 0 || endIdx >= allG711Bytes.length || startIdx > endIdx) {
+                System.out.println("Invalid start or end indices for file: " + filePath);
+                continue;
+            }
+            byte[] bytesBetweenStartAndEnd = new byte[endIdx - startIdx + 1];
+            System.arraycopy(allG711Bytes, startIdx, bytesBetweenStartAndEnd, 0, bytesBetweenStartAndEnd.length);
+            float[] floatsBetweenStartAndEnd;
+            if (decodeIsLinear) {
+                floatsBetweenStartAndEnd = G711Codec.g711ByteArrayToNormalizedLinearPCM(bytesBetweenStartAndEnd);
+            } else {
+                floatsBetweenStartAndEnd = G711Codec.g711ByteArrayToNormalizedPCM(bytesBetweenStartAndEnd);
+            }
+            float[] fftResult = FFTProcessor.getFFT(floatsBetweenStartAndEnd);
+            float averageEnergy = FFTProcessor.calculateFrameEnergy(fftResult);
+            transcriptionWindowsWithFFT.add(new TranscriptionWindowWithFFT(record, fftResult, averageEnergy));
+        }
     }
-  </style>
-</head>
-<body>
 
-<h3>Select CSV File</h3>
-<input type="file" id="fileInput" accept=".csv" />
-<div id="heatmap-table"></div>
+    private List<TranscriptionWindow> ingestTranscriptionWindowDataFromInputFile(String path) throws IOException {
+        return Files.lines(Paths.get(path))
+                .skip(1)
+                .map(line -> {
+                    String[] parts = line.split("\\|");
+                    return new TranscriptionWindow(
+                            parts[0].trim(),                        // filename
+                            Integer.parseInt(parts[2].trim()),      // seqNum
+                            Integer.parseInt(parts[3].trim()),      // start
+                            Integer.parseInt(parts[4].trim()),      // end
+                            parts[5].trim(),                        // transcript
+                            Integer.parseInt(parts[6].trim()),      // tokens
+                            Integer.parseInt(parts[7].trim()),      // samples
+                            Float.parseFloat(parts[8].trim())       // samplesPerToken
+                    );
+                })
+                .collect(Collectors.toList());
+    }
 
-<script>
-// Helper function to parse CSV data
-function parseCSV(text) {
-  const rows = text.trim().split('\n').map(row => row.split(','));
-  const headers = rows[0];
-  const data = rows.slice(1).map(row => {
-    return {
-      call_chunk1: row[0],
-      call_chunk2: row[1],
-      similarity: parseFloat(row[2])
-    };
-  });
-  return { headers, data };
-}
+    public void writeTranscriptionWindowToOutputFile(String outputFilename, List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT, float samplesPerSecond) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename))) {
+            for (TranscriptionWindowWithFFT twWithFFT : transcriptionWindowsWithFFT) {
+                TranscriptionWindow record = twWithFFT.getTranscriptionWindow();
+                float[] fft = twWithFFT.getFft();
 
-// Natural sort comparator for labels like "357_2" to appear before "357_10"
-function naturalSort(a, b) {
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-}
+                writer.write(String.format("%s | %d | %d | [%.3f, %.3f] | %d | %.3f | %s%n",
+                        record.getFilename(), record.getStart(), record.getEnd(),
+                        record.getStart() / samplesPerSecond, record.getEnd() / samplesPerSecond, record.getSeqNum(), twWithFFT.getAvgEnergy(), record.getTranscript()));
 
-// Function to generate color from light blue to red based on similarity value
-function getColor(value) {
-  const red = Math.round((value + 1) * 127); // Map value range -1 to 1 to red range 0 to 255
-  const blue = Math.round((1 - value) * 127 + 127); // Map value range -1 to 1 to blue range 255 to 128
-  return `rgb(${red}, 180, ${blue})`; // Fixed green channel to 180 for a smoother transition
-}
+                for (float fftValue : fft) {
+                    writer.write(fftValue + System.lineSeparator());
+                }
+            }
+        }
+    }
 
-// Event listener for file input
-document.getElementById('fileInput').addEventListener('change', function(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+    public List<TranscriptionWindowWithFFT> getTranscriptionWindowsWithFFT() {
+        return transcriptionWindowsWithFFT;
+    }
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const csvText = e.target.result;
-    const { data } = parseCSV(csvText);
+    public List<CosineSimilarityProcessor> createCosineSimilarityTable(List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT, int samplingRate, int binSizeHz) {
+        List<CosineSimilarityProcessor> cosineSimilarityTable = new ArrayList<>();
+        for (int i = 0; i < transcriptionWindowsWithFFT.size(); i++) {
+            TranscriptionWindowWithFFT tw1 = transcriptionWindowsWithFFT.get(i);
+            String id1 = tw1.getTranscriptionWindow().getFFTIdentifier();
+            float[] fft1 = binFrequenciesVersusCount(tw1.getFft(), samplingRate, binSizeHz);
 
-    // Extract unique call chunk labels and sort them using natural order
-    const callChunks = Array.from(new Set(data.map(d => d.call_chunk1).concat(data.map(d => d.call_chunk2)))).sort(naturalSort);
+            for (int j = i + 1; j < transcriptionWindowsWithFFT.size(); j++) {
+                TranscriptionWindowWithFFT tw2 = transcriptionWindowsWithFFT.get(j);
+                String id2 = tw2.getTranscriptionWindow().getFFTIdentifier();
+                float[] fft2 = binFrequenciesVersusCount(tw2.getFft(), samplingRate, binSizeHz);
 
-    // Map each call chunk to an index
-    const chunkIndex = {};
-    callChunks.forEach((chunk, i) => chunkIndex[chunk] = i);
+                CosineSimilarityProcessor record = CosineSimilarityProcessor.fromFFT(id1, fft1, id2, fft2);
+                cosineSimilarityTable.add(record);
+            }
+        }
+        return cosineSimilarityTable;
+    }
 
-    // Initialize a matrix with NaN values for missing data
-    const matrix = Array.from({ length: callChunks.length }, () => Array(callChunks.length).fill(NaN));
+    public List<CosineSimilarityProcessor> createFocusedCosineSimilarityTable(List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT, int samplingRate, int binSizeHz) {
+        List<CosineSimilarityProcessor> cosineSimilarityTable = new ArrayList<>();
 
-    // Populate the matrix with similarity scores, set diagonal to 1 for self-similarity
-    data.forEach(d => {
-      const rowIndex = chunkIndex[d.call_chunk1];
-      const colIndex = chunkIndex[d.call_chunk2];
-      matrix[rowIndex][colIndex] = d.similarity;
-    });
-    callChunks.forEach((_, i) => matrix[i][i] = 1);
+        for (int i = 0; i < transcriptionWindowsWithFFT.size(); i++) {
+            TranscriptionWindowWithFFT tw1 = transcriptionWindowsWithFFT.get(i);
+            String id1 = tw1.getTranscriptionWindow().getFFTIdentifier();
+            float[] fft1 = binFrequenciesVersusCount(tw1.getFft(), samplingRate, binSizeHz);
 
-    // Generate the HTML table
-    const table = document.createElement('table');
-    const headerRow = document.createElement('tr');
+            for (int j = i + 1; j < transcriptionWindowsWithFFT.size(); j++) {
+                TranscriptionWindowWithFFT tw2 = transcriptionWindowsWithFFT.get(j);
+                String id2 = tw2.getTranscriptionWindow().getFFTIdentifier();
+                float[] fft2 = binFrequenciesVersusCount(tw2.getFft(), samplingRate, binSizeHz);
 
-    // Add an empty top-left corner cell
-    const topLeftCell = document.createElement('th');
-    headerRow.appendChild(topLeftCell);
+                if (getPrefix(id1).equals(getPrefix(id2))) {
+                    CosineSimilarityProcessor record = CosineSimilarityProcessor.fromFFT(id1, fft1, id2, fft2);
+                    cosineSimilarityTable.add(record);
+                }
+            }
+        }
+        return cosineSimilarityTable;
+    }
 
-    // Add column headers
-    callChunks.forEach(chunk => {
-      const th = document.createElement('th');
-      th.textContent = chunk;
-      headerRow.appendChild(th);
-    });
-    table.appendChild(headerRow);
+    public void writeFocusedSimilaritiesToFile(List<CosineSimilarityProcessor> cosineSimilarityTable, String rootLocation, boolean decodeIsLinear) throws IOException {
+        Map<String, List<CosineSimilarityProcessor>> groupedByLeadingPortion = cosineSimilarityTable.stream()
+                .collect(Collectors.groupingBy(record -> record.getId1().split("_")[0]));
+        for (Map.Entry<String, List<CosineSimilarityProcessor>> entry : groupedByLeadingPortion.entrySet()) {
+            String leadingPortion = entry.getKey();
+            List<CosineSimilarityProcessor> records = entry.getValue();
+            String filename = rootLocation + leadingPortion + (decodeIsLinear ? "_linear.txt" : "_nonlinear.txt");
 
-    // Add rows with row headers and similarity cells
-    callChunks.forEach((chunk1, rowIndex) => {
-      const row = document.createElement('tr');
-      const rowHeader = document.createElement('th');
-      rowHeader.textContent = chunk1;
-      row.appendChild(rowHeader);
+            File file = new File(filename);
+            file.getParentFile().mkdirs(); // Create directories if they do not exist
 
-      callChunks.forEach((chunk2, colIndex) => {
-        const cell = document.createElement('td');
-        const similarity = matrix[rowIndex][colIndex];
-        cell.textContent = isNaN(similarity) ? "" : similarity.toFixed(2);
-        cell.style.backgroundColor = isNaN(similarity) ? "#f9f9f9" : getColor(similarity);
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+                for (CosineSimilarityProcessor record : records) {
+                    writer.write(String.format("%s, %s, %.3f%n", record.getId1(), record.getId2(), record.getCosineSimilarity()));
+                }
+            }
+        }
+    }
 
-        row.appendChild(cell);
-      });
+    private String getPrefix(String id) {
+        int underscoreIndex = id.indexOf('_');
+        if (underscoreIndex != -1) {
+            return id.substring(0, underscoreIndex);
+        }
+        return id;
+    }
 
-      table.appendChild(row);
-    });
+    public float[] binFrequenciesVersusCount(float[] fft, int samplingRate, int binSizeHz) {
+        int numBins = (samplingRate/2) / binSizeHz;
+        float[] binnedFFT = new float[numBins];
+        int fftLength = fft.length * 2;
+        float frequencyPerBin = samplingRate / (float) fftLength;
+        for (int i = 0; i < fft.length; i++) {
+            float frequency = i * frequencyPerBin;
+            int binIndex = (int) (frequency / binSizeHz);
+            if (binIndex < numBins) {
+                binnedFFT[binIndex] += fft[i];
+            }
+        }
+        for (int i = 0; i < binnedFFT.length; i++) {
+            int count = Math.max(1, Math.round(binSizeHz / frequencyPerBin));
+            binnedFFT[i] /= count;
+        }
+        return binnedFFT;
+    }
 
-    // Display the table
-    const heatmapContainer = document.getElementById('heatmap-table');
-    heatmapContainer.innerHTML = "";  // Clear previous table if any
-    heatmapContainer.appendChild(table);
-  };
+    public void writeCosineSimilarityTableToFile(List<CosineSimilarityProcessor> cosineSimilarityTable, String outputFilename) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename))) {
+            for (CosineSimilarityProcessor record : cosineSimilarityTable) {
+                writer.write(String.format("%s, %s, %.3f%n", record.getId1(), record.getId2(), record.getCosineSimilarity()));
+            }
+        }
+    }
 
-  reader.readAsText(file);
-});
-</script>
-
-</body>
-</html>
+    public static String createBinningFilename(String theFilename, int binSize, boolean decodeIsLinear) {
+        int dotIndex = theFilename.lastIndexOf('.');
+        String decodeRepresentation = decodeIsLinear ? "linear" : "nonlinear";
+        if (dotIndex == -1) {
+            return theFilename + "_" + binSize + "_" + decodeRepresentation;
+        }
+        String baseName = theFilename.substring(0, dotIndex);
+        String extension = theFilename.substring(dotIndex);
+        return baseName + "_" + binSize + "_" + decodeRepresentation + extension;
+    }
+ }
