@@ -6,30 +6,29 @@
   <style>
     table {
       border-collapse: collapse;
-      margin: 10px;
+      margin: 2px;
       font-family: Arial, sans-serif;
-      font-size: 8px;
+      font-size: 6px;
     }
     th, td {
       border: 1px solid #ccc;
-      padding: 5px;
+      padding: 1px;
       text-align: center;
-      width: 10px;
-      height: 10px;
+      width: 5px;
+      height: 5px;
     }
     th {
       background-color: #f0f0f0;
       position: sticky;
       top: 0;
+      z-index: 2; /* Ensure headers stay above table cells */
     }
-    .tooltip {
-      position: absolute;
-      display: none;
-      background-color: #333;
-      color: #fff;
-      padding: 4px;
-      border-radius: 3px;
-      font-size: 8px;
+    /* Make the leftmost column sticky */
+    th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1; /* Lower z-index than top headers for better overlap management */
+      background-color: #f0f0f0; /* Background color to match table headers */
     }
   </style>
 </head>
@@ -38,8 +37,6 @@
 <h3>Select CSV File</h3>
 <input type="file" id="fileInput" accept=".csv" />
 <div id="heatmap-table"></div>
-<div id="legend"></div>
-<div class="tooltip" id="tooltip"></div>
 
 <script>
 // Helper function to parse CSV data
@@ -65,7 +62,7 @@ function naturalSort(a, b) {
 function getColor(value) {
   const red = Math.round((value + 1) * 127); // Map value range -1 to 1 to red range 0 to 255
   const blue = Math.round((1 - value) * 127 + 127); // Map value range -1 to 1 to blue range 255 to 128
-  return `rgb(${red}, 180, ${blue})`; // Fixed green channel to 180 for a softer transition
+  return `rgb(${red}, 180, ${blue})`; // Fixed green channel to 180 for a smoother transition
 }
 
 // Event listener for file input
@@ -112,18 +109,6 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
     });
     table.appendChild(headerRow);
 
-    // Tooltip setup
-    const tooltip = document.getElementById('tooltip');
-    function showTooltip(event, text) {
-      tooltip.style.display = 'block';
-      tooltip.style.left = event.pageX + 10 + 'px';
-      tooltip.style.top = event.pageY + 10 + 'px';
-      tooltip.textContent = text;
-    }
-    function hideTooltip() {
-      tooltip.style.display = 'none';
-    }
-
     // Add rows with row headers and similarity cells
     callChunks.forEach((chunk1, rowIndex) => {
       const row = document.createElement('tr');
@@ -137,12 +122,6 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
         cell.textContent = isNaN(similarity) ? "" : similarity.toFixed(2);
         cell.style.backgroundColor = isNaN(similarity) ? "#f9f9f9" : getColor(similarity);
 
-        // Tooltip interaction
-        cell.addEventListener('mouseover', (event) => {
-          if (!isNaN(similarity)) showTooltip(event, `Similarity: ${similarity.toFixed(2)}`);
-        });
-        cell.addEventListener('mouseout', hideTooltip);
-
         row.appendChild(cell);
       });
 
@@ -153,28 +132,10 @@ document.getElementById('fileInput').addEventListener('change', function(event) 
     const heatmapContainer = document.getElementById('heatmap-table');
     heatmapContainer.innerHTML = "";  // Clear previous table if any
     heatmapContainer.appendChild(table);
-
-    // Create a color legend
-    createLegend();
   };
 
   reader.readAsText(file);
 });
-
-// Create a legend for color scale
-function createLegend() {
-  const legend = document.getElementById('legend');
-  legend.innerHTML = '<h4>Cosine Similarity Legend</h4>';
-  for (let i = -1; i <= 1; i += 0.2) {
-    const colorBox = document.createElement('span');
-    colorBox.style.display = 'inline-block';
-    colorBox.style.width = '20px';
-    colorBox.style.height = '20px';
-    colorBox.style.backgroundColor = getColor(i);
-    legend.appendChild(colorBox);
-  }
-  legend.innerHTML += '<br>-1 &nbsp;&nbsp;&nbsp;&nbsp; 0 &nbsp;&nbsp;&nbsp;&nbsp; 1';
-}
 </script>
 
 </body>
