@@ -171,14 +171,15 @@ public class FFTAnalyzer {
         for (Map.Entry<String, List<CosineSimilarityProcessor>> entry : groupedByLeadingPortion.entrySet()) {
             String leadingPortion = entry.getKey();
             List<CosineSimilarityProcessor> records = entry.getValue();
-            String filename = rootLocation + leadingPortion + (decodeIsLinear ? "_linear.txt" : "_nonlinear.txt");
+            String filename = rootLocation + leadingPortion + (decodeIsLinear ? "_linear.csv" : "_nonlinear.csv");
 
             File file = new File(filename);
             file.getParentFile().mkdirs(); // Create directories if they do not exist
 
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+                writer.write("call_chunk1,call_chunk2,similarity");
                 for (CosineSimilarityProcessor record : records) {
-                    writer.write(String.format("%s, %s, %.3f%n", record.getId1(), record.getId2(), record.getCosineSimilarity()));
+                    writer.write(String.format("%s,%s,%.3f%n", record.getId1(), record.getId2(), record.getCosineSimilarity()));
                 }
             }
         }
