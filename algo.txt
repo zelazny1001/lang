@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.Optional;
 
 public class FFTAnalyzer {
     private static final int SAMPLING_RATE = 8000;             // sampling rate in Hz
@@ -44,6 +45,9 @@ public class FFTAnalyzer {
         List<CosineSimilarityProcessor> cosineSimilarityTable = analyzer.createFocusedCosineSimilarityTable(analyzer.getTranscriptionWindowsWithFFT(), SAMPLING_RATE, binSizeHz);
         analyzer.writeCosineSimilarityTableToFile(cosineSimilarityTable, cosineSimilarityOutputFilename);
         analyzer.writeFocusedSimilaritiesToFile(cosineSimilarityTable, cosineSimilarityRoot, decodeIsLinear);
+
+        List<CosineSimilarityProcessor> neighbors = analyzer.getClosestNeighbors(cosineSimilarityTable, "357_1", 0.7);
+        System.out.println(neighbors);
     }
 
     private byte[] readAllBytes(String filePath) {
@@ -183,6 +187,29 @@ public class FFTAnalyzer {
                 }
             }
         }
+    }
+
+    public List<CosineSimilarityProcessor> getClosestNeighbors(List<CosineSimilarityProcessor> similarities, String id, double threshold) {
+        String leadingPortion = id.split("_")[0];
+
+        Optional<CosineSimilarityProcessor> targetRecordOpt = similarities.stream()
+                .filter(record -> record.getId1().equals(id) || record.getId2().equals(id))
+                .findFirst();
+
+        if (!targetRecordOpt.isPresent()) {
+            return java.util.Collections.emptyList();
+        }
+
+        double targetSimilarity = targetRecordOpt.get().getCosineSimilarity();
+
+        return similarities.stream()
+                .filter(record -> record.getId1().startsWith(leadingPortion + "_") || record.getId2().startsWith(leadingPortion + "_"))
+                .filter(record -> (record.getId1().equals(id) || record.getId2().equals(id)) && record.getCosineSimilarity() >= threshold)
+                .sorted((record1, record2) ->
+                        Double.compare(Math.abs(record1.getCosineSimilarity() - targetSimilarity),
+                                Math.abs(record2.getCosineSimilarity() - targetSimilarity))
+                )
+                .collect(Collectors.toList());
     }
 
     private String getPrefix(String id) {
