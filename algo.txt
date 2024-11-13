@@ -2,136 +2,125 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Cosine Similarity Heatmap</title>
-  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <title>Cosine Similarity Heatmap Table</title>
   <style>
-    body { font-family: Arial, sans-serif; }
-    .axis text {
-      font-size: 10px;
-      text-anchor: middle;
+    table {
+      border-collapse: collapse;
+      margin: 20px;
+      font-family: Arial, sans-serif;
     }
-    .axis line,
-    .axis path {
-      stroke: #ccc;
+    th, td {
+      border: 1px solid #ccc;
+      padding: 5px;
+      text-align: center;
+      width: 50px;
+      height: 50px;
+    }
+    th {
+      background-color: #f0f0f0;
+      position: sticky;
+      top: 0;
     }
   </style>
 </head>
 <body>
-<div id="heatmap"></div>
+
+<h3>Select CSV File</h3>
+<input type="file" id="fileInput" accept=".csv" />
+<div id="heatmap-table"></div>
 
 <script>
-  // Set up the dimensions and margins for the heatmap
-  const margin = { top: 150, right: 30, bottom: 100, left: 150 };
-  const cellSize = 20;
-  const width = 800;
-  const height = 800;
+// Helper function to parse CSV data
+function parseCSV(text) {
+  const rows = text.trim().split('\n').map(row => row.split(','));
+  const headers = rows[0];
+  const data = rows.slice(1).map(row => {
+    return {
+      call_chunk1: row[0],
+      call_chunk2: row[1],
+      similarity: parseFloat(row[2])
+    };
+  });
+  return { headers, data };
+}
 
-  // Load the CSV data
-  d3.csv("call_357.csv").then(data => {
+// Function to generate color based on similarity value
+function getColor(value) {
+  const red = Math.round((1 - value) * 128 + 127);
+  const blue = Math.round((1 + value) * 128 - 127);
+  return `rgb(${red}, 128, ${blue})`;
+}
+
+// Event listener for file input
+document.getElementById('fileInput').addEventListener('change', function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const csvText = e.target.result;
+    const { data } = parseCSV(csvText);
+
     // Extract unique call chunk labels
-    const callChunks = Array.from(new Set(data.map(d => d.call_chunk1).concat(data.map(d => d.call_chunk2))));
-    
-    // Map each call chunk to an index for positioning in the matrix
+    const callChunks = Array.from(new Set(data.map(d => d.call_chunk1).concat(data.map(d => d.call_chunk2)))).sort();
+
+    // Map each call chunk to an index
     const chunkIndex = {};
     callChunks.forEach((chunk, i) => chunkIndex[chunk] = i);
 
-    // Create an empty similarity matrix with dimensions based on the number of call chunks
-    const matrix = callChunks.map(() => Array(callChunks.length).fill(0));
+    // Initialize a matrix with NaN values for missing data
+    const matrix = Array.from({ length: callChunks.length }, () => Array(callChunks.length).fill(NaN));
 
-    // Populate the matrix with similarity data
+    // Populate the matrix with similarity scores
     data.forEach(d => {
       const rowIndex = chunkIndex[d.call_chunk1];
       const colIndex = chunkIndex[d.call_chunk2];
-      matrix[rowIndex][colIndex] = +d.similarity;
+      matrix[rowIndex][colIndex] = d.similarity;
     });
 
-    // Set up the color scale for similarity values from -1 to 1
-    const colorScale = d3.scaleSequential(d3.interpolateRdYlBu)
-                         .domain([-1, 1]);
+    // Generate the HTML table
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
 
-    // Append an SVG element to the #heatmap div
-    const svg = d3.select("#heatmap").append("svg")
-                  .attr("width", width + margin.left + margin.right)
-                  .attr("height", height + margin.top + margin.bottom)
-                  .append("g")
-                  .attr("transform", `translate(${margin.left},${margin.top})`);
+    // Add an empty top-left corner cell
+    const topLeftCell = document.createElement('th');
+    headerRow.appendChild(topLeftCell);
 
-    // Draw each cell of the heatmap
-    svg.selectAll("rect")
-       .data(data)
-       .enter()
-       .append("rect")
-       .attr("x", d => chunkIndex[d.call_chunk2] * cellSize)
-       .attr("y", d => chunkIndex[d.call_chunk1] * cellSize)
-       .attr("width", cellSize)
-       .attr("height", cellSize)
-       .style("fill", d => colorScale(+d.similarity));
+    // Add column headers
+    callChunks.forEach(chunk => {
+      const th = document.createElement('th');
+      th.textContent = chunk;
+      headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
 
-    // Add row labels
-    svg.append("g")
-       .selectAll("text")
-       .data(callChunks)
-       .enter()
-       .append("text")
-       .attr("x", -6)
-       .attr("y", (d, i) => i * cellSize + cellSize / 2)
-       .attr("text-anchor", "end")
-       .attr("alignment-baseline", "middle")
-       .text(d => d);
+    // Add rows with row headers and similarity cells
+    callChunks.forEach((chunk1, rowIndex) => {
+      const row = document.createElement('tr');
+      const rowHeader = document.createElement('th');
+      rowHeader.textContent = chunk1;
+      row.appendChild(rowHeader);
 
-    // Add column labels
-    svg.append("g")
-       .selectAll("text")
-       .data(callChunks)
-       .enter()
-       .append("text")
-       .attr("x", (d, i) => i * cellSize + cellSize / 2)
-       .attr("y", -6)
-       .attr("text-anchor", "start")
-       .attr("alignment-baseline", "middle")
-       .attr("transform", "rotate(-90)")
-       .text(d => d);
+      callChunks.forEach((chunk2, colIndex) => {
+        const cell = document.createElement('td');
+        const similarity = matrix[rowIndex][colIndex];
+        cell.textContent = isNaN(similarity) ? "" : similarity.toFixed(2);
+        cell.style.backgroundColor = isNaN(similarity) ? "#f9f9f9" : getColor(similarity);
+        row.appendChild(cell);
+      });
 
-    // Add color legend
-    const legendWidth = 200;
-    const legendHeight = 10;
-    const legend = svg.append("g")
-                      .attr("transform", `translate(${width - legendWidth - 20}, ${height + margin.bottom - 30})`);
+      table.appendChild(row);
+    });
 
-    // Create color gradient for legend
-    const legendGradient = legend.append("defs")
-                                 .append("linearGradient")
-                                 .attr("id", "legend-gradient")
-                                 .attr("x1", "0%").attr("y1", "0%")
-                                 .attr("x2", "100%").attr("y2", "0%");
-    legendGradient.append("stop").attr("offset", "0%").attr("stop-color", colorScale(-1));
-    legendGradient.append("stop").attr("offset", "100%").attr("stop-color", colorScale(1));
+    // Display the table
+    const heatmapContainer = document.getElementById('heatmap-table');
+    heatmapContainer.innerHTML = "";  // Clear previous table if any
+    heatmapContainer.appendChild(table);
+  };
 
-    legend.append("rect")
-          .attr("width", legendWidth)
-          .attr("height", legendHeight)
-          .style("fill", "url(#legend-gradient)");
-
-    legend.append("text")
-          .attr("x", -5)
-          .attr("y", legendHeight / 2)
-          .attr("text-anchor", "end")
-          .attr("alignment-baseline", "middle")
-          .text("-1");
-
-    legend.append("text")
-          .attr("x", legendWidth + 5)
-          .attr("y", legendHeight / 2)
-          .attr("text-anchor", "start")
-          .attr("alignment-baseline", "middle")
-          .text("1");
-
-    legend.append("text")
-          .attr("x", legendWidth / 2)
-          .attr("y", legendHeight + 15)
-          .attr("text-anchor", "middle")
-          .text("Cosine Similarity");
-  });
+  reader.readAsText(file);
+});
 </script>
+
 </body>
 </html>
