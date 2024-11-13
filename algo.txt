@@ -47,7 +47,9 @@ public class FFTAnalyzer {
         analyzer.writeFocusedSimilaritiesToFile(cosineSimilarityTable, cosineSimilarityRoot, decodeIsLinear);
 
         List<CosineSimilarityProcessor> neighbors = analyzer.getClosestNeighbors(cosineSimilarityTable, "357_1", 0.7);
-        System.out.println(neighbors);
+        for (CosineSimilarityProcessor csp : neighbors) {
+            System.out.println(csp);
+        }
     }
 
     private byte[] readAllBytes(String filePath) {
