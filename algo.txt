@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data File Processor</title>
+</head>
+<body>
+    <h2>Data File Processor</h2>
+    
+    <label for="fileNameInput">Enter Data File Name:</label>
+    <input type="text" id="fileNameInput" placeholder="e.g., 357_linear.csv" required>
+    <br><br>
+
+    <label for="idInput">Enter Specific ID:</label>
+    <input type="text" id="idInput" required>
+    <br><br>
+
+    <label for="thresholdInput">Enter Similarity Threshold:</label>
+    <input type="number" id="thresholdInput" step="0.01" required>
+    <br><br>
+
+    <button onclick="processFile()">Process File</button>
+    
+    <h3>Results:</h3>
+    <pre id="results"></pre>
+
+    <script>
+        function processFile() {
+            const fileName = document.getElementById('fileNameInput').value;
+            const specificId = document.getElementById('idInput').value;
+            const threshold = parseFloat(document.getElementById('thresholdInput').value);
+            const resultsElement = document.getElementById('results');
+            resultsElement.textContent = '';
+
+            if (!fileName || !specificId || isNaN(threshold)) {
+                resultsElement.textContent = 'Please provide all inputs.';
+                return;
+            }
+
+            fetch(fileName)
+                .then(response => {
+                    if (!response.ok) throw new Error('File not found');
+                    return response.text();
+                })
+                .then(fileContent => {
+                    const lines = fileContent.split('\n');
+                    const matchingRows = [];
+
+                    // Skip the header by starting from the second line
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+
+                        const [call_chunk1, call_chunk2, similarity] = line.split(',').map(item => item.trim());
+
+                        if (!call_chunk1 || !call_chunk2 || isNaN(parseFloat(similarity))) continue;
+
+                        const callChunk1Id = call_chunk1.split('_')[0];
+                        const callChunk2Id = call_chunk2.split('_')[0];
+
+                        // Check if specific ID matches either call_chunk1 or call_chunk2 and if similarity meets threshold
+                        if ((callChunk1Id === specificId || callChunk2Id === specificId) && parseFloat(similarity) >= threshold) {
+                            matchingRows.push(line);
+                        }
+                    }
+
+                    resultsElement.textContent = matchingRows.length
+                        ? matchingRows.join('\n')
+                        : 'No matching records found.';
+                })
+                .catch(error => {
+                    resultsElement.textContent = `Error: ${error.message}`;
+                });
+        }
+    </script>
+</body>
+</html>
