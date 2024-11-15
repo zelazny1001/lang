@@ -1,78 +1,163 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data File Processor</title>
-</head>
-<body>
-    <h2>Data File Processor</h2>
-    
-    <label for="fileNameInput">Enter Data File Name:</label>
-    <input type="text" id="fileNameInput" placeholder="e.g., 357_linear.csv" required>
-    <br><br>
+package analyzer;
 
-    <label for="idInput">Enter Specific ID:</label>
-    <input type="text" id="idInput" required>
-    <br><br>
+import java.util.Map;
+import java.util.HashMap;
+import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioFormat;
 
-    <label for="thresholdInput">Enter Similarity Threshold:</label>
-    <input type="number" id="thresholdInput" step="0.01" required>
-    <br><br>
+public class G711Codec {
+    private static final int BIAS = 132;
+    public static final Map<Byte, Integer> muLawDecodeMap = new HashMap<>();
 
-    <button onclick="processFile()">Process File</button>
-    
-    <h3>Results:</h3>
-    <pre id="results"></pre>
-
-    <script>
-        function processFile() {
-            const fileName = document.getElementById('fileNameInput').value;
-            const specificId = document.getElementById('idInput').value;
-            const threshold = parseFloat(document.getElementById('thresholdInput').value);
-            const resultsElement = document.getElementById('results');
-            resultsElement.textContent = '';
-
-            if (!fileName || !specificId || isNaN(threshold)) {
-                resultsElement.textContent = 'Please provide all inputs.';
-                return;
-            }
-
-            fetch(fileName)
-                .then(response => {
-                    if (!response.ok) throw new Error('File not found');
-                    return response.text();
-                })
-                .then(fileContent => {
-                    const lines = fileContent.split('\n');
-                    const matchingRows = [];
-
-                    // Skip the header by starting from the second line
-                    for (let i = 1; i < lines.length; i++) {
-                        const line = lines[i].trim();
-                        if (!line) continue;
-
-                        const [call_chunk1, call_chunk2, similarity] = line.split(',').map(item => item.trim());
-
-                        if (!call_chunk1 || !call_chunk2 || isNaN(parseFloat(similarity))) continue;
-
-                        const callChunk1Id = call_chunk1.split('_')[0];
-                        const callChunk2Id = call_chunk2.split('_')[0];
-
-                        // Check if specific ID matches either call_chunk1 or call_chunk2 and if similarity meets threshold
-                        if ((callChunk1Id === specificId || callChunk2Id === specificId) && parseFloat(similarity) >= threshold) {
-                            matchingRows.push(line);
-                        }
-                    }
-
-                    resultsElement.textContent = matchingRows.length
-                        ? matchingRows.join('\n')
-                        : 'No matching records found.';
-                })
-                .catch(error => {
-                    resultsElement.textContent = `Error: ${error.message}`;
-                });
+    static {
+        for (int i=0; i<=255; i++) {
+            byte b = (byte) i;
+            muLawDecodeMap.put(b, decodeAlgorithm(b));
         }
-    </script>
-</body>
-</html>
+    }
+
+    public static int decodeByte(byte b) {
+        return muLawDecodeMap.get(b);
+    }
+
+    public static float toNormalizedPCM(byte b) {
+        return muLawDecodeMap.get(b) / 32768.0f;
+    }
+
+    public static float[] g711ByteArrayToNormalizedPCM(byte[] g711Data) {
+        float[] pcmData = new float[g711Data.length];
+        for (int i = 0; i < g711Data.length; i ++) {
+            pcmData[i] = toNormalizedPCM(g711Data[i]);
+        }
+        return pcmData;
+    }
+
+    public static float[] g711ByteArrayToNormalizedLinearPCM(byte[] g711Data) {
+        float[] pcmData = new float[g711Data.length];
+        for (int i = 0; i < g711Data.length; i ++) {
+            byte linearByte = toLinearByte(g711Data[i]);
+            pcmData[i] = toNormalizedPCM(linearByte);
+        }
+        return pcmData;
+    }
+
+    public static float[] muLawToFloat(byte[] muLawData) {
+        float[] pcmData = new float[muLawData.length];
+        for (int i = 0; i < muLawData.length; i++) {
+            pcmData[i] = decodeAlgorithm(muLawData[i]) / 32768.0f;
+        }
+        return pcmData;
+    }
+
+    private static int decodeAlgorithm(byte g711Byte) { // decode 8-bit G711 mulaw byte into a 16-bit signed PCM value
+        // 16-bit signed value
+        g711Byte = (byte) ~g711Byte;
+
+        int sign = g711Byte & 0x80;
+        int exponent = (g711Byte & 0x70) >> 4;
+        int mantissa = g711Byte & 0x0F;
+        int sample = (mantissa << (exponent + 3)) + (BIAS << exponent) - BIAS;
+        if (sign != 0) {
+            sample = -sample;
+        }
+        return sample;
+    }
+
+    public static AudioInputStream convertG711ToAudioStream(byte[] g711) {
+        AudioInputStream result = null;
+        float sampleRate = 8000.0f;
+        int sampleSizeInBits = 16;
+        int channels = 1;
+        boolean signed = true;
+        boolean bigEndian = false;
+        byte[] pcmData = g711ByteArrayToPCMByteArray(g711);
+        AudioFormat format = new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
+        result = new AudioInputStream(new ByteArrayInputStream(pcmData),
+                format, pcmData.length / format.getFrameSize());
+        return result;
+    }
+
+    public static byte[] g711ByteArrayToPCMByteArray(byte[] g711Data) {
+        byte[] pcmData = new byte[g711Data.length * 2];
+        for (int i = 0; i < g711Data.length; i ++) {
+            int pcmSample = decodeAlgorithm(g711Data[i]);
+            pcmData[2 * i] = (byte) (pcmSample & 0xFF);
+            pcmData[2 * i + 1] = (byte) ((pcmSample >> 8) & 0xFF);
+        }
+        return pcmData;
+    }
+
+    public static byte[] readAllBytes(InputStream inputStream) {
+        try {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                output.write(buffer, 0, bytesRead);
+            }
+            return output.toByteArray();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+
+    private static int decodeAlgorithm_original(byte g711Byte) {
+        System.out.println("Original byte (signed): " + g711Byte);
+        int unsignedByte = g711Byte & 0xFF; // Convert signed byte to unsigned
+        System.out.println("Converted to unsigned byte: " + unsignedByte);
+
+        unsignedByte = ~unsignedByte & 0xFF; // Bit-flip the unsigned byte
+        System.out.println("Bit-flipped byte: " + unsignedByte);
+
+        int sign = unsignedByte & 0x80;
+        int exponent = (unsignedByte & 0x70) >> 4;
+        int mantissa = unsignedByte & 0x0F;
+        System.out.println("Sign: " + (sign == 0x80 ? "Negative" : "Positive"));
+        System.out.println("Exponent: " + exponent);
+        System.out.println("Mantissa: " + mantissa);
+
+        int sample = (mantissa << (exponent + 3)) + (BIAS << exponent) - BIAS;
+        if (sign != 0) {
+            sample = -sample;
+        }
+        System.out.println("Decoded PCM: " + sample);
+        return sample;
+    }
+
+    private static float normalizePCM(int pcmValue) {
+        return pcmValue / 32768.0f;
+    }
+
+    public static byte toLinearByte(byte b) {
+        if (b == 127) return 0;
+        if (b == -1) return 0;
+        if (b > 0) return (byte) (128 - 0);
+        return b;
+    }
+
+    public static void main(String[] args) {
+        for (int i=-128; i<=127; i++) {
+            byte b = (byte) i;
+            //System.out.println(String.format("byte: %d, pcm: %d, normalized: %f", b, muLawDecodeMap.get(b), toNormalizedPCM(b)));
+            System.out.println(String.format("byte: %d, conv: %d", b, muLawDecodeMap.get(b)));
+        }
+    }
+
+    public static void main3(String[] args) {
+        // Test byte values around the critical transition point
+        for (int i = -10; i <= 10; i++) {
+            byte testByte = (byte) i;
+            //int prior_decoded = decodeAlgorithm(testByte);
+            int decodedValue = decodeAlgorithm_original(testByte);
+            float normalizedValue = normalizePCM(decodedValue);
+            //float prior_normalized = normalizePCM(prior_decoded);
+            System.out.println("byte: " + i + ", pcm: " + decodedValue + ", normalized: " + normalizedValue);
+            //System.out.println("byte: " + i + ", prior_pcm: " + prior_decoded + ", prior_normalized: " + prior_normalized);
+        }
+    }
+}
