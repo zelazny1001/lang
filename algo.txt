@@ -5,17 +5,29 @@ from openpyxl.styles import Font
 import re
 import os
 
-def extract_raw_data(raw_text):
-    """Extracts 'Seq Num' and 'Transcription' values from a _raw column string."""
-    # Use regular expressions to find the Seq Num and Transcription patterns
-    seq_num_match = re.search(r"Seq Num: (\d{1,5})", raw_text)
-    transcription_match = re.search(r"Transcript: (.*?), stopTime", raw_text)
+def extract_raw_data(raw_text, filename):
+    """Extracts 'Seq Num' and 'Transcription' values from a _raw column string.
+       Prints a message if no patterns match."""
+    # Define both sets of patterns for Seq Num and Transcription
+    patterns = [
+        (r"Seq Num: (\d{1,5})", r"Transcript: (.*?), stopTime"),
+        (r"Sequence Number: (\d{1,5})", r"Transcription: (.*)$")
+    ]
     
-    # Extracted values or None if not found
-    seq_num = int(seq_num_match.group(1)) if seq_num_match else None
-    transcription = transcription_match.group(1) if transcription_match else None
-    
-    return seq_num, transcription
+    # Attempt to match one set of patterns
+    for seq_pattern, transcription_pattern in patterns:
+        seq_num_match = re.search(seq_pattern, raw_text)
+        transcription_match = re.search(transcription_pattern, raw_text)
+        
+        # If both patterns in a set match, extract and return values for that set
+        if seq_num_match and transcription_match:
+            seq_num = int(seq_num_match.group(1))
+            transcription = transcription_match.group(1)
+            return seq_num, transcription
+
+    # If no patterns matched, print a message with the filename
+    print(f"No matching patterns found in '{filename}' for text: {raw_text}")
+    return None, None
 
 def transform_csv_to_excel(input_dir, output_dir, output_cols):
     # Parse the comma-separated column names and strip any extra whitespace
@@ -42,7 +54,7 @@ def transform_csv_to_excel(input_dir, output_dir, output_cols):
                 transcriptions = []
 
                 for raw_text in df["_raw"]:
-                    seq_num, transcription = extract_raw_data(raw_text)
+                    seq_num, transcription = extract_raw_data(raw_text, filename)
                     seq_nums.append(seq_num)
                     transcriptions.append(transcription)
                 
@@ -62,7 +74,7 @@ def transform_csv_to_excel(input_dir, output_dir, output_cols):
                     transcriptions = []
 
                     for raw_text in df["_raw"]:
-                        seq_num, transcription = extract_raw_data(raw_text)
+                        seq_num, transcription = extract_raw_data(raw_text, filename)
                         seq_nums.append(seq_num)
                         transcriptions.append(transcription)
 
