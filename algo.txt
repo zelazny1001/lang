@@ -49,6 +49,12 @@ def transform_csv_to_excel(input_dir, output_dir, output_cols):
                 # Create a new DataFrame with only Seq Num and Transcription columns
                 filtered_df = pd.DataFrame({"Seq Num": seq_nums, "Transcription": transcriptions})
 
+                # Remove rows where both Seq Num and Transcription are empty
+                filtered_df.dropna(subset=["Seq Num", "Transcription"], how="all", inplace=True)
+
+                # Sort by Seq Num in ascending order
+                filtered_df.sort_values(by="Seq Num", ascending=True, inplace=True)
+
             elif set(columns_to_extract).issubset(df.columns) or "_raw" in columns_to_extract:
                 # Standard case where we have other specified columns, handle _raw if present
                 if "_raw" in columns_to_extract:
@@ -86,7 +92,13 @@ def transform_csv_to_excel(input_dir, output_dir, output_cols):
                 ws.append(row)
 
             # Set column widths if specific columns are used, otherwise default width
-            column_widths = {"Branch": 11, "Intent": 37, "Utterance": 110, "Seq Num": 10, "Transcription": 60}
+            column_widths = {
+                "Branch": 11,
+                "Intent": 37,
+                "Utterance": 110,
+                "Seq Num": 9,
+                "Transcription": 65
+            }
             for i, col_name in enumerate(filtered_df.columns, start=1):
                 col_letter = ws.cell(row=1, column=i).column_letter
                 ws.column_dimensions[col_letter].width = column_widths.get(col_name, 15)  # Default width 15 if not specified
