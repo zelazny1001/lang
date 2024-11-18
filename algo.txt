@@ -1,6 +1,7 @@
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.styles import Font
 import os
 import sys
 
@@ -37,16 +38,27 @@ def transform_csv_to_excel(input_dir, output_dir):
             for row in dataframe_to_rows(filtered_df, index=False, header=True):
                 ws.append(row)
 
+            # Set column widths
+            ws.column_dimensions["A"].width = 11  # Branch
+            ws.column_dimensions["B"].width = 37  # Intent
+            ws.column_dimensions["C"].width = 110  # Utterance
+
+            # Set font to Arial 8 for each cell in the worksheet
+            font_style = Font(name="Arial", size=8)
+            for row in ws.iter_rows():
+                for cell in row:
+                    cell.font = font_style
+
             # Freeze the top row
             ws.freeze_panes = "A2"
 
             # Add filters to each column
             ws.auto_filter.ref = ws.dimensions
 
-            # Save to Excel file
+            # Save to Excel file, overwriting if it already exists
             wb.save(output_excel_path)
 
             # Print confirmation message
             print(f"Filename '{output_excel_path}' processed")
 
-# transform_csv_to_excel("/my/root/input_directory", "/my/root/output_directory")
+transform_csv_to_excel("/my/root/input_directory", "/my/root/output_directory")
