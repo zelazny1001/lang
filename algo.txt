@@ -1,231 +1,62 @@
-iwcoocop ncfhwn - fpac
-Xckj, Tcka Mcehip
-Ujkal
-Xcq, ejpdc koc pa nc.
-Q'uc tcca wdhai Dkdj Cqq skwdc Q'uc tcca jkuhai eopwtmc xhej ejc CUJ.
-Q bwde ekmlcf ep dpnctpfz ckomhco ejhd npoahai ktpwe kmm ejhd.
-C mpe
-Vcmm, Q qwe ha k smkhn pa ejc (7ej, Q qwe ha k smkhn pa ejc (7ej. Tp ejke'd xjz Q tcmhcuc he'd fphai ejke, tcskwdc nz qjpac ipe depmca kaf dpnctpfz xcae ejopwij kmm nz dewgg kaf.
-<spwij>
-Caf Q ejpwije he.
-Op, ip kjckf.
-Nj, ska zpw nklc k apec pg ejke dp Q bwde skmm tksl ha tcgpoc Q fp ejc eokadksehpa
-Xckj, Q ncka, Q fpa'e nhaf skmmhai k twasj, twe Q ncka, he hd kiiokukehai, twe Q'f okejco ejc npacz tc ha nz jkaf.
-Ujkal zpw.
-Xcd nk'kn.
-<hafhdehase>
+package analyzer;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
-epmco ncfhwn - fpac
-Kh Ekok, ejhd hd Cgknh Cm-Okrkt kaf Q xkd xhej ka kddpshkec kaf xc ipe fhdspaacsecf.
-Kh, Q'n mhlc, he'd mhlc nhfahije, Q fpa'e jkuc nz ksspwae awntco, ska Q ihuc zpw pejco dewgg?
-Xcd nk'kn, 565|(9|=^
-Dpoocse, ejkal zpw.
-Xcd nk'kn, Xcd nk'kn. Qe'd (+756~=(=+
-Q'n eozhai ep kwejpohyc k qkzncae ejke zpw iwzd fcsmhacf ejocc ehncd kmockfz cuca ejpwij Q jkf skmmcf ktpwe he tcgpoc.
-Caf jc kdlcf nc ep smhsl k mhal xjhsj Q fhf kaf Q kwejpohycf kaf xc dehmm dpncjpx ipe fhdspaacsecf tcskwdc jc xkaecf nc ep ekml ep zpw iwzd ejopwij Gohsk, ejc kddhdekae.
-Tp Q fpa'e lapx xjke'd iphai pa ejcoc.
-Nlkz, kmohije.
-Qe'd =~(+~7.
-Dpoocse, zcd nk'kn.
-Xcd, he'd ka kwepnkehs qkzncae gpo mhlc k UW dwtdsohqehpa ejhai, he'd gpo =| fpmmkod kaf == scaed.
-Q accf zpw iwzd ep kwejpohyc he.
-Qe'd mhlc. Qe xkd mhlc jkmg ka jpwo kip, =| fpmmkod kaf == scaed.
-Na nz socfhe skof.
-Caf he xkd fcsmhacf exhsc ke cmcuca ejhoez dcuca.
-Xpw iwzd dcae nc k ecve ncddkic.
-Nlkz, ejkal zpw.
-Q fpa'e. Q fpa'e dcc he pa nz wjnn kqq chejco kd qcafhai po kazejhai po fcsmhacf.
-Awe ejcz eohcf he mhlc k gcx fkzd kip kmdp kaf he ipe fcsmhacf kaf Q skmmcf ejc +-~77 awntco kaf he kdlcf nc ep kmmpx he kaf Q fhf.
-Tp ejcz eohcf kikha exhsc epfkz kaf zpw iwzd dcae nc k ecve ncddkic ejke xkd fcsmhacf.
-Op, Q'n eozhai ep nklc k qkzncae gpo ejke dwtdsohqehpa gpo *=|.== gpo ejke ncosjkafhdc, ejc OAD MMD.
-Nlkz.
-Q ncka he'd dhmmz skwdc Q xkd ekmlhai ep ejc iwz kaf jc xkd eklhai nc ejopwij he.
-Kc spwmf dcc ejke he xkd fcsmhacf dp Q fpa'e lapx xjke jkqqcacf apx.
-Hppfacdd iokshpwd.
-Coc zpw ha ejc xopai ksspwae?
-Q fpa'e...
-Vjcoc ska Q dcc ejke ha ejc kqq?
-Xckj, ejc socfhe skof ksspwae cafd ha 96=^.
-Ujc eokucm ocxkofd uhdk dhiakewoc.
-Nlkz.
-Tp xjca Q'n ...
-Nlkz, ippf.
-Tp xjhsj ksspwae hd xcoc zpw'oc ha?
-Nlkz.
-Nlkz, ap, ejhd hd, ejhd hd dpnctpfz eozhai ep wjnn wdc...
-Nlkz, Q accf ep qkz dpncejhai xhej nz socfhe skof kaf he'd iceehai fcsmhacf.
-Nlkz, kaf he'd gpo *=|.==.
-Dpwmf zpw qmckdc kmmpx ejke?
-Cmohije, ejkal zpw.
-Nlkz.
-Nlkz, ejkal zpw.
-Kcmmp?
-Nlkz, ejhd hd, Q'n dpooz, ejhd hd k mheemc ohfhswmpwd.
-Mhlc, ejhd hd nz gpwoej keecnqe ke fckmhai xhej ejhd.
-Qd ejhd iphai ep eklc nwsj mpaico?
-Nlkz.
-Nlkz, ejkal zpw.
-Xcd, nk'kn.
-Qd nz skof apx ape xpolhai ke kmm?
-Nlkz.
-Nlkz.
-Nlkz, dp Q bwde xkdecf kapejco, zpw lapx, +9 nhawecd pg nz ehnc.
-Nlkz.
-Tp Q fpa'e jkuc ep cvqmkha ep ejcn cucozejhai kikha?
-Cmohije, ejkal zpw.
-Kpqcgwmmz he xpa'e swe pwe ejhd ehnc.
-Q'n ape eklhai he fpxa.
-Qe'd nhfahije.
-Q'n mhlc, he'd ha ejc fkol oppn.
-Q'n eozhai ep dmccq.
-Tp ska zpw bwde eoz ep eokadgco nc kaf xc'mm ip gopn ejcoc?
-Nejcoxhdc, Q fpa'e cuca skoc hg Q jkuc ejc socfhe skof xhej zpw iwzd.
-Tp ip kjckf kaf eokadgco nc, qmckdc.
-Ujkald.
-Q ejhal Cncohska qcpqmc koc ocekofcf.
-Qe'd iceehai xpodc tz ejc nhawec.
-Vc'oc fpac xhej ejcn.
-Kcmmp?
-Kcmmp?
-Xcd, xjke?
-Nlkz.
-Fp zpw lapx xjke'd iphai pa po kn Q ekmlhai ep k tokaf acx qcodpa xjp lapxd apejhai ktpwe ejc skdc?
-Nlkz.
-Nlkz.
-Nlkz.
-Nlkz.
-Ujhd hd ejc gpwoej qcodpa Q ekml ep.
-Nlkz, ejhd hd mhlc tkf swdepnco dcouhsc.
-Tp zpw chejco ghv he po Q fpa'e cuca xkae zpwo socfhe skof.
-Nlkz, Q'n k qmkehawn ncntco.
-Ujhd hd ohfhswmpwd.
-56~=(=+.
-Q'n <hafhdehase>
-Nlkz.
-Xcd, xc kmockfz fhf ejke gpwo ehncd.
-Imckdc ecve nc pac npoc ehnc.
-Qe'd |577((. Mce'd fp ejhd gkdeco.
-|577((.
-Dpoocse. Xcd, dho.
-Dpoocse. Q xpwmf mhlc ejke kwejpohycf.
-Q kmockfz fhf ejke tz +-~77.
-Q fpa'e lapx xjz ejcz fcsmhacf he kikha.
-Vc'uc kmockfz fpac ejhd.
-Tp jpqcgwmmz zpw ska kwejpohyc he kaf he xhmm tc k fpac fckm.
-Nlkz.
-Xpw lapx, npde socfhe skofd ejcdc fkzd ha (7(|,
-zpw ip ep zpwo kqq kaf zpw dkz kwejpohyc.
-Xcd, ejke'd nc.
-Caf Q kmockfz fhf ejke xhej ejke +-~77 awntco.
-Q fpa'e lapx xjz xc'oc mhlc +=~7d dehmm fphai ejhd, zpw lapx?
-Nlkz.
-Nlkz.
-Cmm ohije, ejkal zpw.
-Rj jnn.
-Caf, kaf Q wafcodekaf ejke ejhd hd k, ejhd hd k eokucm skof
-kaf ha exp xccld Q'n iphai ep tc dqcafhai npacz ha Tqkha.
-Ujhd hd ejc ghode ehnc Q eklc ejhd ep Tqkha.
-Tp zpw'oc ecmmhai nc he'd iphai ep tc eokqqcf, zpw lapx,
-dhewkehpad ha Tqkha kmdp?
-Acskwdc Q fpa'e jkuc ehnc.
-Nlkz, xcmm...
-Nlkz, dp zpw'oc ecmmhai nc hg Q eklc he ep Tqkha,
-Q skaape fp ejhd ha exp xccld?
-Nlkz.
-Cmm ohije.
-Nlkz.
-Awe ejke'd ejc dknc.
-Qa pejco xpofd, Q'n iphai ep jkuc k tceeco socfhe skof xhej nc
-ejka xkdehai nz ehnc pa ejhd hd kmm he ecmmd nc tkdhskmmz, zpw lapx,
-xjhsj hd ghac, twe Q'n imkf zpw epmf nc
-tcskwdc Q accf ep eklc k fhggcocae socfhe skof.
-Q xkd ejhalhai, zpw lapx, ejhd hd ejc eokucm socfhe skof
-xhej Akal pg Cncohsk.
-Q djpwmf tc ktmc ep wdc he kazxjcoc, twe nkztc ape.
-Awe Q wafcodekaf ejhd xkd fhggcocae.
-Tp hg zpw ska jcmq nc xhej ejke, Q fp kqqocshkec he.
-Nlkz, ejkal zpw.
-Vcmm, mce'd ecmm ejke qcodpa ejke...
-Mce'd ecmm ejke qcodpa ejke Q dkhf he ipe kqqopucf
-po fp Q accf ep spaekse ejcn kikha
-po hg ejcz xpwmf tc ktmc ep...
-Ujcz xpwmf jkuc ep ocdcaf he?
-Nlkz, twe Q'n ape iphai ep spaekse ejcn ohije apx.
-Qe'd nhfahije.
-Q'uc jkf ep xkhe.
-Tp ep spaekse ejcn hd k jkddmc tcskwdc, mhlc, zpw dcc,
-he'd haecoakehpakm, ohije?
-Tp zpw'oc ecmmhai nc cuca xjca zpw kqqopuc he,
-Q'n iphai ep jkuc ep spaekse ejcn ep owa he.
-Cikha, ejhd hd ejc dcspaf ehnc Q spaekse ejcn
-kaf Q dkz...
-Nlkz, kmm ohije.
-Namz pac ehnc kikha.
-Q ska xkhe k dcspaf.
-Rdc nz socfhe skof.
-Nlkz, kmm ohije.
-Xcd, dp zpw'oc iphai ep jkai wq kaf skmm nc?
-Up ucohgz?
-Nlkz, ejke'd ghac.
-Ujke'd ap qoptmcn.
-Q ice he.
-Ujkal zpw gpo ejke.
-Mce'd fp he.
+public class Cipher {
 
-jckej ncfhwn - fpac
-Dkompd Dkookfk
-Rj, ap, Q'n skmmhai tcskwdc nz, wj, xcmm, Q, Q bwde, Q'n eozhai ep wdc nz socfhe skof.
-Q ipe k acx socfhe skof ejopwij Akal pg Cncohsk, wn, ejhd kgecoappa kaf he ipe fcsmhacf.
-Caf ejca, wj, zckj, Q jkf kapejco sjkoic ejke xkd dwqqpdcf ep ip ejopwij kmdp,
-ejke xkd, Q kmockfz qwe ha kaf apx k gohcaf pg nhac bwde epmf nc ejke
-ejke skof ipe fcsmhacf kikha. Tp Q ipe exp fcsmhacd pa he.
-Twoc.
-Nj, wj, qjpac awntco hd =7=-(+|-6|+.
-Nlkz, wj, dcswohez spfc, wj, ^+~-+7(.
-Nj, ohije apx he'd djpxhai ocdeohsecf. Ujc pac cafhai ha 55+559+
-hd djpxhai ocdeohsecf pamhac.
-Ujhd hd wawdwkm ksehuhez, dwdqcsecf socfhe skof cafhai ha 559+ ocdeohsecf.
-Ujhd hd, xc'uc apehscf dpnc wawdwkm ksehuhez, xjhsj xpwmf jkuc tcca
-ejc exp eokadksehpad Q'n ekmlhai ktpwe. Rj, qmckdc spaekse,
-qmckdc jkuc ejc skof jpmfco spaekse wd hnncfhkecmz. Caf ejke'd ejc awntco Q bwde jkuc.
-Qe djpwmf tc pac gpo ~|5 fpmmkod ke Ucdmk.
-Ujke pac ipe fcsmhacf kaf ejca, wn, twe kapejco eokadksehpa.
-Vjke'd ejke?
-Rj, jkai pa pac dcspaf. Q ipeek ip fpxadekhod.
-Nlkz. Xpw ockfz?
-Nlkz. Ujc xjpmc skof hd ||77-559=-~+|(559+.
-Ujke'd, wj, +55^9~.
-Opqc.
-Q cuca sjcslcf ejke epp. Q ejpwije, Q ejpwije nkztc Q ipe ka kmcoe,
-twe, wj, ejke fhfa'e xpol. Caf ejca, wj, kaf ejca Q ejpwije he xkd ejcho nksjhac.
-Tp Q eohcf dxhqhai he.
-wj jwj
-Kwj?
-Vcmm, ejcoc'd ejc Tkn'd Dmwt pac Q'uc fpac kmockfz. Xckj ejke xkd ksewkmmz gpo k qcodpa.
-Xckj. Dkwdc Q, Q, Q, zpw lapx, Q, Q jkf, wj, Q qwosjkdcf dpncejhai ke Tkn'd smwt.
-Q qwosjkdcf k ncntcodjhq kaf ejca, zpw lapx, k nhawec mkeco, wj, djc dskaacf cucozejhai cmdc
-pa ejc pofco ghuc nhawecd mkeco. Ujca Q xcae ha kaf Q eohcf ep qkz ejc *~(5 kaf he dkhf skof
-fcsmhacf. Tp ejca Q qwmmcf he pwe kaf djc dkzd, plkz, eoz he kikha. Tp ejca Q qwe he tksl ha
-kaf he dkhf fcsmhac po he dkhf, wj, waktmc ep ockf po dpncejhai mhlc ejke.
-Caf ejca, wj, Q qwmmcf he pwe kaf ejca Q, ejca Q dxhqcf he kaf Q dxhqcf he kaf ejke fhfa'e xpol.
-Caf ejca Q dewsl ejc skof tksl ha kaf ejke fhfa'e xpol. Tp Q eohcf he mhlc gpwo po ghuc
-ehncd ejhalhai he xkd nkztc ejc nksjhac po dpncejhai, twe Q spwmfa'e ice kazejhai ep xpol.
-Mhlc ohije apx he ksewkmmz jkd k tmpsl pa he, ohije? Dkwdc Q ncka,
-Q'n iphai ep, dp apx,
-skwdc Q eohcf ep fp dpncejhai cmdc.
-Kwj?
-Kwj?
-Xckj, Q jkuc tpej
-Q jkuc tpej c-nkhmd. Hcpoic, hd ejke ippf po tkf?
-Nj, fp ejc Hnkhm pac, he'd ejc nkskofmcd.tpokyfk.ss ke inkhm.spn.
-Xckj, aponkmmz Q'mm ice k ecve ncddkic ejke djpxd, zpw lapx, hg ejcoc'd dpncejhai iphai pa, twe Q fhfa'e. Q fhfa'e ice kazejhai.
-Jkztc nz qjpac awntco'd ape mhalcf ep ejc ksspwae po dpncejhai, Q fpa'e lapx.
-Kwj?
-Xckj.
-Xcq.
-Kwj?
-Opx xkhe, xkhe, xkhe. Ujc Tkn'd Dmwt gpo ~5~.(5 ?
-Nj. Nl ejke pac.
-<hafhdehase>
-Nlkz, kqqocshkec he, ejkal zpw.
-Xpw epp, tzc tzc.
+    private static final Map<Character, Character> encryptionMap = new HashMap<>();
+    private static final Map<Character, Character> decryptionMap = new HashMap<>();
+
+    static {
+        String lowerOriginal = "";
+        String lowerCipher =   "";
+        String upperOriginal = "";
+        String upperCipher =   "";
+        String digitsOriginal = "";
+        String digitsCipher = "";
+
+        for (int i = 0; i < lowerOriginal.length(); i++) {
+            encryptionMap.put(lowerOriginal.charAt(i), lowerCipher.charAt(i));
+            decryptionMap.put(lowerCipher.charAt(i), lowerOriginal.charAt(i));
+        }
+        for (int i = 0; i < upperOriginal.length(); i++) {
+            encryptionMap.put(upperOriginal.charAt(i), upperCipher.charAt(i));
+            decryptionMap.put(upperCipher.charAt(i), upperOriginal.charAt(i));
+        }
+        for (int i = 0; i < digitsOriginal.length(); i++) {
+            encryptionMap.put(digitsOriginal.charAt(i), digitsCipher.charAt(i));
+            decryptionMap.put(digitsCipher.charAt(i), digitsOriginal.charAt(i));
+        }
+    }
+
+    public static String applyCipher(String text) {
+        StringBuilder result = new StringBuilder();
+        for (char c : text.toCharArray()) {
+            result.append(encryptionMap.getOrDefault(c, c));
+        }
+        return result.toString();
+    }
+
+    public static String recoverOriginal(String text) {
+        StringBuilder result = new StringBuilder();
+        for (char c : text.toCharArray()) {
+            result.append(decryptionMap.getOrDefault(c, c));
+        }
+        return result.toString();
+    }
+
+    public static void main(String[] args) throws IOException {
+        String inputPath = "J:/recs/clear.txt";
+        String outputPath = "J:/recs/clearout.txt";
+
+        String content = new String(Files.readAllBytes(Paths.get(inputPath)));
+        String encryptedContent = applyCipher(content);
+        Files.write(Paths.get(outputPath), encryptedContent.getBytes());
+
+        String decryptedContent = recoverOriginal(encryptedContent);
+        System.out.println("Decrypted Content: " + decryptedContent);
+    }
+}
