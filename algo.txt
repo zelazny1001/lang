@@ -1,0 +1,90 @@
+package analyzer;
+
+public class CanonicalForm {
+    private int id;
+    private String name;
+    private String path;
+
+    public CanonicalForm(int id, String name, String path) {
+        this.id = id;
+        this.name = name;
+        this.path = path;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getPath() {
+        return path;
+    }
+}
+
+===
+
+package analyzer;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+
+public class CanonicalFormProcessor {
+
+    public List<CanonicalForm> createCanonicalMap(String pathRoot) throws IOException {
+        List<CanonicalForm> canonicalForms = new ArrayList<>();
+        Pattern idPattern = Pattern.compile("_(\\d+)(am.*?|pm.*?)_");
+        Pattern namePattern = Pattern.compile("(am.*?|pm.*?)_(\\w+)_");
+
+        try (Stream<Path> paths = Files.walk(Paths.get(pathRoot))) {
+            paths.forEach(path -> {
+                String filename = path.getFileName().toString();
+                Matcher idMatcher = idPattern.matcher(filename);
+                Matcher nameMatcher = namePattern.matcher(filename);
+                int id = idMatcher.find() ? Integer.parseInt(idMatcher.group(1)) : -1;
+                String name = nameMatcher.find() ? nameMatcher.group(2) : "";
+                if (name.startsWith("cust") || name.startsWith("agent")) {
+                    name = filename.split("_")[0];
+                }
+                canonicalForms.add(new CanonicalForm(id, name, path.toString()));
+            });
+        }
+        return canonicalForms;
+    }
+
+    public void writeCanonicalNamesToFile(List<CanonicalForm> canonicalForms, String outputFilename) throws IOException {
+        if (canonicalForms.isEmpty()) return;
+        Path outputFilePath = Paths.get(outputFilename);
+        Files.createDirectories(outputFilePath.getParent());
+        try (BufferedWriter writer = Files.newBufferedWriter(outputFilePath)) {
+            writer.write("id,name,path");
+            writer.newLine();
+            for (CanonicalForm form : canonicalForms) {
+                writer.write(form.getId() + "," + form.getName() + "," + form.getPath());
+                writer.newLine();
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        CanonicalFormProcessor processor = new CanonicalFormProcessor();
+        try {
+            String pathRoot = "/tmp/vad/raw";
+            String outputFilename = "/tmp/vad/canonical-names.txt";
+            List<CanonicalForm> forms = processor.createCanonicalMap(pathRoot);
+            processor.writeCanonicalNamesToFile(forms, outputFilename);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
