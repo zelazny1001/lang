@@ -1,0 +1,93 @@
+package analyzer;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+public class CanonicalFormProcessor {
+
+    public static List<CanonicalForm> createCanonicalMap(String pathRoot) throws IOException {
+        List<CanonicalForm> canonicalForms = new ArrayList<>();
+        Pattern idPattern = Pattern.compile("_(\\d+)(am.*?|pm.*?)_");
+        Pattern namePattern = Pattern.compile("(am.*?|pm.*?)_((.*?)_|(.*?)\\.)");
+
+        try (Stream<Path> paths = Files.walk(Paths.get(pathRoot))) {
+            paths.forEach(path -> {
+                String filename = path.getFileName().toString();
+                Matcher idMatcher = idPattern.matcher(filename);
+                Matcher nameMatcher = namePattern.matcher(filename);
+                int id = idMatcher.find() ? Integer.parseInt(idMatcher.group(1)) : -1;
+                String name = nameMatcher.find() ? nameMatcher.group(2) : "";
+                if (name.startsWith("cust") || name.startsWith("agent")) {
+                    name = filename.split("_")[0];
+                }
+                canonicalForms.add(new CanonicalForm(id, name, path.toString()));
+            });
+        }
+        return canonicalForms;
+    }
+
+    public static void writeCanonicalNamesToFile(List<CanonicalForm> canonicalForms, String outputFilename) throws IOException {
+        if (canonicalForms.isEmpty()) return;
+        Path outputFilePath = Paths.get(outputFilename);
+        Files.createDirectories(outputFilePath.getParent());
+        try (BufferedWriter writer = Files.newBufferedWriter(outputFilePath)) {
+            writer.write("id,name,path");
+            writer.newLine();
+            for (CanonicalForm form : canonicalForms) {
+                writer.write(form.getId() + "," + form.getName() + "," + form.getPath());
+                writer.newLine();
+            }
+        }
+    }
+
+    public static List<Integer> findDuplicateIds(List<CanonicalForm> canonicalForms) {
+        Set<Integer> uniqueIds = canonicalForms.stream()
+                .map(CanonicalForm::getId)
+                .collect(Collectors.toSet());
+
+        return canonicalForms.stream()
+                .map(CanonicalForm::getId)
+                .filter(id -> !uniqueIds.remove(id))
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    public static List<String> removeDuplicates(List<String> strings) {
+        return strings.stream()
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    public static List<String> removeDuplicates(String filePath) throws IOException {
+        return Files.lines(Paths.get(filePath))
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    public static void main(String[] args) {
+        try {
+            String pathRoot = "/tmp/vad/raw";
+            String outputFilename = "/tmp/vad/canonical-names.txt";
+            List<CanonicalForm> forms = createCanonicalMap(pathRoot);
+            writeCanonicalNamesToFile(forms, outputFilename);
+            List<Integer> duplicateIDs = findDuplicateIds(forms);
+            if (duplicateIDs.size() > 0) {
+                System.out.println("Duplicate IDs present: " + duplicateIDs);
+            } else {
+                System.out.println("Canonicalization complete. No duplicate IDs");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
