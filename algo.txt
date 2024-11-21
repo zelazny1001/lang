@@ -1,0 +1,20 @@
+    public String getFFTIdentifier() {
+        return getFFTIdentifier(filename, seqNum);
+    }
+
+    public static String getFFTIdentifier(String filename, int seqNum) {
+        Pattern idPattern = Pattern.compile("_(\\d+)(am.*?|pm.*?)_");
+        Matcher matcher = idPattern.matcher(filename);
+        if (matcher.find()) {
+            String id = matcher.group(1);
+            return id + "_" + seqNum;
+        }
+        throw new IllegalArgumentException("Incorrect filename format: " + filename);
+    }
+
+    public static void main(String[] args) {
+        String t1 = "112234_99876_1234am_maxname_customerside_otherpart";
+        t1 = "11111_3463am_another_with_more_data";
+        String t2 = getFFTIdentifier(t1, 6);
+        System.out.println(t2);
+    }
