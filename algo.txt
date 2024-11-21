@@ -1,0 +1,311 @@
+package analyzer;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.Set;
+
+public class FFTAnalyzer {
+    private static final int SAMPLING_RATE = 8000;             // sampling rate in Hz
+    private static final float SAMPLES_PER_SECOND = 50.0f;    // conversion factor from samples to time in seconds
+    private final Map<String, byte[]> g711Cache = new HashMap<>();
+    private final List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT = new ArrayList<>();
+
+    public static void main(String[] args) throws IOException {
+        String g711InputFileRootDirectory = "/asr-data/rod-calls/";
+        String outputRoot = "/tmp/vad/";
+        String transcriptionWindowsInputFilename = outputRoot + "formatted-analysis2.txt";
+        String cosineSimilarityRoot = outputRoot + "/cosine-similarity/";
+        String fftAnalysisOutputFilename = outputRoot + "fft-analysis.txt";
+        String cosineSimilarityOutputFilename = outputRoot + "cosine-similarities-focused.txt";
+
+        int binSizeHz = 1;                  // bin size in Hz for frequency binning
+        boolean decodeIsLinear = true;      // false for non-linear (mu-Law default) byte decoding
+        cosineSimilarityOutputFilename = createBinningFilename(cosineSimilarityOutputFilename, binSizeHz, decodeIsLinear);
+
+        performFFTAnalysis(transcriptionWindowsInputFilename, g711InputFileRootDirectory, fftAnalysisOutputFilename, cosineSimilarityOutputFilename, binSizeHz, decodeIsLinear, cosineSimilarityRoot);
+    }
+
+    private static void performFFTAnalysis(String transcriptionWindowsInputFilename, String g711InputFileRootDirectory,
+                                           String fftAnalysisOutputFilename, String cosineSimilarityOutputFilename,
+                                           int binSizeHz, boolean decodeIsLinear, String cosineSimilarityRoot) throws IOException {
+        FFTAnalyzer analyzer = new FFTAnalyzer();
+        analyzer.createTranscriptionWindowWithFFT(transcriptionWindowsInputFilename, g711InputFileRootDirectory, decodeIsLinear);
+        analyzer.writeTranscriptionWindowToOutputFile(fftAnalysisOutputFilename, analyzer.getTranscriptionWindowsWithFFT(), SAMPLES_PER_SECOND);
+
+        //List<CosineSimilarityProcessor> cosineSimilarityTable = analyzer.createCosineSimilarityTable(analyzer.getTranscriptionWindowsWithFFT(), SAMPLING_RATE, binSizeHz);
+        List<CosineSimilarityProcessor> cosineSimilarityTable = analyzer.createFocusedCosineSimilarityTable(analyzer.getTranscriptionWindowsWithFFT(), SAMPLING_RATE, binSizeHz);
+        analyzer.writeCosineSimilarityTableToFile(cosineSimilarityTable, cosineSimilarityOutputFilename);
+        analyzer.writeFocusedSimilaritiesToFile(cosineSimilarityTable, cosineSimilarityRoot, decodeIsLinear);
+
+        List<CosineSimilarityProcessor> neighbors = analyzer.getClosestNeighbors(cosineSimilarityTable, "357_1", 0.7);
+        for (CosineSimilarityProcessor csp : neighbors) {
+            System.out.println(csp);
+        }
+    }
+
+    private byte[] readAllBytes(String filePath) {
+        try (InputStream inputStream = Files.newInputStream(Paths.get(filePath))) {
+            return G711Codec.readAllBytes(inputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public void createTranscriptionWindowWithFFT(String transcriptionWindowsInputFilename, String g711InputFileRoot, boolean decodeIsLinear) throws IOException {
+        List<TranscriptionWindow> transcriptionWindowRecords = ingestTranscriptionWindowDataFromInputFile(transcriptionWindowsInputFilename);
+        for (TranscriptionWindow transcriptionWindow : transcriptionWindowRecords) {
+            String filePath = g711InputFileRoot + transcriptionWindow.getFilename() + ".raw";
+            byte[] allG711Bytes = g711Cache.computeIfAbsent(filePath, this::readAllBytes);
+            if (allG711Bytes == null) {
+                System.out.println("Failed to load G711 data for file: " + filePath);
+                continue;
+            }
+            int startIdx = transcriptionWindow.getStart() - 1;
+            int endIdx = transcriptionWindow.getEnd() - 1;
+            if (startIdx < 0 || endIdx >= allG711Bytes.length || startIdx > endIdx) {
+                System.out.println("Invalid start or end indices for file: " + filePath);
+                continue;
+            }
+            byte[] bytesBetweenStartAndEnd = new byte[endIdx - startIdx + 1];
+            System.arraycopy(allG711Bytes, startIdx, bytesBetweenStartAndEnd, 0, bytesBetweenStartAndEnd.length);
+            float[] floatsBetweenStartAndEnd;
+            if (decodeIsLinear) {
+                floatsBetweenStartAndEnd = G711Codec.g711ByteArrayToNormalizedLinearPCM(bytesBetweenStartAndEnd);
+            } else {
+                floatsBetweenStartAndEnd = G711Codec.g711ByteArrayToNormalizedPCM(bytesBetweenStartAndEnd);
+            }
+            float[] fftResult = FFTProcessor.getFFT(floatsBetweenStartAndEnd);
+            float averageEnergy = FFTProcessor.calculateFrameEnergy(fftResult);
+            transcriptionWindowsWithFFT.add(new TranscriptionWindowWithFFT(transcriptionWindow, fftResult, averageEnergy));
+        }
+    }
+
+    private List<TranscriptionWindow> ingestTranscriptionWindowDataFromInputFile_old(String path) throws IOException {
+        return Files.lines(Paths.get(path))
+                .skip(1)
+                .map(line -> {
+                    String[] parts = line.split("\\|");
+                    return new TranscriptionWindow(
+                            parts[0].trim(),                        // filename
+                            Integer.parseInt(parts[2].trim()),      // seqNum
+                            Integer.parseInt(parts[3].trim()),      // start
+                            Integer.parseInt(parts[4].trim()),      // end
+                            parts[5].trim(),                        // transcript
+                            Integer.parseInt(parts[6].trim()),      // tokens
+                            Integer.parseInt(parts[7].trim()),      // samples
+                            Float.parseFloat(parts[8].trim())       // samplesPerToken
+                    );
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<TranscriptionWindow> ingestTranscriptionWindowDataFromInputFile(String path) throws IOException {
+        List<TranscriptionWindow> transcriptionWindows = Files.lines(Paths.get(path))
+                .skip(1)
+                .map(line -> {
+                    String[] parts = line.split("\\|");
+                    return new TranscriptionWindow(
+                            parts[0].trim(),                        // filename
+                            Integer.parseInt(parts[2].trim()),      // seqNum
+                            Integer.parseInt(parts[3].trim()),      // start
+                            Integer.parseInt(parts[4].trim()),      // end
+                            parts[5].trim(),                        // transcript
+                            Integer.parseInt(parts[6].trim()),      // tokens
+                            Integer.parseInt(parts[7].trim()),      // samples
+                            Float.parseFloat(parts[8].trim())       // samplesPerToken
+                    );
+                })
+                .collect(Collectors.toList());
+
+        Set<String> distinctFilenames = transcriptionWindows.stream()
+                .map(TranscriptionWindow::getFilename)
+                .collect(Collectors.toSet());
+
+        List<TranscriptionWindow> groupedWindows = distinctFilenames.stream()
+                .flatMap(filename -> {
+                    TranscriptionWindow extraWindow = new TranscriptionWindow(
+                            filename,                                // filename
+                            0,                                       // seqNum
+                            1,                                       // start
+                            100,                                     // end
+                            "",                                      // transcript
+                            0,                                       // tokens
+                            100,                                     // samples
+                            250.0f                                   // samplesPerToken
+                    );
+
+                    List<TranscriptionWindow> group = transcriptionWindows.stream()
+                            .filter(tw -> tw.getFilename().equals(filename))
+                            .collect(Collectors.toList());
+
+                    group.add(0, extraWindow);
+                    return group.stream();
+                })
+                .collect(Collectors.toList());
+
+        return groupedWindows;
+    }
+
+    public void writeTranscriptionWindowToOutputFile(String outputFilename, List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT, float samplesPerSecond) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename))) {
+            for (TranscriptionWindowWithFFT twWithFFT : transcriptionWindowsWithFFT) {
+                TranscriptionWindow record = twWithFFT.getTranscriptionWindow();
+                float[] fft = twWithFFT.getFft();
+
+                writer.write(String.format("%s | %d | %d | [%.3f, %.3f] | %d | %.3f | %s%n",
+                        record.getFilename(), record.getStart(), record.getEnd(),
+                        record.getStart() / samplesPerSecond, record.getEnd() / samplesPerSecond, record.getSeqNum(), twWithFFT.getAvgEnergy(), record.getTranscript()));
+
+                for (float fftValue : fft) {
+                    writer.write(fftValue + System.lineSeparator());
+                }
+            }
+        }
+    }
+
+    public List<TranscriptionWindowWithFFT> getTranscriptionWindowsWithFFT() {
+        return transcriptionWindowsWithFFT;
+    }
+
+    public List<CosineSimilarityProcessor> createCosineSimilarityTable(List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT, int samplingRate, int binSizeHz) {
+        List<CosineSimilarityProcessor> cosineSimilarityTable = new ArrayList<>();
+        for (int i = 0; i < transcriptionWindowsWithFFT.size(); i++) {
+            TranscriptionWindowWithFFT tw1 = transcriptionWindowsWithFFT.get(i);
+            String id1 = tw1.getTranscriptionWindow().getFFTIdentifier();
+            float[] fft1 = binFrequenciesVersusCount(tw1.getFft(), samplingRate, binSizeHz);
+
+            for (int j = i + 1; j < transcriptionWindowsWithFFT.size(); j++) {
+                TranscriptionWindowWithFFT tw2 = transcriptionWindowsWithFFT.get(j);
+                String id2 = tw2.getTranscriptionWindow().getFFTIdentifier();
+                float[] fft2 = binFrequenciesVersusCount(tw2.getFft(), samplingRate, binSizeHz);
+
+                CosineSimilarityProcessor record = CosineSimilarityProcessor.fromFFT(id1, fft1, id2, fft2);
+                cosineSimilarityTable.add(record);
+            }
+        }
+        return cosineSimilarityTable;
+    }
+
+    public List<CosineSimilarityProcessor> createFocusedCosineSimilarityTable(List<TranscriptionWindowWithFFT> transcriptionWindowsWithFFT, int samplingRate, int binSizeHz) {
+        List<CosineSimilarityProcessor> cosineSimilarityTable = new ArrayList<>();
+
+        for (int i = 0; i < transcriptionWindowsWithFFT.size(); i++) {
+            TranscriptionWindowWithFFT tw1 = transcriptionWindowsWithFFT.get(i);
+            String id1 = tw1.getTranscriptionWindow().getFFTIdentifier();
+            float[] fft1 = binFrequenciesVersusCount(tw1.getFft(), samplingRate, binSizeHz);
+
+            for (int j = i + 1; j < transcriptionWindowsWithFFT.size(); j++) {
+                TranscriptionWindowWithFFT tw2 = transcriptionWindowsWithFFT.get(j);
+                String id2 = tw2.getTranscriptionWindow().getFFTIdentifier();
+                float[] fft2 = binFrequenciesVersusCount(tw2.getFft(), samplingRate, binSizeHz);
+
+                if (getPrefix(id1).equals(getPrefix(id2))) {
+                    CosineSimilarityProcessor record = CosineSimilarityProcessor.fromFFT(id1, fft1, id2, fft2);
+                    cosineSimilarityTable.add(record);
+                }
+            }
+        }
+        return cosineSimilarityTable;
+    }
+
+    public void writeFocusedSimilaritiesToFile(List<CosineSimilarityProcessor> cosineSimilarityTable, String rootLocation, boolean decodeIsLinear) throws IOException {
+        Map<String, List<CosineSimilarityProcessor>> groupedByLeadingPortion = cosineSimilarityTable.stream()
+                .collect(Collectors.groupingBy(record -> record.getId1().split("_")[0]));
+        for (Map.Entry<String, List<CosineSimilarityProcessor>> entry : groupedByLeadingPortion.entrySet()) {
+            String leadingPortion = entry.getKey();
+            List<CosineSimilarityProcessor> records = entry.getValue();
+            String filename = rootLocation + leadingPortion + (decodeIsLinear ? "_linear.csv" : "_nonlinear.csv");
+
+            File file = new File(filename);
+            file.getParentFile().mkdirs(); // Create directories if they do not exist
+
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+                writer.write(String.format("call_chunk1,call_chunk2,similarity\n"));
+                for (CosineSimilarityProcessor record : records) {
+                    writer.write(String.format("%s,%s,%.3f%n", record.getId1(), record.getId2(), record.getCosineSimilarity()));
+                }
+            }
+        }
+    }
+
+    public List<CosineSimilarityProcessor> getClosestNeighbors(List<CosineSimilarityProcessor> similarities, String id, double threshold) {
+        String leadingPortion = id.split("_")[0];
+
+        Optional<CosineSimilarityProcessor> targetRecordOpt = similarities.stream()
+                .filter(record -> record.getId1().equals(id) || record.getId2().equals(id))
+                .findFirst();
+
+        if (!targetRecordOpt.isPresent()) {
+            return java.util.Collections.emptyList();
+        }
+
+        double targetSimilarity = targetRecordOpt.get().getCosineSimilarity();
+
+        return similarities.stream()
+                .filter(record -> record.getId1().startsWith(leadingPortion + "_") || record.getId2().startsWith(leadingPortion + "_"))
+                .filter(record -> (record.getId1().equals(id) || record.getId2().equals(id)) && record.getCosineSimilarity() >= threshold)
+                .sorted((record1, record2) ->
+                        Double.compare(Math.abs(record1.getCosineSimilarity() - targetSimilarity),
+                                Math.abs(record2.getCosineSimilarity() - targetSimilarity))
+                )
+                .collect(Collectors.toList());
+    }
+
+    private String getPrefix(String id) {
+        int underscoreIndex = id.indexOf('_');
+        if (underscoreIndex != -1) {
+            return id.substring(0, underscoreIndex);
+        }
+        return id;
+    }
+
+    public float[] binFrequenciesVersusCount(float[] fft, int samplingRate, int binSizeHz) {
+        int numBins = (samplingRate/2) / binSizeHz;
+        float[] binnedFFT = new float[numBins];
+        int fftLength = fft.length * 2;
+        float frequencyPerBin = samplingRate / (float) fftLength;
+        for (int i = 0; i < fft.length; i++) {
+            float frequency = i * frequencyPerBin;
+            int binIndex = (int) (frequency / binSizeHz);
+            if (binIndex < numBins) {
+                binnedFFT[binIndex] += fft[i];
+            }
+        }
+        for (int i = 0; i < binnedFFT.length; i++) {
+            int count = Math.max(1, Math.round(binSizeHz / frequencyPerBin));
+            binnedFFT[i] /= count;
+        }
+        return binnedFFT;
+    }
+
+    public void writeCosineSimilarityTableToFile(List<CosineSimilarityProcessor> cosineSimilarityTable, String outputFilename) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename))) {
+            for (CosineSimilarityProcessor record : cosineSimilarityTable) {
+                writer.write(String.format("%s, %s, %.3f%n", record.getId1(), record.getId2(), record.getCosineSimilarity()));
+            }
+        }
+    }
+
+    public static String createBinningFilename(String theFilename, int binSize, boolean decodeIsLinear) {
+        int dotIndex = theFilename.lastIndexOf('.');
+        String decodeRepresentation = decodeIsLinear ? "linear" : "nonlinear";
+        if (dotIndex == -1) {
+            return theFilename + "_" + binSize + "_" + decodeRepresentation;
+        }
+        String baseName = theFilename.substring(0, dotIndex);
+        String extension = theFilename.substring(dotIndex);
+        return baseName + "_" + binSize + "_" + decodeRepresentation + extension;
+    }
+ }
