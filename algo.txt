@@ -1,0 +1,49 @@
+function calculateWER(groundTruth, transcription) {
+    const groundTruthWords = groundTruth.split(/\s+/);
+    const transcriptionWords = transcription.split(/\s+/);
+
+    const m = groundTruthWords.length;
+    const n = transcriptionWords.length;
+
+    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+    // Initialize DP table
+    for (let i = 0; i <= m; i++) dp[i][0] = i; // Cost of deletions
+    for (let j = 0; j <= n; j++) dp[0][j] = j; // Cost of insertions
+
+    // Fill DP table
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            if (groundTruthWords[i - 1] === transcriptionWords[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1]; // No cost if words match
+            } else {
+                dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+            }
+        }
+    }
+
+    // Backtrack to count S, D, I
+    let i = m, j = n;
+    let substitutions = 0, deletions = 0, insertions = 0;
+
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && groundTruthWords[i - 1] === transcriptionWords[j - 1]) {
+            i--; j--; // Match (no error)
+        } else if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + 1) {
+            substitutions++; i--; j--; // Substitution
+        } else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
+            deletions++; i--; // Deletion
+        } else if (j > 0 && dp[i][j] === dp[i][j - 1] + 1) {
+            insertions++; j--; // Insertion
+        }
+    }
+
+    const wer = ((substitutions + deletions + insertions) / m) * 100;
+    return {
+        wer: Math.min(wer, 100).toFixed(2), // Cap WER at 100%
+        substitutions,
+        deletions,
+        insertions,
+        total: m
+    };
+}
