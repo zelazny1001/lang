@@ -1,18 +1,10 @@
-function fetchWER(groundTruth, transcription) {
-    const werField = document.getElementById("werField");
-    fetch("http://my.private.server:8080/findwer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groundTruth: groundTruth, transcription: transcription }),
-    })
-        .then(response => {
-            if (!response.ok) throw new Error(`Server error: ${response.status}`);
-            return response.text(); // Handle plain text response
+function filterAndSortRows(rows, key) {
+    const keyParts = key.split("_"); // Break the key into parts (e.g., ['max', '1218am', 'max', 'customerside8Hz'])
+
+    return rows
+        .filter(row => {
+            const filename = row.filename.toLowerCase(); // Case-insensitive match
+            return keyParts.some(part => filename.includes(part.toLowerCase())); // Check if any part matches
         })
-        .then(data => {
-            werField.value = `${Math.min(parseFloat(data), 100).toFixed(2)}%`; // Cap at 100% and format
-        })
-        .catch(() => {
-            werField.value = "Error";
-        });
+        .sort((a, b) => a.seqNum - b.seqNum); // Sort by seqNum
 }
