@@ -1,0 +1,83 @@
+package analyzer;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+public class TranscriptScrubber {
+
+    public static List<String> getScrubbedTranscript(String inputFilePath, String name) {
+        try (Stream<String> lines = Files.lines(Paths.get(inputFilePath))) {
+            List<String> allLines = lines.collect(Collectors.toList());
+            if (allLines.isEmpty()) return new ArrayList<>();
+
+            Map<String, Integer> columnIndex = new HashMap<>();
+            String[] headers = allLines.get(0).split("\\|");
+            for (int i = 0; i < headers.length; i++) {
+                columnIndex.put(headers[i].trim().toLowerCase(), i);
+            }
+
+            Integer filenameIndex = columnIndex.get("filename");
+            Integer transcriptIndex = columnIndex.get("transcript");
+            Integer tokensIndex = columnIndex.get("tokens");
+            Integer samplesIndex = columnIndex.get("samples");
+
+            if (filenameIndex == null || transcriptIndex == null || tokensIndex == null || samplesIndex == null) {
+                System.out.println("Error: One or more column names are incorrect or missing in the header.");
+                return new ArrayList<>();
+            }
+
+            return allLines.stream().skip(1)
+                    .filter(line -> isValidLine(line, name, filenameIndex, transcriptIndex, tokensIndex, samplesIndex))
+                    .collect(Collectors.toList());
+
+        } catch (IOException e) {
+            System.out.println("Error reading file: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    private static boolean isValidLine(String line, String name, int filenameIndex, int transcriptIndex, int tokensIndex, int samplesIndex) {
+        String[] columns = line.split("\\|");
+        return columns[filenameIndex].contains(name)
+                && columns[samplesIndex].equals("250")
+                && (columns[transcriptIndex].equalsIgnoreCase("thank you") || columns[tokensIndex].equals("1"));
+    }
+
+    public static void writeScrubbedTranscriptToFile(List<String> lines, Path outputFilePath) {
+        try {
+            Files.write(outputFilePath, lines);
+        } catch (IOException e) {
+            System.out.println("Error writing to file: " + e.getMessage());
+        }
+    }
+
+    public static void createScrubbedTranscripts(String inputFilePath, String outputDir, String... names) {
+        Path outputDirectory = Paths.get(outputDir);
+        try {
+            Files.createDirectories(outputDirectory); // Ensure the directory exists
+        } catch (IOException e) {
+            System.out.println("Failed to create output directory: " + e.getMessage());
+            return;
+        }
+
+        for (String name : names) {
+            List<String> scrubbedLines = getScrubbedTranscript(inputFilePath, name);
+            Path outputFilePath = outputDirectory.resolve(name + "_scrubbed.txt");
+            writeScrubbedTranscriptToFile(scrubbedLines, outputFilePath);
+        }
+    }
+
+    public static void main(String[] args) {
+        String inputFilePath = "/tmp/vad/customer-side-analysis.txt";
+        String outputDir = "/tmp/vad/to-xx/";
+        createScrubbedTranscripts(inputFilePath, outputDir, "crappsjr", "hilton", "max", "wiley");
+    }
+}
