@@ -155,10 +155,10 @@ function calculateWER(groundTruth, transcription) {
     const m = groundWords.length;
     const n = transcribedWords.length;
     
-    // Create a DP table with dimensions (m+1)x(n+1)
+    // DP table with dimensions (m+1)x(n+1)
     const dp = Array(m + 1).fill().map(() => Array(n + 1).fill(0));
     
-    // Initialize edit distance matrix
+    // initialize edit distance matrix
     for (let i = 0; i <= m; i++) {
         dp[i][0] = i;
     }
@@ -166,10 +166,10 @@ function calculateWER(groundTruth, transcription) {
         dp[0][j] = j;
     }
     
-    // Fill the DP table
+    // initial pass of DP table
     for (let i = 1; i <= m; i++) {
         for (let j = 1; j <= n; j++) {
-            if (groundWords[i - 1] === transcribedWords[j - 1]) {
+            if (groundWords[i - 1] === transcribedWords[j - 1]) { // match
                 dp[i][j] = dp[i - 1][j - 1];
             } else {
                 dp[i][j] = 1 + Math.min(
@@ -181,13 +181,13 @@ function calculateWER(groundTruth, transcription) {
         }
     }
     
-    // Enhanced backtracking to precisely count errors
+    // backtrack to count errors
     let i = m, j = n;
     let substitutions = 0, deletions = 0, insertions = 0;
     
     while (i > 0 || j > 0) {
         if (i > 0 && j > 0 && groundWords[i - 1] === transcribedWords[j - 1]) {
-            // Correct match
+            // match
             i--;
             j--;
         } else if (i > 0 && j > 0) {
@@ -208,12 +208,12 @@ function calculateWER(groundTruth, transcription) {
                 j--;
             }
         }
-        // Handle remaining deletions
+        // any remaining deletions?
         else if (i > 0) {
             deletions++;
             i--;
         }
-        // Handle remaining insertions
+        // any remaining insertions?
         else if (j > 0) {
             insertions++;
             j--;
