@@ -44,11 +44,12 @@ public class TranscriptScrubber {
     private static boolean shouldExcludeLine(String line, int filenameIndex, int transcriptIndex, int tokensIndex, int samplesIndex) {
         String[] columns = line.split("\\|");
         String transcriptValue = columns[transcriptIndex].trim().toLowerCase();
+        int sampleCount = Integer.parseInt(columns[samplesIndex].trim());
+        int tokenCount = Integer.parseInt(columns[tokensIndex].trim());
         boolean isThankYou = transcriptValue.equalsIgnoreCase("thank you")
-                             || transcriptValue.equalsIgnoreCase("thank you.")
-                             || transcriptValue.equalsIgnoreCase("thank you,");
-        return !(columns[samplesIndex].equals("250")
-                && (isThankYou || columns[tokensIndex].equals("1")));
+                || transcriptValue.equalsIgnoreCase("thank you.")
+                || transcriptValue.equalsIgnoreCase("thank you,");
+        return !(sampleCount == 250 && (isThankYou || tokenCount == 1));
     }
 
     public static void writeScrubbedTranscriptToFile(List<String> lines, String outputFilePath) {
