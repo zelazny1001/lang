@@ -2,7 +2,6 @@ package analyzer;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,7 +12,7 @@ import java.util.stream.Stream;
 
 public class TranscriptScrubber {
 
-    public static List<String> getScrubbedTranscript(String inputFilePath, String name) {
+    public static List<String> getScrubbedTranscript(String inputFilePath) {
         try (Stream<String> lines = Files.lines(Paths.get(inputFilePath))) {
             List<String> allLines = lines.collect(Collectors.toList());
             if (allLines.isEmpty()) return new ArrayList<>();
@@ -30,54 +29,44 @@ public class TranscriptScrubber {
             Integer samplesIndex = columnIndex.get("samples");
 
             if (filenameIndex == null || transcriptIndex == null || tokensIndex == null || samplesIndex == null) {
-                System.out.println("Error: One or more column names are incorrect or missing in the header.");
                 return new ArrayList<>();
             }
 
             return allLines.stream().skip(1)
-                    .filter(line -> isValidLine(line, name, filenameIndex, transcriptIndex, tokensIndex, samplesIndex))
+                    .filter(line -> shouldExcludeLine(line, filenameIndex, transcriptIndex, tokensIndex, samplesIndex))
                     .collect(Collectors.toList());
 
         } catch (IOException e) {
-            System.out.println("Error reading file: " + e.getMessage());
             return new ArrayList<>();
         }
     }
 
-    private static boolean isValidLine(String line, String name, int filenameIndex, int transcriptIndex, int tokensIndex, int samplesIndex) {
+    private static boolean shouldExcludeLine(String line, int filenameIndex, int transcriptIndex, int tokensIndex, int samplesIndex) {
         String[] columns = line.split("\\|");
-        return columns[filenameIndex].contains(name)
-                && columns[samplesIndex].equals("250")
-                && (columns[transcriptIndex].equalsIgnoreCase("thank you") || columns[tokensIndex].equals("1"));
+        String transcriptValue = columns[transcriptIndex].trim().toLowerCase();
+        boolean isThankYou = transcriptValue.equalsIgnoreCase("thank you")
+                             || transcriptValue.equalsIgnoreCase("thank you.")
+                             || transcriptValue.equalsIgnoreCase("thank you,");
+        return !(columns[samplesIndex].equals("250")
+                && (isThankYou || columns[tokensIndex].equals("1")));
     }
 
-    public static void writeScrubbedTranscriptToFile(List<String> lines, Path outputFilePath) {
+    public static void writeScrubbedTranscriptToFile(List<String> lines, String outputFilePath) {
         try {
-            Files.write(outputFilePath, lines);
+            Files.write(Paths.get(outputFilePath), lines);
         } catch (IOException e) {
             System.out.println("Error writing to file: " + e.getMessage());
         }
     }
 
-    public static void createScrubbedTranscripts(String inputFilePath, String outputDir, String... names) {
-        Path outputDirectory = Paths.get(outputDir);
-        try {
-            Files.createDirectories(outputDirectory); // Ensure the directory exists
-        } catch (IOException e) {
-            System.out.println("Failed to create output directory: " + e.getMessage());
-            return;
-        }
-
-        for (String name : names) {
-            List<String> scrubbedLines = getScrubbedTranscript(inputFilePath, name);
-            Path outputFilePath = outputDirectory.resolve(name + "_scrubbed.txt");
-            writeScrubbedTranscriptToFile(scrubbedLines, outputFilePath);
-        }
+    public static void createScrubbedAnalysis(String inputFilePath, String outputFilePath) {
+        List<String> scrubbedLines = getScrubbedTranscript(inputFilePath);
+        writeScrubbedTranscriptToFile(scrubbedLines, outputFilePath);
     }
 
     public static void main(String[] args) {
         String inputFilePath = "/tmp/vad/customer-side-analysis.txt";
-        String outputDir = "/tmp/vad/to-xx/";
-        createScrubbedTranscripts(inputFilePath, outputDir, "crappsjr", "hilton", "max", "wiley");
+        String outputFilePath = "/tmp/vad/to-xx/customer-scrubbed-analysis.txt";
+        createScrubbedAnalysis(inputFilePath, outputFilePath);
     }
 }
