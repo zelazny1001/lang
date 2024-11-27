@@ -32,9 +32,14 @@ public class TranscriptScrubber {
                 return new ArrayList<>();
             }
 
-            return allLines.stream().skip(1)
+            List<String> filteredLines = allLines.stream().skip(1)
                     .filter(line -> shouldExcludeLine(line, filenameIndex, transcriptIndex, tokensIndex, samplesIndex))
                     .collect(Collectors.toList());
+
+            String header = "filename | enforced | seqNum | start | end | transcript | tokens | samples | samples.per.token";
+            filteredLines.add(0, header);
+
+            return filteredLines;
 
         } catch (IOException e) {
             return new ArrayList<>();
