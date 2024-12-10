@@ -1,4 +1,33 @@
-function stripSurroundingQuotes(input) {
-    if (typeof input !== 'string') return input;
-    return input.trim().replace(/^["']|["']$/g, '');
-}
+document.getElementById("purposeSummaryButton").addEventListener("click", async () => {
+    const selection = window.getSelection();
+    const selectedText = selection.toString().trim();
+
+    if (!selectedText) {
+        alert("No text selected.");
+        return;
+    }
+
+    const assembledText = selectedText.split("\n").join(" ");
+
+    const payload = { conversation: assembledText };
+
+    try {
+        const response = await fetch("http://laude_server.com:8000/fetchdata", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            alert("Failed to fetch data from the server.");
+            return;
+        }
+
+        const responseText = stripSurroundingQuotes(await response.text());
+
+        const outputDisplay = document.getElementById("outputDisplay");
+        outputDisplay.innerText = responseText;
+    } catch (error) {
+        alert("An error occurred while making the request: " + error.message);
+    }
+});
