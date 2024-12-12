@@ -1,0 +1,56 @@
+document.getElementById("clearButton").addEventListener("click", () => {
+    const groundTruthDiv = document.getElementById("groundTruth");
+    const transcriptionDiv = document.getElementById("transcription");
+    const outputDisplay = document.getElementById("outputDisplay");
+
+    groundTruthDiv.innerText = groundTruthDiv.innerText;
+
+    document.getElementById("werResult").value = `WER: %, S: , D: , I: , N: `;
+    document.getElementById("perResult").value = `PER: %, S: 0, D: , I: , N: `;
+
+    document.getElementById("substitutionDetails").value = "";
+    document.getElementById("deletionDetails").value = "";
+    document.getElementById("insertionDetails").value = "";
+    document.getElementById("perDeletionDetails").value = "";
+    document.getElementById("perInsertionDetails").value = "";
+
+    outputDisplay.innerText = ""; // clear summary text
+
+    if (cachedTranscriptionData) {
+        const transcripts = cachedTranscriptionData.map(row => row.transcript).join("\n");
+        populateTextArea("transcription", transcripts); // re-populate transcription text area
+    }
+});
+
+----------------------------------------------
+
+    public String getStats(float[] data, int numDecimalPlaces) {
+        if (data == null || data.length == 0) {
+            throw new IllegalArgumentException("Data array must not be null or empty");
+        }
+
+        float min = Arrays.stream(data).min().orElse(Float.NaN);
+        float max = Arrays.stream(data).max().orElse(Float.NaN);
+        double mean = Arrays.stream(data).average().orElse(Double.NaN);
+        double variance = Arrays.stream(data).mapToDouble(v -> Math.pow(v - mean, 2)).average().orElse(0.0);
+        double stdDev = Math.sqrt(variance);
+
+        Map<Float, Long> frequencyMap = Arrays.stream(data)
+                .mapToObj(value -> round(value, numDecimalPlaces))
+                .collect(Collectors.groupingBy(value -> value, Collectors.counting()));
+
+        Optional<Map.Entry<Float, Long>> modeEntry = frequencyMap.entrySet().stream()
+                .max(Map.Entry.comparingByValue());
+
+        float mode = modeEntry.map(Map.Entry::getKey).orElse(Float.NaN);
+
+        return round(min, numDecimalPlaces) + "," + round(max, numDecimalPlaces) + "," +
+               round((float) stdDev, numDecimalPlaces) + "," + round(mode, numDecimalPlaces);
+    }
+
+    private float round(float value, int places) {
+        if (places < 0) throw new IllegalArgumentException("Decimal places must be non-negative");
+        BigDecimal bd = new BigDecimal(Float.toString(value));
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.floatValue();
+    }
