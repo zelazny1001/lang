@@ -1,35 +1,27 @@
-    public String getStats(float[] data, int numDecimalPlaces) {
-        if (data == null || data.length == 0) {
-            throw new IllegalArgumentException("Data array must not be null or empty");
+    public static short[] decodeG711ToPCM(byte[] g711Bytes) {
+        if (g711Bytes == null || g711Bytes.length == 0) {
+            throw new IllegalArgumentException("Input array must not be null or empty");
         }
 
-        double[] doubleData = new double[data.length];
-        for (int i = 0; i < data.length; i++) {
-            doubleData[i] = data[i];
+        Decoder decoder = new Decoder();
+        decoder.setInputFormat(new AudioFormat(AudioFormat.ULAW_RTP, 8000, 8, 1));
+
+        Buffer inputBuffer = new Buffer();
+        Buffer outputBuffer = new Buffer();
+
+        inputBuffer.setData(g711Bytes);
+        inputBuffer.setLength(g711Bytes.length);
+
+        decoder.process(inputBuffer, outputBuffer);
+
+        if (outputBuffer.getData() instanceof byte[]) {
+            byte[] pcmBytes = (byte[]) outputBuffer.getData();
+            short[] pcmShorts = new short[pcmBytes.length / 2];
+            for (int i = 0; i < pcmShorts.length; i++) {
+                pcmShorts[i] = (short) ((pcmBytes[2 * i + 1] << 8) | (pcmBytes[2 * i] & 0xFF));
+            }
+            return pcmShorts;
+        } else {
+            throw new RuntimeException("Decoded data is not in expected format");
         }
-
-        double min = DoubleStream.of(doubleData).min().orElse(Double.NaN);
-        double max = DoubleStream.of(doubleData).max().orElse(Double.NaN);
-        double mean = DoubleStream.of(doubleData).average().orElse(Double.NaN);
-        double variance = DoubleStream.of(doubleData).map(v -> Math.pow(v - mean, 2)).average().orElse(0.0);
-        double stdDev = Math.sqrt(variance);
-
-        Map<Float, Long> frequencyMap = DoubleStream.of(doubleData)
-                .mapToObj(value -> round((float) value, numDecimalPlaces))
-                .collect(Collectors.groupingBy(value -> value, Collectors.counting()));
-
-        Optional<Map.Entry<Float, Long>> modeEntry = frequencyMap.entrySet().stream()
-                .max(Map.Entry.comparingByValue());
-
-        float mode = modeEntry.map(Map.Entry::getKey).orElse(Float.NaN);
-
-        return round((float) min, numDecimalPlaces) + "," + round((float) max, numDecimalPlaces) + "," +
-                round((float) stdDev, numDecimalPlaces) + "," + round(mode, numDecimalPlaces);
-    }
-
-    private float round(float value, int places) {
-        if (places < 0) throw new IllegalArgumentException("Decimal places must be non-negative");
-        BigDecimal bd = new BigDecimal(Float.toString(value));
-        bd = bd.setScale(places, RoundingMode.HALF_UP);
-        return bd.floatValue();
     }
