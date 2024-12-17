@@ -1,27 +1,19 @@
-    public static short[] decodeG711ToPCM(byte[] g711Bytes) {
-        if (g711Bytes == null || g711Bytes.length == 0) {
-            throw new IllegalArgumentException("Input array must not be null or empty");
-        }
+class Candidate:
+    start_idx: int
+    start_dB: float
+    num_voice_chunks: int = 0
+    num_non_voice_chunks: int = 0
 
-        Decoder decoder = new Decoder();
-        decoder.setInputFormat(new AudioFormat(AudioFormat.ULAW_RTP, 8000, 8, 1));
+    def add_voice(self):
+        self.num_voice_chunks += 1
 
-        Buffer inputBuffer = new Buffer();
-        Buffer outputBuffer = new Buffer();
+    def add_non_voice(self):
+        self.num_non_voice_chunks += 1
 
-        inputBuffer.setData(g711Bytes);
-        inputBuffer.setLength(g711Bytes.length);
-
-        decoder.process(inputBuffer, outputBuffer);
-
-        if (outputBuffer.getData() instanceof byte[]) {
-            byte[] pcmBytes = (byte[]) outputBuffer.getData();
-            short[] pcmShorts = new short[pcmBytes.length / 2];
-            for (int i = 0; i < pcmShorts.length; i++) {
-                pcmShorts[i] = (short) ((pcmBytes[2 * i + 1] << 8) | (pcmBytes[2 * i] & 0xFF));
-            }
-            return pcmShorts;
-        } else {
-            throw new RuntimeException("Decoded data is not in expected format");
-        }
-    }
+class Span:
+    start_idx: int
+    end_idx: int
+    start_dB: float
+    end_dB: float
+    num_voice_chunks: int
+    num_non_voice_chunks: int
