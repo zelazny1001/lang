@@ -1,51 +1,134 @@
 package analyzer.vad;
 
-import analyzer.G711Codec;
-
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.List;
+import analyzer.FileWriterUtility;
+import analyzer.StatsCalculator;
+import org.jtransforms.fft.FloatFFT_1D;
 import java.util.ArrayList;
-import java.util.logging.Logger;
+import java.util.Arrays;
+import java.util.List;
 
-public class StreamAnalyzer {
+public class SpanDetector {
+    private int sr;
+    private int currIdx;
+    private Candidate currCandidate;
+    private List<Span> spans;
+    private float backgroundEnergyTimeout;
+    private boolean backgroundEnergyInitialized;
+    private float backgroundEnergy;
+    private float dbOffset;
+    private float minSoFar;
+    private float secondsPerFrame = 20e-3f;
+    private int samplesPerFrame;
+    private float highOffsetThreshold;
 
-    private static final Logger logger = Logger.getLogger(StreamAnalyzer.class.getName());
-    private static final int BATCH_SIZE = 160;
-
-    public List<Span> processAudioFile(String filePath) {
-        List<Span> detectedSpans = new ArrayList<>();
-        SpanDetector spanDetector = new SpanDetector(8000); // 8kHz sampling rate
-
-        int seqNum = 1;
-        try (FileInputStream fis = new FileInputStream(filePath)) {
-            byte[] buffer = new byte[BATCH_SIZE];
-            int bytesRead;
-
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                if (bytesRead < BATCH_SIZE) {
-                    logger.warning("Partial batch read: " + bytesRead + " bytes.");
-                    continue;
-                }
-
-                float[] audioFloats = G711Codec.g711ByteArrayToNormalizedPCM(buffer);
-                detectedSpans.addAll(spanDetector.addToStream(audioFloats, "customer", seqNum));
-
-                logger.info("SeqNum: " + seqNum);
-                seqNum++;
-            }
-        } catch (IOException e) {
-            System.out.println("Exception in ProcessAudioFile...");
-            e.printStackTrace();
-        }
-
-        logger.info("Processing complete. Total spans detected: " + detectedSpans.size());
-        return detectedSpans;
+    public SpanDetector(int sr) {
+        this.sr = sr;
+        this.samplesPerFrame = (int) (secondsPerFrame * sr);
+        this.currIdx = 0;
+        this.currCandidate = null;
+        this.spans = new ArrayList<>();
+        this.backgroundEnergyTimeout = 2.0f;
+        this.backgroundEnergyInitialized = false;
+        this.backgroundEnergy = 0.0f;
+        this.dbOffset = 2.5f;
+        this.highOffsetThreshold = 5.0f;
+        this.minSoFar = Float.POSITIVE_INFINITY;
+        String header = "seqNum, min, max, avg, stdev, finalFrameEnergy, bkgndEnergy, voice";
+        FileWriterUtility.writeToFile("stats.txt", header);
     }
 
-    public static void main(String[] args) {
-        String testFile = "test_file";
-        StreamAnalyzer streamAnalyzer = new StreamAnalyzer();
-        streamAnalyzer.processAudioFile(testFile);
+    public List<Span> addToStream(float[] audio, String speaker, int seqNum) {
+        int nSamples = audio.length;
+        List<Span> spans = new ArrayList<>();
+
+        float fftFrameEnergy = 0;
+
+        for (int i = 0; i < nSamples - 1; i += samplesPerFrame) {
+            if ((i + samplesPerFrame) > audio.length) {
+                samplesPerFrame = audio.length - i;
+            }
+
+            int start = i + currIdx;
+            int end = start + samplesPerFrame;
+            float[] audioB = new float[samplesPerFrame];
+            System.arraycopy(audio, i, audioB, 0, samplesPerFrame);
+
+            float frameEnergy = calculateFrameEnergy(audioB);
+            fftFrameEnergy = frameEnergy;
+
+            if (frameEnergy < minSoFar) {
+                minSoFar = frameEnergy;
+            }
+
+            float convDuration = (float)currIdx/sr;
+
+            if (convDuration < backgroundEnergyTimeout) {
+                if (!backgroundEnergyInitialized) {
+                    backgroundEnergy = frameEnergy;
+                    backgroundEnergyInitialized = true;
+                } else {
+                    backgroundEnergy += (frameEnergy - backgroundEnergy) / (end / samplesPerFrame);
+                }
+                currIdx += samplesPerFrame;
+                continue;
+            }
+
+            currIdx += samplesPerFrame;
+
+            float offset = (float) Math.log10(frameEnergy / backgroundEnergy);
+            if (offset < 0) {
+                backgroundEnergy = (0.1f * backgroundEnergy + 0.9f * frameEnergy);
+            } else if (offset > dbOffset) {
+                if (offset > highOffsetThreshold) {
+                    backgroundEnergy = (0.98f * backgroundEnergy + 0.02f * frameEnergy);
+                } else {
+                    backgroundEnergy = (0.90f * backgroundEnergy + 0.10f * minSoFar);
+                }
+                if (currCandidate == null) {
+                    currCandidate = new Candidate(start, frameEnergy);
+                }
+                Span span = new Span(currCandidate.getStartIdx(), end, currCandidate.getStartDb(), frameEnergy,
+                        currCandidate.getNumVoiceChunks(), currCandidate.getNumNonVoiceChunks(), speaker);
+                spans.add(span);
+                this.spans.add(span);
+
+                currCandidate = null;
+            }
+        }
+        int voice = spans.size() > 0 ? 1 : 0;
+        String stats = StatsCalculator.getStats(audio, 5);
+        String statsLine = String.format("%d, %s, %.5f, %.5f, %d", seqNum, stats, fftFrameEnergy, backgroundEnergy, voice);
+        FileWriterUtility.writeToFile("stats.txt", statsLine);
+
+        String floatsLine = seqNum + ", " + Arrays.toString(audio);
+        FileWriterUtility.writeToFile("floats.txt", floatsLine);
+        return spans;
+    }
+
+    private float calculateFrameEnergy(float[] audioB) {
+        float[] fftResult = getFFT(audioB);
+        float sumSquares = 0.0f;
+        for (float v : fftResult) {
+            sumSquares += v * v;
+        }
+        return sumSquares / fftResult.length;
+    }
+
+    private float[] getFFT(float[] audio) {
+        int N = audio.length;
+        float[] windowedAudio = new float[N];
+        for (int i = 0; i < N; i++) {
+            windowedAudio[i] = (float)(audio[i] * (0.54f - 0.46f * Math.cos(2 * Math.PI * i / (N - 1))));
+        }
+
+        FloatFFT_1D fft = new FloatFFT_1D(N);
+        fft.realForwardFull(windowedAudio);
+
+        float[] result = new float[N/2];
+        result[0] = windowedAudio[0];
+        for (int i = 1; i < N / 2; i++) {
+            result[i] = (float) Math.sqrt(windowedAudio[2*i] * windowedAudio[2*i] + windowedAudio[2*i + 1] * windowedAudio[2*i + 1]);
+        }
+        return result;
     }
 }
