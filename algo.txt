@@ -1,0 +1,51 @@
+package analyzer.vad;
+
+import analyzer.G711Codec;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.logging.Logger;
+
+public class StreamAnalyzer {
+
+    private static final Logger logger = Logger.getLogger(StreamAnalyzer.class.getName());
+    private static final int BATCH_SIZE = 160;
+
+    public List<Span> processAudioFile(String filePath) {
+        List<Span> detectedSpans = new ArrayList<>();
+        SpanDetector spanDetector = new SpanDetector(8000); // 8kHz sampling rate
+
+        int seqNum = 1;
+        try (FileInputStream fis = new FileInputStream(filePath)) {
+            byte[] buffer = new byte[BATCH_SIZE];
+            int bytesRead;
+
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                if (bytesRead < BATCH_SIZE) {
+                    logger.warning("Partial batch read: " + bytesRead + " bytes.");
+                    continue;
+                }
+
+                float[] audioFloats = G711Codec.g711ByteArrayToNormalizedPCM(buffer);
+                detectedSpans.addAll(spanDetector.addToStream(audioFloats, "customer", seqNum));
+
+                logger.info("SeqNum: " + seqNum);
+                seqNum++;
+            }
+        } catch (IOException e) {
+            System.out.println("Exception in ProcessAudioFile...");
+            e.printStackTrace();
+        }
+
+        logger.info("Processing complete. Total spans detected: " + detectedSpans.size());
+        return detectedSpans;
+    }
+
+    public static void main(String[] args) {
+        String testFile = "test_file";
+        StreamAnalyzer streamAnalyzer = new StreamAnalyzer();
+        streamAnalyzer.processAudioFile(testFile);
+    }
+}
