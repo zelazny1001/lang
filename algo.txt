@@ -1,15 +1,9 @@
-    public static String getRMS(float[] data, int numDecimalPlaces) {
-        if (data == null || data.length == 0) {
-            throw new IllegalArgumentException("Data array must not be null or empty");
+    public static String getPacketNumber(String input) {
+        Pattern pattern = Pattern.compile("Sequence Number:\\s*(\\d+)");
+        Matcher matcher = pattern.matcher(input);
+
+        if (matcher.find()) {
+            return matcher.group(1);
         }
-
-        double rms = Math.sqrt(
-                IntStream.range(0, data.length)
-                        .mapToDouble(i -> data[i] * data[i])
-                        .average()
-                        .orElse(0.0)
-        );
-
-        String format = "%." + numDecimalPlaces + "f";
-        return String.format(format, rms);
+        throw new IllegalArgumentException("No valid Sequence Number found in the input string");
     }
