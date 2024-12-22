@@ -1,9 +1,0 @@
-    public static String getPacketNumber(String input) {
-        Pattern pattern = Pattern.compile("Sequence Number:\\s*(\\d+)");
-        Matcher matcher = pattern.matcher(input);
-
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        throw new IllegalArgumentException("No valid Sequence Number found in the input string");
-    }
