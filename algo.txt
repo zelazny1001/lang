@@ -1,56 +1,15 @@
-package analyzer;
-
-import java.util.Arrays;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-public class RangeChecker {
-    public static boolean isInList(String[] array, int target) {
-        Pattern pattern = Pattern.compile("(\\d+)-(\\d+)");
-        return Arrays.stream(array)
-                .map(pattern::matcher)
-                .filter(Matcher::find)
-                .map(matcher -> new int[]{Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2))})
-                .anyMatch(range -> (target >= Math.min(range[0], range[1]) && target <= Math.max(range[0], range[1])));
-    }
-
-    public static String getRangeData(String input) {
-        Pattern pattern = Pattern.compile("(\\d+)-(\\d+)");
-        Matcher matcher = pattern.matcher(input);
-
-        if (matcher.find()) {
-            int num1 = Integer.parseInt(matcher.group(1));
-            int num2 = Integer.parseInt(matcher.group(2));
-            int rangeCount = Math.abs(num1 - num2);
-            double startTime = Math.min(num1, num2) / 50.0;
-            double endTime = Math.max(num1, num2) / 50.0;
-
-            return String.format("%d, %.3f, %.3f", rangeCount, startTime, endTime);
+    public static String getRMS(float[] data, int numDecimalPlaces) {
+        if (data == null || data.length == 0) {
+            throw new IllegalArgumentException("Data array must not be null or empty");
         }
-        throw new IllegalArgumentException("No valid range found in the input string");
+
+        double rms = Math.sqrt(
+                IntStream.range(0, data.length)
+                        .mapToDouble(i -> data[i] * data[i])
+                        .average()
+                        .orElse(0.0)
+        );
+
+        String format = "%." + numDecimalPlaces + "f";
+        return String.format(format, rms);
     }
-
-    public static void main(String[] args) {
-        String[] ranges = {
-                "Sequence Number Range: 100-156, Sequence Number: 8, Transcription: How are you?",
-                "Range: 45-89, Number: 32, Data: Test",
-                "Other Data: 200-250"
-        };
-        int target1 = 100; // Should return true
-        int target2 = 89; // Should return false
-        int target3 = 156; // Should return true
-
-        System.out.println(isInList(ranges, target1)); // Expected: true
-        System.out.println(isInList(ranges, target2)); // Expected: false
-        System.out.println(isInList(ranges, target3)); // Expected: true
-
-        String range1 = "Sequence Number Range: 130-287";
-        String range2 = "Range: 45-89, Number: 32, Data: Test";
-        String range3 = "Other Data: 200-250";
-
-        System.out.println(getRangeData(range1)); // Expected: "157, 2.600, 5.740"
-        System.out.println(getRangeData(range2)); // Expected: "44, 0.900, 1.780"
-        System.out.println(getRangeData(range3)); // Expected: "50, 4.000, 5.000"
-
-    }
-}
