@@ -1,0 +1,51 @@
+import java.util.stream.IntStream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class PacketStats {
+
+    public static double getRMS(float[] data) {
+        if (data == null || data.length == 0) {
+            return 0;
+        }
+
+        return Math.sqrt(
+                IntStream.range(0, data.length)
+                        .mapToDouble(i -> data[i] * data[i])
+                        .average()
+                        .orElse(0.0)
+        );
+    }
+
+    public static String getRMS(float[] data, int numDecimalPlaces) {
+        double rms = getRMS(data);
+        String format = "%." + numDecimalPlaces + "f";
+        return String.format(format, rms);
+    }
+
+    public static String transcriptionSeqNumFromPacket(String[] ranges, int seqNum) {
+        Pattern rangePattern = Pattern.compile("Sequence Number Range:\\s*(\\d+)-(\\d+)");
+        Pattern seqNumberPattern = Pattern.compile("Sequence Number:\\s*(\\d+)");
+        Pattern transcriptionPattern = Pattern.compile("Transcription:\\s*(.*)");
+
+        for (String input : ranges) {
+            Matcher rangeMatcher = rangePattern.matcher(input);
+
+            if (rangeMatcher.find()) {
+                int startRange = Integer.parseInt(rangeMatcher.group(1));
+                int endRange = Integer.parseInt(rangeMatcher.group(2));
+
+                if (seqNum >= startRange && seqNum <= endRange) {
+                    Matcher seqNumberMatcher = seqNumberPattern.matcher(input);
+                    Matcher transcriptionMatcher = transcriptionPattern.matcher(input);
+
+                    String sequenceNumber = seqNumberMatcher.find() ? seqNumberMatcher.group(1).trim() : "N/A";
+                    String transcription = transcriptionMatcher.find() ? transcriptionMatcher.group(1).trim() : "N/A";
+
+                    return String.format("%s / %s / %d / %d", sequenceNumber, transcription, seqNum, endRange);
+                }
+            }
+        }
+        throw new IllegalArgumentException("Sequence number not found in any range");
+    }
+}
