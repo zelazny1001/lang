@@ -1,0 +1,25 @@
+   public static String transcriptionSeqNumFromPacket(String[] ranges, int seqNum) {
+        Pattern rangePattern = Pattern.compile("Sequence Number Range:\\s*(\\d+)-(\\d+)");
+        Pattern seqNumberPattern = Pattern.compile("Sequence Number:\\s*(\\d+)");
+        Pattern transcriptionPattern = Pattern.compile("Transcription:\\s*(.*)");
+
+        for (String input : ranges) {
+            Matcher rangeMatcher = rangePattern.matcher(input);
+
+            if (rangeMatcher.find()) {
+                int startRange = Integer.parseInt(rangeMatcher.group(1));
+                int endRange = Integer.parseInt(rangeMatcher.group(2));
+
+                if (seqNum >= startRange && seqNum <= endRange) {
+                    Matcher seqNumberMatcher = seqNumberPattern.matcher(input);
+                    Matcher transcriptionMatcher = transcriptionPattern.matcher(input);
+
+                    String sequenceNumber = seqNumberMatcher.find() ? seqNumberMatcher.group(1).trim() : "N/A";
+                    String transcription = transcriptionMatcher.find() ? transcriptionMatcher.group(1).trim() : "N/A";
+
+                    return String.format("%s / %s / %d / %d", sequenceNumber, transcription, seqNum, endRange);
+                }
+            }
+        }
+        throw new IllegalArgumentException("Sequence number not found in any range");
+    }
