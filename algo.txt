@@ -3,18 +3,21 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Font
-from openpyxl.worksheet.filters import AutoFilter
 from openpyxl.worksheet.dimensions import ColumnDimension
 
 def createRMSSummaries(inputdir, outputFilename):
-    print(f"Starting to process directory: {inputdir}")
+    print(f"Input Dir: {inputdir}")
+
+    if os.path.exists(outputFilename):
+        os.remove(outputFilename)
+        print(f"Existing file {outputFilename} removed.")
 
     workbook = Workbook()
     default_sheet = workbook.active
     workbook.remove(default_sheet)
 
     for root, _, files in os.walk(inputdir):
-        print(f"Checking directory: {root}")
+        print(f"Checking for summary stats in: {root}")
         if "rms_summary_stats.txt" in files:
             filepath = os.path.join(root, "rms_summary_stats.txt")
             dirname = os.path.basename(root)
@@ -42,15 +45,18 @@ def createRMSSummaries(inputdir, outputFilename):
 
                 for col in worksheet.columns:
                     column = col[0].column_letter
-                    worksheet.column_dimensions[column].width = 15
+                    if col[0].value == "transcription":
+                        worksheet.column_dimensions[column].width = 75
+                    else:
+                        worksheet.column_dimensions[column].width = 10
 
-                print(f"Successfully processed and added worksheet for: {dirname}")
+                print(f"Completed worksheet for: {dirname}")
 
             except Exception as e:
                 print(f"Failed to process file {filepath}: {e}")
 
     try:
         workbook.save(outputFilename)
-        print(f"Workbook saved successfully to: {outputFilename}")
+        print(f"Workbook saved to: {outputFilename}")
     except Exception as e:
         print(f"Failed to save workbook: {e}")
