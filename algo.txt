@@ -1,0 +1,50 @@
+from collections import defaultdict
+
+def calculate_per(ground_truth, transcription):
+    ground_words = ground_truth.split()
+    transcribed_words = transcription.split()
+    m = len(ground_words)
+
+    ground_word_counts = defaultdict(int)
+    transcribed_word_counts = defaultdict(int)
+
+    for word in ground_words:
+        ground_word_counts[word] += 1
+
+    for word in transcribed_words:
+        transcribed_word_counts[word] += 1
+
+    deletions = 0
+    insertions = 0
+    details = {"deletions": [], "insertions": []}
+
+    all_words = set(ground_word_counts.keys()).union(set(transcribed_word_counts.keys()))
+
+    for word in all_words:
+        ground_count = ground_word_counts.get(word, 0)
+        transcribed_count = transcribed_word_counts.get(word, 0)
+
+        if ground_count > transcribed_count:
+            diff = ground_count - transcribed_count
+            deletions += diff
+            details["deletions"].extend([word] * diff)
+        elif transcribed_count > ground_count:
+            diff = transcribed_count - ground_count
+            insertions += diff
+            details["insertions"].extend([word] * diff)
+
+    per = ((insertions + deletions) / m) * 100
+
+    return {
+        "wer": min(per, 100),
+        "deletions": deletions,
+        "insertions": insertions,
+        "total": m,
+        "details": details
+    }
+
+# Example usage:
+ground_truth = "this is a test"
+transcription = "this is test"
+result = calculate_per(ground_truth, transcription)
+print(result)
