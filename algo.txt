@@ -1,0 +1,17 @@
+    public static boolean rmsValueIsAboveThreshold(int start, int end, List<Double> rms, double threshold) {
+        int startIndex = start - 1;
+        int endIndex = end - 1;
+
+        if (startIndex < 0 || endIndex >= rms.size() || startIndex > endIndex) {
+            throw new IllegalArgumentException("Invalid start or end index");
+        }
+
+        double max = Double.NEGATIVE_INFINITY;
+
+        for (int i = startIndex; i <= endIndex; i++) {
+            if (rms.get(i) > max) {
+                max = rms.get(i);
+            }
+        }
+        return max > threshold;
+    }
