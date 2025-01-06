@@ -1,0 +1,68 @@
+package analyzer;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
+public class FileConsolidatorNIO {
+
+    private static final int INPUT_FILENAME = 0;
+    private static final int INPUT_ENFORCED = 1;
+    private static final int INPUT_SEQ_NUM = 2;
+    private static final int INPUT_START = 3;
+    private static final int INPUT_END = 4;
+    private static final int INPUT_TRANSCRIPT = 5;
+    private static final int INPUT_TOKENS = 6;
+    private static final int INPUT_SAMPLES = 7;
+    private static final int INPUT_SAMPLES_PER_TOKEN = 8;
+
+    public static List<String> consolidate(String referenceFilename, String rmsFilename) {
+        List<String> result = new ArrayList<>();
+        List<String> referenceRows;
+        List<String> rmsRows;
+
+        try {
+            referenceRows = Files.readAllLines(Paths.get(referenceFilename));
+            rmsRows = Files.readAllLines(Paths.get(rmsFilename));
+        } catch (IOException e) {
+            e.printStackTrace();
+            return result;
+        }
+
+        result.add("filename | seqNum | start | end | rawTranscript | rmsTranscript | tokens | samples");
+
+        for (int i = 1; i < referenceRows.size(); i++) {
+            String refLine = referenceRows.get(i);
+            String rmsLine = rmsRows.get(i);
+
+            String[] refFields = refLine.split("\\|");
+            String[] rmsFields = rmsLine.split("\\|");
+
+            String filename = refFields[INPUT_FILENAME].trim();
+            String seqNum = refFields[INPUT_SEQ_NUM].trim();
+            String start = refFields[INPUT_START].trim();
+            String end = refFields[INPUT_END].trim();
+            String rawTranscript = refFields[INPUT_TRANSCRIPT].trim();
+            String rmsTranscript = rmsFields[INPUT_TRANSCRIPT].trim();
+            String tokens = refFields[INPUT_TOKENS].trim();
+            String samples = refFields[INPUT_SAMPLES].trim();
+
+            String consolidatedRow = String.join(" | ", filename, seqNum, start, end, rawTranscript, rmsTranscript, tokens, samples);
+            result.add(consolidatedRow);
+        }
+
+        return result;
+    }
+
+    public static void main(String[] args) {
+        String root = "/tmp/vad/validation/dec-24-validations/";
+        String referenceFilename = root + "customer-side-analysis-dec-24.txt";
+        String rmsFilename = root + "rms-customer-side-analysis-dec-24.txt";
+
+        List<String> consolidatedData = consolidate(referenceFilename, rmsFilename);
+
+        consolidatedData.forEach(System.out::println);
+    }
+}
