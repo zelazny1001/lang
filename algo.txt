@@ -1,1 +1,0 @@
-=VALUE(MID(C4, FIND(":", C4) + 2, FIND("%", C4) - FIND(":", C4) - 2)) - VALUE(MID(D4, FIND(":", D4) + 2, FIND("%", D4) - FIND(":", D4) - 2))
