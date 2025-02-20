@@ -1,0 +1,16 @@
+def getLastNWords(inputString, N):
+    words = inputString.split()
+    return ' '.join(words[-N:]) if N < len(words) else inputString
+	
+def getTypeDescription(type):
+    type_descriptions = {
+        "int": "An integer data type, representing whole numbers.",
+        "float": "A floating-point data type, representing decimal numbers.",
+        "str": "A string data type, representing a sequence of characters.",
+        "bool": "A boolean data type, representing True or False values.",
+        "list": "A list data type, representing an ordered collection of elements.",
+        "tuple": "A tuple data type, representing an immutable ordered collection.",
+        "dict": "A dictionary data type, representing key-value pairs.",
+        "set": "A set data type, representing an unordered collection of unique elements."
+    }
+    return type_descriptions.get(type, "Unknown type")
