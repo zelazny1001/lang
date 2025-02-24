@@ -2,15 +2,71 @@ def getLastNWords(inputString, N):
     words = inputString.split()
     return ' '.join(words[-N:]) if N < len(words) else inputString
 	
-def getTypeDescription(type):
-    type_descriptions = {
-        "int": "An integer data type, representing whole numbers.",
-        "float": "A floating-point data type, representing decimal numbers.",
-        "str": "A string data type, representing a sequence of characters.",
-        "bool": "A boolean data type, representing True or False values.",
-        "list": "A list data type, representing an ordered collection of elements.",
-        "tuple": "A tuple data type, representing an immutable ordered collection.",
-        "dict": "A dictionary data type, representing key-value pairs.",
-        "set": "A set data type, representing an unordered collection of unique elements."
-    }
-    return type_descriptions.get(type, "Unknown type")
+def getFirstNWords(inputString, N):
+    words = inputString.split()
+    return ' '.join(words[:N])
+
+======================================
+
+# complaint_type_stub.py
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import random
+
+app = FastAPI()
+
+class ComplaintTypeRequest(BaseModel):
+    transcript: str
+
+def get_complaint_type(transcript):
+    complaint_types = ["CT1", "CT2", "CT3", "CT4", "CT5", "CT6", "CT7", "CT8", "CT9", "CT10", "otherType"]
+    if random.random() < 0.5:
+        return "noComplaint"
+    else:
+        return random.choice(complaint_types)
+
+
+@app.post("/complaintType")
+async def complaint_type_endpoint(request: ComplaintTypeRequest):
+    try:
+        complaint_type = get_complaint_type(request.transcript)
+        return {"complaintType": complaint_type}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("complaint_type_stub:app", host="localhost", port=9500, reload=True)
+
+======================================
+
+# complaint_summary_stub.py
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+
+app = FastAPI()
+
+class ComplaintSummaryRequest(BaseModel):
+    transcript: str
+    n: Optional[int] = None
+
+def get_complaint_summary(transcript, n):
+    if n is not None:
+        return ' '.join(transcript.split()[:n])
+    else: # use actual summary here ...
+        return transcript
+
+@app.post("/complaintSummary")
+async def complaint_summary_endpoint(request: ComplaintSummaryRequest):
+    try:
+        result = get_complaint_summary(request.transcript, request.n)
+        return {"complaintSummary": result}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("complaint_summary_stub:app", host="localhost", port=9501, reload=True)
