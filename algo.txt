@@ -1,0 +1,73 @@
+import requests
+import pandas as pd
+
+conversationComplaintDetails = {}
+is_testing = False
+
+def get_complaint_type(currentTranscript, row_data):
+    if is_testing and row_data:
+        print(f'is_testing: {is_testing}')
+        return row_data.get("test_complaint_type", "noComplaint")
+    response = requests.post(
+        "http://localhost:9500/complaintType",
+        json={"transcript": currentTranscript}
+    )
+    response.raise_for_status()
+    return response.json().get("complaintType", "noComplaint")
+
+def get_complaint_summary(currentTranscript, complaint_type, row_data):
+    if complaint_type == "noComplaint":
+        return "none"
+    if is_testing and row_data:
+        return row_data.get("test_complaint_type", "noComplaint")
+    response = requests.post(
+        "http://localhost:9501/complaintSummary",
+        json={"transcript": currentTranscript}
+    )
+    response.raise_for_status()
+    return response.json().get("summary", "")
+
+def orchestrateConversation(conversationID, currentTranscript, row_data=None):
+    if conversationID not in conversationComplaintDetails:
+        conversationComplaintDetails[conversationID] = []
+
+    conversation_data = conversationComplaintDetails[conversationID]
+    complaint_type = get_complaint_type(currentTranscript, row_data)
+    complaint_summary = get_complaint_summary(currentTranscript, complaint_type, row_data)
+
+    if conversation_data and conversation_data[-1]["complaintType"] == complaint_type:
+        conversation_data[-1]["transcription"].append(currentTranscript)
+    else:
+        conversation_data.append({
+            "complaintType": complaint_type,
+            "transcription": [currentTranscript],
+            "complaintSummary": complaint_summary
+        })
+
+def read_spreadsheet(spreadsheet_path: str, sheet_name=0):
+    df = pd.read_excel(spreadsheet_path, sheet_name=sheet_name, engine="openpyxl")
+    return df.to_dict(orient="records")
+
+def run_with_spreadsheet(spreadsheet_path: str):
+    spreadsheet_rows = read_spreadsheet(spreadsheet_path)
+    for row in spreadsheet_rows:
+        conversation_id = str(row["conversation_id"])
+        transcript_line = str(row["transcript_line"])
+        orchestrateConversation(conversation_id, transcript_line, row_data=row)
+    return conversationComplaintDetails
+
+def show_complaint_details(conversation_complaint_details):
+    print("\nconversation complaint details:")
+    for conversation_id, complaint_blocks in conversation_complaint_details.items():
+        print(f"\nConversation ID: {conversation_id}")
+        for block in complaint_blocks:
+            print(f"\nComplaint Type: {block['complaintType']}")
+            print(f"Complaint Summary: {block['complaintSummary']}")
+            print("Transcriptions:")
+            for transcript in block["transcription"]:
+                print(f"  - {transcript}")
+
+if __name__ == "__main__":
+    test_data_path = "j:/projects/complaints/orchestration-test-data.xlsx"
+    final_data = run_with_spreadsheet(test_data_path)
+    show_complaint_details(final_data)
