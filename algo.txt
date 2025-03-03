@@ -9,7 +9,7 @@ FILE_XLSX = "data.xlsx"
 URL = "http://localhost:9000/rest/utility?utterance="
 
 def get_table_data(utterance: str):
-    response = requests.get(f"{URL}{utterance}")
+    response = requests.get(f"{URL}{utterance}", verify=False)
     response.raise_for_status()
     df_list = pd.read_html(response.text, skiprows=3, header=0)
     if not df_list:
