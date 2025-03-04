@@ -1,0 +1,77 @@
+public class Triple<A, B, C> {
+    private final A first;
+    private final B second;
+    private final C third;
+
+    public Triple(A first, B second, C third) {
+        this.first = first;
+        this.second = second;
+        this.third = third;
+    }
+
+    public A getFirst() {
+        return first;
+    }
+
+    public B getSecond() {
+        return second;
+    }
+
+    public C getThird() {
+        return third;
+    }
+
+    @Override
+    public String toString() {
+        return "(" + first + ", " + second + ", " + third + ")";
+    }
+}
+
+//===========================================================
+
+import edu.stanford.nlp.classify.LinearClassifier;
+import edu.stanford.nlp.stats.Counter;
+
+import java.util.*;
+
+public class FeatureWeightExtractor {
+
+    public static List<Triple<String, String, Double>> getLabelFeatureWeights(LinearClassifier<String, String> linClassifier, String label, String csvStringOfFeatures) {
+        List<Triple<String, String, Double>> labelFeatureWeights = new ArrayList<>();
+
+        if (linClassifier == null || label == null || csvStringOfFeatures == null || csvStringOfFeatures.isEmpty()) {
+            return labelFeatureWeights;
+        }
+
+        Set<String> featureSet = new HashSet<>(Arrays.asList(csvStringOfFeatures.split(",")));
+        Map<String, Counter<String>> weightsMap = linClassifier.weightsAsMap();
+
+        Counter<String> featureWeights = weightsMap.get(label);
+        if (featureWeights == null) {
+            return labelFeatureWeights; // Label not found
+        }
+
+        for (String feature : featureSet) {
+            double weight = featureWeights.getCount(feature);
+            labelFeatureWeights.add(new Triple<>(label, feature, weight));
+        }
+        return labelFeatureWeights;
+    }
+
+    public static void printLabelFeatureWeights(LinearClassifier<String, String> classifier, String label, String featureList) {
+        List<Triple<String, String, Double>> featureWeights = getLabelFeatureWeights(classifier, label, featureList);
+
+        for (Triple<String, String, Double> triple : featureWeights) {
+            System.out.println("Label: " + triple.getFirst() + ", Feature: " + triple.getSecond() + ", Weight: " + triple.getThird());
+        }
+    }
+
+    public static void main(String[] args) {
+        LinearClassifier<String, String> classifier = getTrainedClassifier(); // Replace with actual classifier
+        printLabelFeatureWeights(classifier, "POSITIVE", "feature1,feature2,feature3");
+    }
+
+    private static LinearClassifier<String, String> getTrainedClassifier() {
+        return null; // Stub method - replace with actual classifier initialization
+    }
+}
