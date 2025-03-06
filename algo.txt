@@ -13,7 +13,15 @@ def get_json_data(utterance: str):
     response.raise_for_status()
     data = response.json()
     
-    intent_info = data.get("IntentInfo", [])
+    activity_log = data.get("activityLog", [])
+    if not activity_log:
+        return {"intent": None, "score": None, "features": None}
+
+    response_component = next((entry for entry in activity_log if entry.get("message") == "Report for component RESPONSE_BUILDER"), None)
+    if not response_component:
+        return {"intent": None, "score": None, "features": None}
+
+    intent_info = response_component.get("input", {}).get("IntentInfo", [])
     if not intent_info:
         return {"intent": None, "score": None, "features": None}
 
