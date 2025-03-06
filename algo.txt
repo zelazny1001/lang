@@ -1,76 +1,14 @@
 import requests
-import pandas as pd
-import openpyxl
+import json
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-FILE_XLSX = "data.xlsx"
 URL = "http://localhost:9000/rest/utility?utterance="
+UTTERANCE = "test utterance here"
 
-def get_json_data(utterance: str):
-    response = requests.get(f"{URL}{utterance}", verify=False)
-    response.raise_for_status()
-    data = response.json()
-    
-    activity_log = data.get("activityLog", [])
-    if not activity_log:
-        return {"intent": None, "score": None, "features": None}
+response = requests.get(f"{URL}{UTTERANCE}", verify=False)
+response.raise_for_status()
+data = response.json()
 
-    response_component = next((entry for entry in activity_log if entry.get("message") == "Report for component RESPONSE_BUILDER"), None)
-    if not response_component:
-        return {"intent": None, "score": None, "features": None}
-
-    intent_info = response_component.get("input", {}).get("IntentInfo", [])
-    if not intent_info:
-        return {"intent": None, "score": None, "features": None}
-
-    first_intent = intent_info[0]
-    intent = first_intent.get("intent")
-    score = first_intent.get("score")
-    features = first_intent.get("features", [])
-
-    formatted_features = [f"{feature.get('name', 'unknown')}={feature.get('value', 'unknown')}" for feature in features if isinstance(feature, dict)]
-    features_str = "[" + ", ".join(f"'{f}'" for f in formatted_features) + "]"
-
-    return {"intent": intent, "score": score, "features": features_str}
-
-def main():
-    df_input = pd.read_excel(FILE_XLSX, engine="openpyxl")
-
-    for col in ["intent", "score", "features"]:
-        if col not in df_input.columns:
-            df_input[col] = None
-        else:
-            df_input[col] = None
-
-    for idx, row in df_input.iterrows():
-        utterance = str(row["Utterance"]).strip("[]")
-        print(f"Processing utterance: {utterance}")
-        data = get_json_data(utterance)
-        df_input.at[idx, "intent"] = data["intent"]
-        df_input.at[idx, "score"] = data["score"]
-        df_input.at[idx, "features"] = data["features"]
-
-    print(df_input.head())
-
-    df_input.to_excel(FILE_XLSX, index=False, engine="openpyxl")
-
-    print("Data successfully written to Excel.")
-
-    workbook = openpyxl.load_workbook(FILE_XLSX)
-    worksheet = workbook.active
-
-    worksheet.column_dimensions["A"].width = 100
-    worksheet.column_dimensions["B"].width = 40
-    worksheet.column_dimensions["C"].width = 40
-    worksheet.column_dimensions["D"].width = 150
-
-    for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=4, max_col=4):
-        for cell in row:
-            cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
-
-    workbook.save(FILE_XLSX)
-
-if __name__ == "__main__":
-    main()
+print("\nFull JSON Response:\n", json.dumps(data, indent=2))
