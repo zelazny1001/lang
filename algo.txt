@@ -25,29 +25,15 @@ def get_json_data(utterance: str):
     formatted_features = [f"{feature.get('name', 'unknown')}={feature.get('value', 'unknown')}" for feature in features if isinstance(feature, dict)]
     features_str = "[" + ", ".join(f"'{f}'" for f in formatted_features) + "]"
 
-    return {
-        "intent": intent,
-        "score": score,
-        "features": features_str  # Ensures exact format
-    }
+    return {"intent": intent, "score": score, "features": features_str}
 
 def main():
     df_input = pd.read_excel(FILE_XLSX, engine="openpyxl")
 
-    # Ensure output columns are cleared before processing
-   
- df_input["intent"] = None
-    df_input["score"] = None
-    df_input["features"] = None
-
-    # Ensure output columns are cleared before processing
-    df_input["intent"] = None
-    df_input["score"] = None
-    df_input["features"] = None    df_input = pd.read_excel(FILE_XLSX, engine="openpyxl")
-
-    required_columns = ["intent", "score", "features"]
-    for col in required_columns:
+    for col in ["intent", "score", "features"]:
         if col not in df_input.columns:
+            df_input[col] = None
+        else:
             df_input[col] = None
 
     for idx, row in df_input.iterrows():
@@ -58,17 +44,19 @@ def main():
         df_input.at[idx, "score"] = data["score"]
         df_input.at[idx, "features"] = data["features"]
 
+    print(df_input.head())
+
     df_input.to_excel(FILE_XLSX, index=False, engine="openpyxl")
-    print("Data successfully written to Excel.")  # Debugging print to confirm writing
-    print(df_input.head())  # Show a preview of the first few rows to verify data
+
+    print("Data successfully written to Excel.")
 
     workbook = openpyxl.load_workbook(FILE_XLSX)
     worksheet = workbook.active
 
-    worksheet.column_dimensions["A"].width = 100  # "Utterance"
-    worksheet.column_dimensions["B"].width = 40   # "intent"
-    worksheet.column_dimensions["C"].width = 40   # "score"
-    worksheet.column_dimensions["D"].width = 150  # "features"
+    worksheet.column_dimensions["A"].width = 100
+    worksheet.column_dimensions["B"].width = 40
+    worksheet.column_dimensions["C"].width = 40
+    worksheet.column_dimensions["D"].width = 150
 
     for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=4, max_col=4):
         for cell in row:
