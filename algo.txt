@@ -1,0 +1,77 @@
+package model.generator;
+
+import java.util.List;
+
+public class IntentTrainingData {
+    private String utterance;
+    private List<String> features;
+    private String intent;
+
+    public IntentTrainingData(String utterance, List<String> features, String intent) {
+        this.utterance = utterance;
+        this.features = features;
+        this.intent = intent;
+    }
+
+    public String getUtterance() { return utterance; }
+    public void setUtterance(String utterance) { this.utterance = utterance; }
+    public List<String> getFeatures() { return features; }
+    public void setFeatures(List<String> features) { this.features = features; }
+    public String getIntent() { return intent; }
+    public void setIntent(String intent) { this.intent = intent; }
+
+    @Override
+    public String toString() {
+        return "Utterance: " + utterance + "\nFeatures: " + String.join(", ", features) + "\nIntent: " + intent;
+    }
+}
+
+==================================
+
+package model.generator;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+public class FileBasedModelGen {
+    public static List<IntentTrainingData> getIntentTrainingData(String featuresPath) {
+        try (Stream<String> lines = Files.lines(Paths.get(featuresPath))) {
+            return lines.map(line -> {
+                String[] parts = line.split("\\|");
+                if (parts.length != 3) return null;
+                String utterance = parts[0].trim();
+                List<String> features = Arrays.asList(parts[1].trim().split("%"));
+                String intent = parts[2].trim();
+                return new IntentTrainingData(utterance, features, intent);
+            }).filter(Objects::nonNull).collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new UncheckedIOException("Error reading file: " + featuresPath, e);
+        }
+    }
+
+    public static Map<String, List<String>> getIntentUtterancesTrainingMap(String featuresPath) {
+        return getIntentTrainingData(featuresPath).stream()
+                .collect(Collectors.groupingBy(IntentTrainingData::getIntent,
+                        Collectors.mapping(IntentTrainingData::getUtterance, Collectors.toList())));
+    }
+
+    public static String trainingDataView(List<IntentTrainingData> intentTrainingDataLines) {
+        return intentTrainingDataLines.stream()
+                .map(IntentTrainingData::toString)
+                .collect(Collectors.joining("\n"));
+    }
+
+    public static String trainingMapView(Map<String, List<String>> intentToUtterances) {
+        return intentToUtterances.entrySet().stream()
+                .map(entry -> entry.getKey() + " -> " + String.join(", ", entry.getValue()))
+                .collect(Collectors.joining("\n"));
+    }
+}
