@@ -1,4 +1,4 @@
-    public static List<TrainDataFeaturized> getTrainingDataFeaturized(String featuresPath) {
+    public static List<TrainDataFeaturized> featurizeData(String featuresPath) {
         return getIntentTrainingData(featuresPath).stream()
                 .map(data -> {
                     TrainDataFeaturized featurized = new TrainDataFeaturized();
