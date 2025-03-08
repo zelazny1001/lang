@@ -14,37 +14,22 @@ data = response.json()
 print("\nFull JSON Response:\n", json.dumps(data, indent=2))
 
 activity_log = data.get("activityLog", [])
-if not activity_log:
-    print("No activityLog found in response.")
-    exit()
 
 selected_entry = None
 for entry in activity_log:
-    if entry.get("message") == "Report for component RESPONSE_BUILDER":
+    if entry.get("message") == "Report for component RESPONSE_BUILDER" in entry:
         selected_entry = entry
         break
 
-if not selected_entry:
-    print("No matching log entry found for 'Report for component RESPONSE_BUILDER'.")
-    exit()
-
-print("\nFound matching activity log entry:\n", json.dumps(selected_entry, indent=2))
-
 input_data = selected_entry.get("input", {})
 intent_data = input_data.get("intent", {})
-intent_info = intent_data.get("intentInfo", [])
-
-if not intent_info:
-    print("No IntentInfo found in the log entry.")
-    exit()
+intent_info = intent_data.get("IntentInfo", [])
 
 first_intent = intent_info[0]
 intent = first_intent.get("intent")
 score = first_intent.get("score")
 features = first_intent.get("features", [])
 
-if not features:
-    print(f"Intent found: {intent}, Score: {score}, but 'features' is empty.")
-else:
-    features_str = "[" + ", ".join(f"'{f}'" for f in features) + "]"
-    print(f"Extracted intent: {intent}, Score: {score}, Features: {features_str}")
+formatted_features = [f"{feature.get('name', 'unknown')}={feature.get('value', 'unknown')}" for feature in features if isinstance(feature, dict)]
+features_str = "[" + ", ".join(f"'{f}'" for f in formatted_features) + "]"
+print(f"Extracted intent: {intent}, Score: {score}, Features: {features_str}")
