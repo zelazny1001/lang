@@ -1,0 +1,129 @@
+#================== multi ================
+import requests
+import pandas as pd
+import openpyxl
+import urllib3
+import json
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+FILE_XLSX = "data.xlsx"
+URL = "http://localhost:9000/rest/utility?utterance="
+WORKSHEET_NAME = "TargetSheet"
+
+def get_json_data(utterance: str):
+    response = requests.get(f"{URL}{utterance}", verify=False)
+    response.raise_for_status()
+    data = response.json()
+
+    activity_log = data.get("activityLog", [])
+
+    selected_entry = None
+    for entry in activity_log:
+        if entry.get("message") == "Report for component RESPONSE_BUILDER" in entry:
+            selected_entry = entry
+            break
+
+    if not selected_entry:
+        return {"intent": None, "score": None, "features": None}
+
+    input_data = selected_entry.get("input", {})
+    intent_data = input_data.get("intent", {})
+    intent_info = intent_data.get("IntentInfo", [])
+
+    if not intent_info:
+        return {"intent": None, "score": None, "features": None}
+
+    first_intent = intent_info[0]
+    intent = first_intent.get("intent")
+    score = first_intent.get("score")
+    features = first_intent.get("features", [])
+    features_str = "[" + ", ".join(f"'{f}'" for f in features) + "]"
+
+    return {"intent": intent, "score": score, "features": features_str}
+
+def main():
+    workbook = openpyxl.load_workbook(FILE_XLSX)
+
+    if WORKSHEET_NAME not in workbook.sheetnames:
+        print(f"Worksheet '{WORKSHEET_NAME}' not found.")
+        return
+
+    worksheet = workbook[WORKSHEET_NAME]
+
+    df_input = pd.read_excel(FILE_XLSX, sheet_name=WORKSHEET_NAME, engine="openpyxl")
+
+    for col in ["intent", "score", "features"]:
+        if col not in df_input.columns:
+            df_input[col] = None
+        else:
+            df_input[col] = None
+
+    for idx, row in df_input.iterrows():
+        utterance = str(row["Utterance"]).strip("[]")
+        print(f"\nProcessing utterance: {utterance}")
+        data = get_json_data(utterance)
+        df_input.at[idx, "intent"] = data["intent"]
+        df_input.at[idx, "score"] = data["score"]
+        df_input.at[idx, "features"] = data["features"]
+
+    print("\nFinal DataFrame:\n", df_input.head())
+
+    for i, row in enumerate(df_input.itertuples(index=False), start=2):  # Start at row 2 to skip headers
+        worksheet[f"B{i}"].value = row.intent
+        worksheet[f"C{i}"].value = row.score
+        worksheet[f"D{i}"].value = row.features
+
+    worksheet.column_dimensions["A"].width = 100
+    worksheet.column_dimensions["B"].width = 40
+    worksheet.column_dimensions["C"].width = 20
+    worksheet.column_dimensions["D"].width = 150
+
+    for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=4, max_col=4):
+        for cell in row:
+            cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
+
+    workbook.save(FILE_XLSX)
+    print("\nData successfully written to Excel.")
+
+if __name__ == "__main__":
+    main()
+    
+# ========================= number in disagreement ===================
+
+from openpyxl import load_workbook
+
+path = "/worksheet-comparison-test.xlsx"
+
+def get_comparison_count(file_path, col_name, exclude_sheet_1_row_value, sheet_1, sheet_2):
+    wb = load_workbook(filename=file_path, data_only=True)
+
+    # Get the sheets
+    ws1 = wb[sheet_1]
+    ws2 = wb[sheet_2]
+
+    headers = [cell.value for cell in next(ws1.iter_rows(min_row=1, max_row=1))]
+    print(f"headers: {headers}")
+    if col_name not in headers:
+        raise ValueError(f"Column '{col_name}' not found in sheet '{sheet_1}'")
+
+    col_idx = headers.index(col_name) + 1  # convert to 1-based index for openpyxl
+
+    difference_count = 0
+
+    for row in range(2, ws1.max_row + 1):  # assuming first row is headers
+        value_1 = ws1.cell(row=row, column=col_idx).value
+        value_2 = ws2.cell(row=row, column=col_idx).value
+
+        # exclude rows where sheet_1[col_name] matches the exclude value
+        if value_1 == exclude_sheet_1_row_value:
+            continue
+
+        # count differences
+        if value_1 != value_2:
+            difference_count += 1
+
+    return difference_count
+
+diff_count = get_comparison_count(path, "fourth", "a26", "Sheet2", "Sheet3")
+print(diff_count)
