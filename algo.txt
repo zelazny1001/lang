@@ -5,12 +5,15 @@ searchString = "token1, token2"
 
 def getMatchingLines(filename, searchString):
     df_input = pd.read_excel(filename, engine="openpyxl")
-    tokens = [token.strip() for token in searchString.split(",")]
+    tokens = [token.strip().lower() for token in searchString.split(",")]
     matching_lines = []
+    seen_utterances = set()
     for idx, row in df_input.iterrows():
-        utterance = str(row["Utterance"]).strip("[]")
+        utterance = str(row["Utterance"]).strip("[]").lower()
         if all(token in utterance for token in tokens):
-            matching_lines.append((idx, utterance))
+            if utterance not in seen_utterances:
+                matching_lines.append((idx, utterance))
+                seen_utterances.add(utterance)
     return matching_lines
 
 def main():
