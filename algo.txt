@@ -68,10 +68,8 @@ def main():
 
     print("\nFinal DataFrame:\n", df_input.head())
 
-    for i, row in enumerate(df_input.itertuples(index=False), start=2):  # Start at row 2 to skip headers
-        worksheet[f"B{i}"].value = row.intent
-        worksheet[f"C{i}"].value = row.score
-        worksheet[f"D{i}"].value = row.features
+    with pd.ExcelWriter(FILE_XLSX, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+        df_input.to_excel(writer, sheet_name=WORKSHEET_NAME, index=False)
 
     worksheet.column_dimensions["A"].width = 100
     worksheet.column_dimensions["B"].width = 40
