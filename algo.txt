@@ -1,0 +1,74 @@
+import pandas as pd
+import openpyxl
+
+SPREADSHEET_PATH = "accuracy-test.xlsx"
+INTENT_OF_INTEREST = "INTENT_1"
+GROUND_TRUTH_WORKSHEET = "GroundTruth"
+MODELS = ["v1", "v2", "transformer"]
+RESULT_WORKSHEET = "results"
+
+def get_intent_column(df):
+    for col in df.columns:
+        if col.strip().lower() == "intent":
+            return df[col]
+    raise ValueError("No 'Intent' column found in the DataFrame.")
+
+def doSummaryCalculations(excel_spreadsheet_filepath, intent_of_interest):
+    truth_df = pd.read_excel(excel_spreadsheet_filepath, sheet_name=GROUND_TRUTH_WORKSHEET, engine="openpyxl")
+    truth_series = get_intent_column(truth_df)
+    results_list = []
+    for model in MODELS:
+        model_df = pd.read_excel(excel_spreadsheet_filepath, sheet_name=model, engine="openpyxl")
+        model_series = get_intent_column(model_df)
+        if len(model_series) != len(truth_series):
+            raise ValueError(f"Row count mismatch between {GROUND_TRUTH_WORKSHEET} and {model}.")
+
+        TP = ((truth_series == intent_of_interest) & (model_series == intent_of_interest)).sum()
+        FP = ((truth_series != intent_of_interest) & (model_series == intent_of_interest)).sum()
+        FN = ((truth_series == intent_of_interest) & (model_series != intent_of_interest)).sum()
+        TN = ((truth_series != intent_of_interest) & (model_series != intent_of_interest)).sum()
+
+        total = TP + FP + FN + TN
+        accuracy = (TP + TN) / total if total > 0 else 0
+        precision = TP / (TP + FP) if (TP + FP) > 0 else 0
+        recall = TP / (TP + FN) if (TP + FN) > 0 else 0
+        fpr = FP / (FP + TN) if (FP + TN) > 0 else 0
+        fnr = 1 - recall
+
+        results_list.append({
+            "Model": model,
+            "True Positives": TP,
+            "False Positives": FP,
+            "False Negatives": FN,
+            "True Negatives": TN,
+            "Accuracy": f"{accuracy * 100:.2f}%",
+            "Precision": f"{precision * 100:.2f}%",
+            "Recall": f"{recall * 100:.2f}%",
+            "False Positive Rate": f"{fpr * 100:.2f}%",
+            "False Negative Rate": f"{fnr * 100:.2f}%"
+        })
+
+    results_df = pd.DataFrame(results_list, columns=[
+        "Model",  "Accuracy", "Precision", "Recall", "False Positive Rate", "False Negative Rate",
+        "True Positives", "False Positives", "False Negatives", "True Negatives"
+    ])
+    
+    with pd.ExcelWriter(excel_spreadsheet_filepath, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+        results_df.to_excel(writer, sheet_name=RESULT_WORKSHEET, index=False)
+        worksheet = writer.book[RESULT_WORKSHEET]
+        from openpyxl.utils import get_column_letter
+        for col in range(1, worksheet.max_column + 1):
+            col_letter = get_column_letter(col)
+            worksheet.column_dimensions[col_letter].width = 20
+        from openpyxl.styles import Alignment
+        for row in worksheet.iter_rows():
+            for cell in row:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+    return excel_spreadsheet_filepath
+
+def main():
+    updated_file = doSummaryCalculations(SPREADSHEET_PATH, INTENT_OF_INTEREST)
+    print(f"Spreadsheet updated: {updated_file}")
+
+if __name__ == "__main__":
+    main()
