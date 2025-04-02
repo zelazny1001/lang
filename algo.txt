@@ -87,19 +87,28 @@ def highlight_text(text, clusters, normal_format, highlight_format):
     return parts
 
 def highlight_missing_tokens(summary_text, utterance_text, normal_format, missing_format):
-    ut_set = {clean_token(token).lower() for token in str(utterance_text).split()}
-    tokens = re.split(r'(\s+)', str(summary_text))
+    if not summary_text:
+        return [normal_format, ""]
+
+    summary_text = str(summary_text)
+    utterance_text = str(utterance_text) if utterance_text else ""
+
+    ut_set = {clean_token(token).lower() for token in utterance_text.split()}
+    tokens = re.split(r'(\s+)', summary_text)
     parts = []
+
     for token in tokens:
-        if token.isspace() or token == "":
+        if not token or token.isspace():
             parts.extend([normal_format, token])
+            continue
+
+        cleaned = clean_token(token).lower()
+        if cleaned and cleaned not in ut_set:
+            parts.extend([missing_format, token])
         else:
-            cleaned = clean_token(token).lower()
-            if cleaned and cleaned not in ut_set:
-                parts.extend([missing_format, token])
-            else:
-                parts.extend([normal_format, token])
-    # Ensure we always return a valid rich string format
+            parts.extend([normal_format, token])
+
+    # Fallback if something went wrong with rich text processing
     if not parts:
         return [normal_format, summary_text]
     return parts
@@ -187,6 +196,7 @@ def highlight_summaries(input_spreadsheet, target_worksheet_list):
                     if utterance_str and summary_str:
                         word_clusters = find_word_clusters(utterance_str, summary_str, FLEX, THRESHOLD)
                         logging.debug("Row {}: found {} clusters: {}".format(idx, len(word_clusters), word_clusters))
+
                         if word_clusters:
                             clusters_dict[len(filtered_rows) - 1] = word_clusters
         ws_out = wb_out.add_worksheet(target)
@@ -198,19 +208,29 @@ def highlight_summaries(input_spreadsheet, target_worksheet_list):
             ws_out.write(row_out_idx, 0, row.get(CALL_ID_COL_NAME), normal_fmt)
             ws_out.write(row_out_idx, 1, row.get(BRANCH_COL_NAME), normal_fmt)
             ws_out.write(row_out_idx, 2, row.get(INTENT_COL_NAME), normal_fmt)
-            utterance_text = row.get(UTTERANCE_COL_NAME, "")
+            utterance_text = str(row.get(UTTERANCE_COL_NAME, "")) if row.get(UTTERANCE_COL_NAME) is not None else ""
+
             if idx in clusters_dict:
                 clusters = clusters_dict[idx]
                 rich_parts = highlight_text(utterance_text, clusters, normal_fmt, highlight_fmt)
                 ws_out.write_rich_string(row_out_idx, 3, *rich_parts)
             else:
                 ws_out.write(row_out_idx, 3, utterance_text, normal_fmt)
-            summary_text = row.get(SUMMARY_COL_NAME, "")
-            red_parts = highlight_missing_tokens(summary_text, utterance_text, normal_fmt, red_fmt)
-            if len(red_parts) == 2:
-                ws_out.write(row_out_idx, 4, summary_text, normal_fmt)
+
+            summary_text = str(row.get(SUMMARY_COL_NAME, "")) if row.get(SUMMARY_COL_NAME) is not None else ""
+            logging.debug(f"Processing row {idx}, summary text: '{summary_text}'")
+
+            if summary_text:
+                red_parts = highlight_missing_tokens(summary_text, utterance_text, normal_fmt, red_fmt)
+                logging.debug(f"Summary parts structure: {red_parts}")
+                try:
+                    ws_out.write_rich_string(row_out_idx, 4, *red_parts)
+                except Exception as e:
+                    logging.error(f"Failed to write rich string for row {idx}: {e}")
+                    ws_out.write(row_out_idx, 4, summary_text, normal_fmt)
             else:
-                ws_out.write_rich_string(row_out_idx, 4, *red_parts)
+                ws_out.write(row_out_idx, 4, "", normal_fmt)
+
             cluster_count = len(clusters_dict[idx]) if idx in clusters_dict else 0
             ws_out.write(row_out_idx, 5, cluster_count, normal_fmt)
             ws_out.write(row_out_idx, 6, row.get(ASSESS_COL_NAME), normal_fmt)
