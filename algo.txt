@@ -99,6 +99,9 @@ def highlight_missing_tokens(summary_text, utterance_text, normal_format, missin
                 parts.extend([missing_format, token])
             else:
                 parts.extend([normal_format, token])
+    # Ensure we always return a valid rich string format
+    if not parts:
+        return [normal_format, summary_text]
     return parts
 
 def highlight_summaries(input_spreadsheet, target_worksheet_list):
