@@ -1,0 +1,85 @@
+import os
+import random
+
+INPUT_FILENAME = "j:/cortex-intents/features_v6.txt"
+INTENT_NAMES_TO_PRESERVE = [
+    'CARD_DECLINED_PROBLEM', 'SI_TRANSACTION_DISPUTE', 'SI_INTERNAL_TRANSFER',
+    'SI_TRANSACTION_STATUS', 'PROBLEM_WITH_CHECK_DEPOSIT', 'SI_SEARCH_TRANSACTION'
+]
+PERCENTAGE_OF_PRESERVED_LINES = 40
+
+def generate_sample_input_file(filename, total_lines=100):
+    preserved_sample = "utterance 1 | a few name value pairs | CARD_DECLINED_PROBLEM"
+    non_preserved_sample = "the second utterance | CONCEPT=Transaction%BOW=unprocess | FAQ_SMALLTALK_WITH_USER"
+    lines = [preserved_sample, non_preserved_sample]
+    other_intents = ['FAQ_SMALLTALK_WITH_USER', 'RANDOM_QUERY_INTENT', 'UNKNOWN_INTENT']
+    for i in range(3, total_lines + 1):
+        if i % 2 == 0:
+            intent = INTENT_NAMES_TO_PRESERVE[(i // 2) % len(INTENT_NAMES_TO_PRESERVE)]
+        else:
+            intent = random.choice(other_intents)
+        line = f"sample utterance {i} | key{i}=value{i} | {intent}"
+        lines.append(line)
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(f"Sample input file created with {total_lines} lines at: {filename}")
+
+def select_lines_for_output(input_filename):
+    with open(input_filename, "r", encoding="utf-8") as file:
+        all_lines = [line.strip() for line in file if line.strip()]
+    preserved_lines = []
+    non_preserved_lines = []
+    for line in all_lines:
+        parts = [part.strip() for part in line.split("|")]
+        if len(parts) < 3:
+            continue
+        intent = parts[-1]
+        if intent in INTENT_NAMES_TO_PRESERVE:
+            preserved_lines.append(line)
+        else:
+            non_preserved_lines.append(line)
+    total_preserved = len(preserved_lines)
+    if PERCENTAGE_OF_PRESERVED_LINES == 0:
+        raise ValueError("PERCENTAGE_OF_PRESERVED_LINES cannot be zero.")
+    T = int(round(total_preserved * 100.0 / PERCENTAGE_OF_PRESERVED_LINES))
+    num_non_preserved_needed = T - total_preserved
+    if num_non_preserved_needed > len(non_preserved_lines):
+        selected_non_preserved = non_preserved_lines
+        print("Warning: Not enough non-preserved lines available; using all available non-preserved lines.")
+    else:
+        selected_non_preserved = random.sample(non_preserved_lines, num_non_preserved_needed)
+    output_lines = preserved_lines + selected_non_preserved
+    return output_lines, total_preserved, len(selected_non_preserved)
+
+def construct_output_filename(input_filename):
+    base, ext = os.path.splitext(input_filename)
+    preserved_percent = PERCENTAGE_OF_PRESERVED_LINES
+    remaining_percent = 100 - preserved_percent
+    output_filename = f"{base}_{preserved_percent}_{remaining_percent}{ext}"
+    return output_filename
+
+def log_output_stats(total_preserved, total_non_preserved):
+    total_output = total_preserved + total_non_preserved
+    preserved_percentage = (total_preserved / total_output) * 100 if total_output > 0 else 0
+    non_preserved_percentage = (total_non_preserved / total_output) * 100 if total_output > 0 else 0
+    log_message = (
+        f"preserved {total_preserved} ({preserved_percentage:.0f}%), "
+        f"other {total_non_preserved} ({non_preserved_percentage:.0f}%)"
+    )
+    print(log_message)
+
+def main():
+    generate_sample_input_file(INPUT_FILENAME, total_lines=100)
+    output_lines, total_preserved, total_non_preserved = select_lines_for_output(INPUT_FILENAME)
+    output_filename = construct_output_filename(INPUT_FILENAME)
+    with open(output_filename, "w", encoding="utf-8") as f:
+        f.write("\n".join(output_lines))
+    total_output_lines = len(output_lines)
+    print("Processing complete!")
+    log_output_stats(total_preserved, total_non_preserved)
+    print(f"Total output lines: {total_output_lines}")
+    print(f"Output file created: {output_filename}")
+
+if __name__ == "__main__":
+    main()
