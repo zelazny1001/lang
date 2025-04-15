@@ -1,0 +1,27 @@
+INPUT_FILENAME = "j:/projects/cortex-intents/features_v6.txt"
+INTENT_NAMES_TO_PRESERVE = [
+    'CARD_DECLINED_PROBLEM',
+    'SI_TRANSACTION_DISPUTE',
+    'SI_INTERNAL_TRANSFER',
+    'SI_TRANSACTION_STATUS',
+    'PROBLEM_WITH_CHECK_DEPOSIT',
+    'SI_SEARCH_TRANSACTION'
+]
+
+import os
+
+def create_filtered_file():
+    base, ext = os.path.splitext(INPUT_FILENAME)
+    output_filename = base + '_6_intents' + ext
+
+    with open(INPUT_FILENAME, 'r', encoding='utf-8') as infile, open(output_filename, 'w', encoding='utf-8') as outfile:
+        for line in infile:
+            parts = line.rstrip('\n').split('|')
+            if len(parts) != 3:
+                continue
+            utterance, features, intent = [p.strip() for p in parts]
+            if intent not in INTENT_NAMES_TO_PRESERVE:
+                intent = 'OTHER'
+            outfile.write(f"{utterance} | {features} | {intent}\n")
+
+create_filtered_file()
