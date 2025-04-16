@@ -1,8 +1,0 @@
-def construct_output_filename(input_filename):
-    base, ext = os.path.splitext(input_filename)
-    preserved_percent = PERCENTAGE_OF_PRESERVED_LINES
-    remaining_percent = 100 - preserved_percent
-    num_of_intents_to_preserve = len(INTENT_NAMES_TO_PRESERVE)
-    intent_label = "intent" if num_of_intents_to_preserve == 1 else "intents"
-    output_filename = f"{base}_{preserved_percent}_{remaining_percent}_with_{num_of_intents_to_preserve}_{intent_label}{ext}"
-    return output_filename
